@@ -1,0 +1,17 @@
+# Python specific files
+__pycache__/
+*.pyc
+
+# Virtual Environment folder
+# This is a huge folder that can be recreated with "pip install"
+/venv/
+
+# Instance folder
+# This contains our local database file, which should not be shared.
+/instance/
+
+# VS Code specific settings folder
+.vscode/
+
+# Any CSV data files in the Support folder
+/Support/*.csv

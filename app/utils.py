@@ -1,0 +1,175 @@
+from . import db
+from .models import Purchase, Sale, Death
+from datetime import datetime, date # Import the date object
+
+def find_active_animal_by_eartag(farm_id, eartag, reference_date_str=None):
+    """
+    Finds active animals by ear tag for a especific farm, optionally for a specific reference date.
+    - If reference_date_str is provided (e.g., "2024-01-15"), it finds animals
+      that were purchased on or before that date, and had not yet been sold
+      on or before that date.
+    - If reference_date_str is None, it calculates for the current active stock.
+    """
+    if reference_date_str:
+        # If a date string is provided, convert it to a real date object.
+        # This will raise a ValueError if the format is wrong, which we'll catch in the route.
+        reference_date = datetime.strptime(reference_date_str, '%Y-%m-%d').date()
+    else:
+        # If no date is provided, default to today.
+        reference_date = date.today()
+
+    # 1. Get the list of IDs for animals that were SOLD on or before the reference date.
+    #    This is a subquery. It finds all relevant sales and selects their animal_id.
+    sold_animal_ids_query = db.session.query(Sale.animal_id).filter(
+        Sale.farm_id == farm_id, # <-- ADDED farm filter
+        Sale.date <= reference_date
+    )
+
+    # 2. Get the list of IDs for animals that DIED on or before the reference date.
+    dead_animal_ids_query = db.session.query(Death.animal_id).filter(
+        Death.farm_id == farm_id,
+        Death.date <= reference_date
+    )
+    
+    # 3. Combine these two lists into a single list of all "exited" animal IDs.
+    #    The .union() operator combines the results of the two queries.
+    exited_animal_ids_query = sold_animal_ids_query.union(dead_animal_ids_query)
+
+    # 2. Find all purchases that match the ear tag AND meet our date criteria.
+    active_animals = Purchase.query.filter(
+        Purchase.farm_id == farm_id, # <-- ADDED farm filter
+        # The animal must match the ear tag.
+        Purchase.ear_tag == eartag,
+        # The animal must have been PURCHASED on or before the reference date.
+        Purchase.entry_date <= reference_date,
+        # The animal's ID must NOT be in the list of animals sold by that date.
+        Purchase.id.notin_(exited_animal_ids_query)
+    ).all()
+
+    return active_animals
+
+def calculate_weight_history_with_gmd(animal):
+    """
+    Takes a Purchase object and returns its weight history, enriched
+    with GMD calculations for each entry.
+    arg: animal is a Purchase object (row in the purchases table) with related Weighting objects.
+    """
+    # 1. Standardize all weight events into a list of dictionaries
+    #    where the 'date' is GUARANTEED to be a datetime.date object.
+    
+    all_weight_events = []
+
+    # Add the entry weight, which already has a date object
+    all_weight_events.append({
+        'date': animal.entry_date,
+        'weight_kg': animal.entry_weight
+    })
+
+    # Add the historical weights, converting their date strings back to objects
+    for w in animal.weightings:
+        all_weight_events.append({
+            'date': w.date, # The .date attribute is a date object
+            'weight_kg': w.weight_kg
+        })
+
+    # 2. Remove duplicates and sort chronologically. This is now safe.
+    #    This handles cases where the entry weight might be in both lists.
+    unique_events = [dict(t) for t in {tuple(d.items()) for d in all_weight_events}]
+    sorted_events = sorted(unique_events, key=lambda w: w['date'])
+
+    # 4. Loop through the sorted events to calculate the GMDs.
+    enriched_history = []
+    if not sorted_events:
+        return []
+
+    # The first event is our baseline.
+    first_event = sorted_events[0]
+
+    for i, current_event in enumerate(sorted_events):
+        # Convert date strings back to date objects for calculations
+        current_date = current_event['date']
+        first_date = first_event['date']
+
+        # --- GMD Accumulated (since the beginning) ---
+        days_since_start = (current_date - first_date).days
+        gain_since_start = current_event['weight_kg'] - first_event['weight_kg']
+        gmd_accumulated = (gain_since_start / days_since_start) if days_since_start > 0 else 0
+
+        # --- GMD Between Weightings (period GMD) ---
+        gmd_period = 0
+        if i > 0: # Can only calculate if there's a previous event
+            previous_event = sorted_events[i-1]
+            previous_date = previous_event['date']
+
+            days_between = (current_date - previous_date).days
+            gain_between = current_event['weight_kg'] - previous_event['weight_kg']
+            gmd_period = (gain_between / days_between) if days_between > 0 else 0
+
+        enriched_history.append({
+            'date': current_date.isoformat(),
+            'weight_kg': round(current_event['weight_kg'], 2),
+            'gmd_accumulated_grams': round(gmd_accumulated, 3),
+            'gmd_period_grams': round(gmd_period, 3)
+        })
+
+    return enriched_history
+
+def calculate_location_kpis(locations, active_animals):
+    """
+    Calculates capacity rate KPIs for a list of locations.
+    Takes a list of Location objects and a list of active Purchase objects.
+    Returns a list of location dictionaries, enriched with KPIs.
+    """
+    # Create a dictionary to easily find an animal's most recent location
+    animal_locations = {}
+    for animal in active_animals:
+        if animal.location_changes:
+            # Sort changes by date to find the most recent one
+            latest_change = sorted(animal.location_changes, key=lambda lc: lc.date, reverse=True)[0]
+            animal_locations[animal.id] = latest_change.location_id
+
+    # Create a dictionary to group animals by their current location_id
+    location_occupants = {loc.id: [] for loc in locations}
+    for animal_id, location_id in animal_locations.items():
+        if location_id in location_occupants:
+            location_occupants[location_id].append(animal_id)
+
+    # Now, calculate KPIs for each location
+    location_results = []
+    ANIMAL_UNIT_WEIGHT_KG = 450.0
+
+    for location in locations:
+        occupant_ids = location_occupants.get(location.id, [])
+        location_animals = [animal for animal in active_animals if animal.id in occupant_ids]
+
+        location_dict = location.to_dict()
+        
+        if location.area_hectares and location.area_hectares > 0:
+            # Calculate total weights for animals in this location
+            total_last_actual_weight = sum(animal.calculate_kpis()['last_weight_kg'] for animal in location_animals)
+            total_forecasted_weight = sum(animal.calculate_kpis()['forecasted_current_weight_kg'] for animal in location_animals)
+
+            # Calculate Animal Units (UA)
+            ua_actual = total_last_actual_weight / ANIMAL_UNIT_WEIGHT_KG
+            ua_forecasted = total_forecasted_weight / ANIMAL_UNIT_WEIGHT_KG
+
+            # Calculate Capacity Rate (UA/ha)
+            capacity_rate_actual = ua_actual / location.area_hectares
+            capacity_rate_forecasted = ua_forecasted / location.area_hectares
+            
+            location_dict['kpis'] = {
+                'animal_count': len(location_animals),
+                'capacity_rate_actual_ua_ha': round(capacity_rate_actual, 2),
+                'capacity_rate_forecasted_ua_ha': round(capacity_rate_forecasted, 2)
+            }
+        else:
+            # If location has no area, KPIs are not applicable
+            location_dict['kpis'] = {
+                'animal_count': len(location_animals),
+                'capacity_rate_actual_ua_ha': None,
+                'capacity_rate_forecasted_ua_ha': None
+            }
+        
+        location_results.append(location_dict)
+
+    return location_results

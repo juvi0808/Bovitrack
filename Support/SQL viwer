@@ -1,0 +1,20 @@
+
+SELECT * FROM purchase WHERE location_id = NULL;
+SELECT * FROM location_change WHERE animal_id = 732;
+-- DROP TABLE location_change;
+-- DELETE FROM sale WHERE id = 548;
+-- DELETE FROM weighting WHERE id = 2724;
+-- SELECT ear_tag, lot, race FROM purchase;
+-- ALTER TABLE purchase
+-- ADD COLUMN race VARCHAR(50);
+-- UPDATE purchase
+-- SET race = 'Nelore';
+-- SELECT * FROM purchase WHERE ear_tag = 1002;
+-- DELETE FROM purchase WHERE ear_tag = 1001;
+-- SELECT * FROM diet_log WHERE diet_type = 'Semi Confinamento';
+-- SELECT * FROM sale WHERE sale_price > 400;
+-- UPDATE sale 
+-- SET sale_price = 350.00
+-- WHERE id = 547;
+-- SELECT * FROM sale WHERE id = 547;
+-- DROP TABLE location_change;
