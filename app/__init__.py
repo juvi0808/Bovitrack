@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 
 #This is the new heart of our application. It creates and configures the Flask app.
 db = SQLAlchemy()
@@ -8,6 +9,7 @@ def create_app():
     """Application factory function."""
     # Create the Flask app instance
     app = Flask(__name__, instance_relative_config=False)
+    CORS(app)
 
     #
     app.config.from_mapping(
