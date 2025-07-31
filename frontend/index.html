@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>BoviTrack - Livestock Management</title>
+    
+    <!-- Direct links to the AG Grid CSS files -->
+    <link rel="stylesheet" href="./node_modules/ag-grid-community/styles/ag-theme-quartz.css">
+
+    <!-- Link to our own custom CSS file (this MUST come AFTER the library styles) -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Welcome to BoviTrack!</h1>
+    <p>This is the front end of your application.</p>
+
+    <h2>Active Stock Summary</h2>
+    <div id="summary-kpis">
+        Loading summary...
+    </div>
+
+    <hr>
+
+    <h2>Active Animals</h2>
+    <!-- This is the container for our professional grid -->
+    <!-- We give it the 'ag-theme-quartz' class for styling and set a height -->
+    <div id="animal-grid" class="ag-theme-quartz" style="height: 500px; width: 100%;"></div>
+
+    <!-- We still link to our main script at the end -->
+    <script src="./renderer.js"></script>
+</body>
+</html>
