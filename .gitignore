@@ -15,3 +15,5 @@ __pycache__/
 
 # Any CSV data files in the Support folder
 /Support/*.csv
+/frontend/node_modules
+/frontend/package-lock.json
