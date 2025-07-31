@@ -1,17 +1,22 @@
+<!-- This file defines the structure and content of your application's user interface. 
+ It's written in HTML (HyperText Markup Language). 
+ It contains no logic, only a description of what should be on the page. -->
+
 <!DOCTYPE html>
 <html>
-<head>
+<head>  <!-- The 'head' contains meta-information about the page. -->
     <meta charset="UTF-8">
-    <title>BoviTrack - Livestock Management</title>
-    <link rel="stylesheet" href="./node_modules/ag-grid-community/styles/ag-theme-quartz.css">
-    <link rel="stylesheet" href="styles.css">
+    <title>BoviTrack - Livestock Management</title> <!-- The text that appears in the window's title bar. -->
+    <link rel="stylesheet" href="./node_modules/ag-grid-community/styles/ag-theme-quartz.css"> <!-- The first one loads the styles for our data grid theme. -->
+    <link rel="stylesheet" href="styles.css"> <!-- The second one loads our own custom styles. -->
 </head>
-<body>
+
+<body> <!-- The 'body' contains all the visible content of the page. -->
 
     <!-- This header will be our permanent navigation bar -->
-    <header class="main-header">
+    <header class="main-header"> <!-- This is our top navigation bar. -->
         <div class="header-left">
-            <span class="logo">BoviTrack</span>
+            <span class="logo">BoviTrack</span> 
             <div class="farm-selector">
                 <label for="farm-select">Current Farm:</label>
                 <!-- The farm dropdown will be populated by JavaScript -->
@@ -21,16 +26,17 @@
         </div>
         <nav class="main-nav">
             <!-- We will add page navigation links here later -->
-            <a href="#" class="nav-link active" data-page="page-dashboard">Dashboard</a>
+            <a href="#" class="nav-link active" data-page="page-dashboard">Active Stock</a>
             <a href="#" class="nav-link" data-page="page-add-purchase">Add Purchase</a>
         </nav>
     </header>
 
     <!-- The main content area where pages will be swapped out -->
-    <main id="app-content">
+    <main id="app-content"> 
+        <!-- Inside, we have different "pages", which are just <div> containers. -->
 
-        <!-- Page 1: The Dashboard -->
-        <div class="page" id="page-dashboard">
+        <!-- Page 1: The Active Stock Summary -->
+        <div class="page" id="page-active-stock">
             <h2>Active Stock Summary</h2>
             <div id="summary-kpis">Loading summary...</div>
             <hr>
@@ -61,7 +67,10 @@
         </div>
 
     </main>
-
+    <!-- CRITICAL: This line loads and executes our JavaScript file. -->
+    <!-- It is placed at the end of the <body> so that the JavaScript code runs -->
+    <!-- AFTER all the HTML elements above it have been created. This ensures -->
+    <!-- that getElementById() can find the elements it's looking for. -->
     <script src="./renderer.js"></script>
 </body>
 </html>

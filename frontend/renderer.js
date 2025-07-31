@@ -1,4 +1,11 @@
 // --- RENDERER WITH NODE.JS POWERS & APP STATE ---
+// This is where all the logic, interactivity, and intelligence of your application lives. 
+// It's written in JavaScript. 
+// It acts as the coordinator, responding to user actions, 
+// talking to the backend API, and manipulating the HTML and CSS.
+
+
+
 
 console.log('Renderer.js script loaded!');
 
@@ -7,10 +14,13 @@ const { ModuleRegistry, AllCommunityModule, createGrid } = require('ag-grid-comm
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 // --- Global State ---
-const API_URL = 'http://127.0.0.1:5000';
+const API_URL = 'http://127.0.0.1:5000'; // This is the base URL for our backend API
 let selectedFarmId = null; // This will hold the ID of the currently selected farm
 
 // --- Element References ---
+// --- A block of code to get "references" to the important HTML elements. ---
+// We use getElementById() to find the elements we named in the HTML
+// and store them in variables so we can easily interact with them later.
 const summaryDiv = document.getElementById('summary-kpis');
 const gridDiv = document.getElementById('animal-grid');
 const farmSelect = document.getElementById('farm-select');
@@ -21,8 +31,11 @@ const cancelAddFarmBtn = document.getElementById('cancel-add-farm');
 const newFarmNameInput = document.getElementById('new-farm-name');
 
 // --- Main App Initialization ---
+// This line says: "When the entire HTML document has been fully loaded and is ready..."
 document.addEventListener('DOMContentLoaded', initializeApp);
 
+// An "async function" is a special function that can perform long-running tasks
+// (like network requests) without freezing the whole application.
 async function initializeApp() {
     console.log("Initializing App...");
     await loadFarms();
@@ -38,16 +51,18 @@ async function initializeApp() {
 
 async function loadFarms() {
     try {
+        // 'fetch' is the built-in JavaScript command to make a network request (an API call).
+        // It's 'await'ed because it takes time.
         const response = await fetch(`${API_URL}/api/farms`);
         if (!response.ok) throw new Error('Failed to fetch farms');
-        const farms = await response.json();
+        const farms = await response.json(); // If it was successful, we tell it to parse the body text as JSON.
         console.log('Farms loaded:', farms);
 
-        if (farms.length === 0) {
+        if (farms.length === 0) { 
             // No farms exist, force user to create one
             farmSelect.innerHTML = '<option>No farms found</option>';
             addFarmModal.classList.remove('hidden'); // Show the 'Add Farm' modal
-        } else {
+        } else {  // Logic for when farms ARE returned. We call other functions to do the work.
             // Farms exist, populate the dropdown
             populateFarmSelector(farms);
             // Set the global state to the first farm and load its data
@@ -61,12 +76,13 @@ async function loadFarms() {
 }
 
 function populateFarmSelector(farms) {
+     // We directly manipulate the HTML of the <select> element.
     farmSelect.innerHTML = ''; // Clear existing options
     farms.forEach(farm => {
         const option = document.createElement('option');
-        option.value = farm.id;
-        option.textContent = farm.name;
-        farmSelect.appendChild(option);
+        option.value = farm.id; // Set its 'value' attribute.
+        option.textContent = farm.name; // Set the visible text.
+        farmSelect.appendChild(option); // Add the newly created element inside the <select> element.
     });
 }
 

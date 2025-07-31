@@ -1,3 +1,9 @@
+
+// Think of main.js as the launch control center for your entire desktop application. 
+// It does not control what's inside the window (the buttons, text, etc.), 
+// but it controls the window itself and its fundamental properties. 
+// It's the only script that runs in the powerful "Main Process."
+
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
