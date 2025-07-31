@@ -3,30 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <title>BoviTrack - Livestock Management</title>
-    
-    <!-- Direct links to the AG Grid CSS files -->
     <link rel="stylesheet" href="./node_modules/ag-grid-community/styles/ag-theme-quartz.css">
-
-    <!-- Link to our own custom CSS file (this MUST come AFTER the library styles) -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Welcome to BoviTrack!</h1>
-    <p>This is the front end of your application.</p>
 
-    <h2>Active Stock Summary</h2>
-    <div id="summary-kpis">
-        Loading summary...
-    </div>
+    <!-- This header will be our permanent navigation bar -->
+    <header class="main-header">
+        <div class="header-left">
+            <span class="logo">BoviTrack</span>
+            <div class="farm-selector">
+                <label for="farm-select">Current Farm:</label>
+                <!-- The farm dropdown will be populated by JavaScript -->
+                <select id="farm-select" name="farms"></select>
+                <button id="add-farm-btn" class="add-button">+</button>
+            </div>
+        </div>
+        <nav class="main-nav">
+            <!-- We will add page navigation links here later -->
+            <a href="#" class="nav-link active" data-page="page-dashboard">Dashboard</a>
+            <a href="#" class="nav-link" data-page="page-add-purchase">Add Purchase</a>
+        </nav>
+    </header>
 
-    <hr>
+    <!-- The main content area where pages will be swapped out -->
+    <main id="app-content">
 
-    <h2>Active Animals</h2>
-    <!-- This is the container for our professional grid -->
-    <!-- We give it the 'ag-theme-quartz' class for styling and set a height -->
-    <div id="animal-grid" class="ag-theme-quartz" style="height: 500px; width: 100%;"></div>
+        <!-- Page 1: The Dashboard -->
+        <div class="page" id="page-dashboard">
+            <h2>Active Stock Summary</h2>
+            <div id="summary-kpis">Loading summary...</div>
+            <hr>
+            <h2>Active Animals</h2>
+            <div id="animal-grid" class="ag-theme-quartz" style="height: 500px; width: 100%;"></div>
+        </div>
 
-    <!-- We still link to our main script at the end -->
+        <!-- Page 2: Add Purchase Form (Initially hidden) -->
+        <div class="page hidden" id="page-add-purchase">
+            <h2>Add New Animal Purchase</h2>
+            <!-- We will build this form in the next step -->
+            <p>Purchase form will go here.</p>
+        </div>
+
+        <!-- This is a modal for adding a new farm (Initially hidden) -->
+        <div id="add-farm-modal" class="modal-backdrop hidden">
+            <div class="modal-content">
+                <h3>Register New Farm</h3>
+                <form id="add-farm-form">
+                    <label for="new-farm-name">Farm Name:</label>
+                    <input type="text" id="new-farm-name" required>
+                    <div class="modal-actions">
+                        <button type="submit">Save Farm</button>
+                        <button type="button" id="cancel-add-farm">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </main>
+
     <script src="./renderer.js"></script>
 </body>
 </html>

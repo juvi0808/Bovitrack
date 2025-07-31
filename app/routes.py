@@ -17,6 +17,32 @@ def home():
 
 # --- Create (POST) Routes ---
 
+@api.route('/farm/add', methods=['POST'])
+def add_farm():
+    """Creates a new farm. Expects JSON with a 'name' field."""
+    data = request.get_json()
+    if not data or 'name' not in data or not data['name'].strip():
+        return jsonify({'error': "The 'name' field is required."}), 400
+
+    farm_name = data['name'].strip()
+
+    # Check if a farm with this name already exists
+    if Farm.query.filter_by(name=farm_name).first():
+        return jsonify({'error': f"A farm with the name '{farm_name}' already exists."}), 409 # Conflict
+
+    try:
+        new_farm = Farm(name=farm_name)
+        db.session.add(new_farm)
+        db.session.commit()
+        return jsonify({
+            'message': 'Farm created successfully!',
+            'farm': new_farm.to_dict()
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
+
+
 @api.route('/farm/<int:farm_id>/location/add', methods=['POST'])
 def add_location(farm_id):
     """
@@ -432,6 +458,11 @@ def add_death(farm_id, purchase_id):
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
 # --- Read (GET) Routes ---
+@api.route('/farms', methods=['GET'])
+def get_farms():
+    """Gets a list of all farms in the database."""
+    farms = Farm.query.order_by(Farm.name).all()
+    return jsonify([farm.to_dict() for farm in farms])
 
 @api.route('/farm/<int:farm_id>/purchases', methods=['GET'])
 def get_all_purchases(farm_id):
