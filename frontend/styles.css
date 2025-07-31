@@ -147,3 +147,13 @@ tbody tr:hover {
     gap: 10px;
     margin-top: 20px;
 }
+
+/* --- AG Grid Header Customization --- */
+
+/* AG Grid uses a class called '.ag-header-cell-label' for the container
+   that holds the header title text and the sort/filter icons.
+   We are turning this container into a flexbox and centering its content. */
+.ag-header-cell-label {
+    display: flex;
+    justify-content: center;
+}

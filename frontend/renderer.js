@@ -165,16 +165,19 @@ function createAnimalGrid(animals) {
     const columnDefs = [
         { headerName: "Ear Tag", field: "ear_tag", width: 120 },
         { headerName: "Lot", field: "lot", width: 100 },
-        { headerName: "Status", field: "kpis.status", width: 120 },
+        { headername: "Entry Date", field: "entry_date", width: 150 },
+        { headerName: "Sex", field: "sex", width: 120 },
         { headerName: "Age (Months)", field: "kpis.current_age_months", valueFormatter: p => p.value.toFixed(2), width: 150 },
         { headerName: "Last Wt (kg)", field: "kpis.last_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 150 },
+        { headerName: "Last Wt Date", field: "kpis.last_weighting_date", width: 150 },
         { headerName: "Avg Daily Gain (kg)", field: "kpis.average_daily_gain_kg", valueFormatter: p => p.value.toFixed(3), width: 180 },
+        { headerName: "Forecasted Weight", field: "kpis.forecasted_current_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 180 },
         { headerName: "Current Location", field: "kpis.current_location_name" }
     ];
     const gridOptions = {
         columnDefs: columnDefs,
         rowData: animals,
-        defaultColDef: { sortable: true, filter: true, resizable: true },
+        defaultColDef: { sortable: true, filter: true, resizable: true, cellStyle: { 'text-align': 'center' } },
         onGridReady: (params) => params.api.sizeColumnsToFit(),
     };
     gridDiv.innerHTML = '';
