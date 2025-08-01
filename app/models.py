@@ -125,7 +125,13 @@ class Purchase(db.Model):
             latest_change = sorted(self.location_changes, key=lambda lc: lc.date, reverse=True)[0]
             current_location_name = latest_change.location.name
             current_location_id = latest_change.location.id
-
+        current_diet_type = "N/A"
+        current_diet_intake = None
+        if self.location_changes:
+            # Sort changes by date to find the most recent one
+            latest_diet = sorted(self.diet_logs, key=lambda lc: lc.date, reverse=True)[0]
+            current_diet_type = latest_diet.diet_type
+            current_diet_intake = latest_diet.daily_intake_percentage
         # --- GMD and Last Weight Calculation (works for both active and sold) ---
         sorted_weights = sorted(self.weightings, key=lambda w: w.date)
         gmd = 0.0
@@ -174,6 +180,8 @@ class Purchase(db.Model):
             kpis['days_on_farm'] = days_on_farm
             kpis['current_location_name'] = current_location_name        
             kpis['current_location_id'] = current_location_id
+            kpis['current_diet_type'] = current_diet_type
+            kpis['current_diet_intake'] = current_diet_intake
         
 
         return kpis

@@ -36,16 +36,75 @@ document.addEventListener('DOMContentLoaded', initializeApp);
 
 // An "async function" is a special function that can perform long-running tasks
 // (like network requests) without freezing the whole application.
+// This is our main "controller" that runs when the app is ready.
 async function initializeApp() {
     console.log("Initializing App...");
     await loadFarms();
+    setupEventListeners();
+}
 
-    // Attach event listeners after initial setup
+function setupEventListeners() {
+    const mainNav = document.querySelector('.main-nav');
+
     farmSelect.addEventListener('change', handleFarmSelection);
     addFarmBtn.addEventListener('click', () => addFarmModal.classList.remove('hidden'));
     cancelAddFarmBtn.addEventListener('click', () => addFarmModal.classList.add('hidden'));
     addFarmForm.addEventListener('submit', handleAddFarmSubmit);
+
+    mainNav.addEventListener('click', (event) => {
+        const link = event.target.closest('a');
+        if (!link) return;
+
+        event.preventDefault();
+
+        if (link.classList.contains('nav-link')) {
+            handlePageNavigation(link);
+            event.stopPropagation();
+        } else if (link.parentElement.classList.contains('has-dropdown')) {
+            handleDropdownToggle(link.parentElement);
+            event.stopPropagation();
+        }
+    });
+
+    window.addEventListener('click', (event) => {
+        if (!mainNav.contains(event.target)) {
+            closeAllDropdowns();
+        }
+    });
 }
+
+function handleDropdownToggle(dropdownLi) {
+    const wasActive = dropdownLi.classList.contains('dropdown-is-active');
+    closeAllDropdowns();
+    if (!wasActive) {
+        dropdownLi.classList.add('dropdown-is-active');
+    }
+}
+
+function handlePageNavigation(navLink) {
+    const pageId = navLink.dataset.page;
+    if (pageId) {
+        showPage(pageId);
+        document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+        navLink.classList.add('active');
+        closeAllDropdowns();
+    }
+}
+
+function closeAllDropdowns() {
+    document.querySelectorAll('.has-dropdown.dropdown-is-active').forEach(item => {
+        item.classList.remove('dropdown-is-active');
+    });
+}
+
+// This function is now only for switching the page content.
+function handleNavigation(event) {
+    // This function's logic is now inside handleNavClick.
+    // We can keep it here empty or remove it, but for now we'll leave it
+    // to avoid breaking anything else that might call it, just in case.
+}
+
+
 
 // --- Farm Management Functions ---
 
@@ -121,6 +180,7 @@ async function handleAddFarmSubmit(event) {
     }
 }
 
+
 // --- Data Loading & Display Functions ---
 
 async function loadDashboardData() {
@@ -172,7 +232,9 @@ function createAnimalGrid(animals) {
         { headerName: "Last Wt Date", field: "kpis.last_weighting_date", width: 150 },
         { headerName: "Avg Daily Gain (kg)", field: "kpis.average_daily_gain_kg", valueFormatter: p => p.value.toFixed(3), width: 180 },
         { headerName: "Forecasted Weight", field: "kpis.forecasted_current_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 180 },
-        { headerName: "Current Location", field: "kpis.current_location_name" }
+        { headerName: "Current Location", field: "kpis.current_location_name" },
+        { headerName: "Diet Type", field: "kpis.current_diet_type" },
+        { headerName: "Diet Intake (%)", field: "kpis.current_diet_intake", valueFormatter: p => p.value ? `${p.value}%` : 'N/A', width: 150 },
     ];
     const gridOptions = {
         columnDefs: columnDefs,
@@ -183,3 +245,24 @@ function createAnimalGrid(animals) {
     gridDiv.innerHTML = '';
     createGrid(gridDiv, gridOptions);
 }
+
+// --- Page Navigation Logic ---
+
+function showPage(pageId) {
+    // 1. Get all the page containers
+    const pages = document.querySelectorAll('.page');
+    // 2. Hide all of them
+    pages.forEach(page => {
+        page.classList.add('hidden');
+    });
+    // 3. Find the one page we want to show
+    const pageToShow = document.getElementById(pageId);
+    // 4. Show it (if it exists)
+    if (pageToShow) {
+        pageToShow.classList.remove('hidden');
+    } else {
+        console.error(`Page with ID "${pageId}" not found.`);
+    }
+}
+
+
