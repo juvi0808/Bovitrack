@@ -25,9 +25,44 @@
             </div>
         </div>
         <nav class="main-nav">
-            <!-- We will add page navigation links here later -->
-            <a href="#" class="nav-link active" data-page="page-dashboard">Active Stock</a>
-            <a href="#" class="nav-link" data-page="page-add-purchase">Add Purchase</a>
+            <ul>
+                <li><a href="#" class="nav-link active" data-page="page-active-stock">Active Stock</a></li>
+                <li class="has-dropdown dropdown-align-center">
+                    <a href="#">History</a>
+                    <ul class="dropdown">
+                        <li><a href="#" class="nav-link" data-page="page-history-purchases">Purchases</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-history-sales">Sales</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-history-weightings">Weightings</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-history-loc-changes">Location Changes</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-history-diet-logs">Diet Logs</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-history-sanitary">Sanitary Protocols</a></li>
+
+                        
+                        <!-- Add other history links as needed -->
+                    </ul>
+                </li>
+                <li class="has-dropdown dropdown-align-center">
+                    <a href="#">Add</a>
+                    <ul class="dropdown">
+                        <li><a href="#" class="nav-link" data-page="page-add-purchase">Purchase</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-add-sale">Sale</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-add-weighting">Weighting</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-add-location-change">Location Change</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-add-diet-log">Diet Log</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-add-sanitary">Sanitary Protocol</a></li>
+                        <!-- Add other 'add' links as needed -->
+                    </ul>
+                </li>
+                <li class="has-dropdown dropdown-align-right">
+                    <a href="#">Consult</a>
+                    <ul class="dropdown">
+                        <li><a href="#" class="nav-link" data-page="page-consult-animal">Animal</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-consult-location">Location</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-consult-diet">Lot</a></li>
+                        <!-- Add other 'consult' links as needed -->
+                    </ul>
+                </li>
+            </ul>
         </nav>
     </header>
 
@@ -44,13 +79,23 @@
             <div id="animal-grid" class="ag-theme-quartz" style="height: 500px; width: 100%;"></div>
         </div>
 
-        <!-- Page 2: Add Purchase Form (Initially hidden) -->
-        <div class="page hidden" id="page-add-purchase">
-            <h2>Add New Animal Purchase</h2>
-            <!-- We will build this form in the next step -->
-            <p>Purchase form will go here.</p>
-        </div>
+        <div class="page hidden" id="page-history-purchases"><h2>History: Purchases</h2><p>This page will show a table of all past purchases.</p></div>
+        <div class="page hidden" id="page-history-sales"><h2>History: Sales</h2><p>This page will show a table of all past sales.</p></div>
+        <div class="page hidden" id="page-history-weightings"><h2>History: Weightings</h2><p>This page will show a table of all weight records.</p></div>
+        <div class="page hidden" id="page-history-loc-changes"><h2>History: Location Changes</h2><p>This page will show a table of all location changes.</p></div>
+        <div class="page hidden" id="page-history-diet-logs"><h2>History: Diet Logs</h2><p>This page will show a table of all diet logs.</p></div>
+        <div class="page hidden" id="page-history-sanitary"><h2>History: Sanitary Protocols</h2><p>This page will show a table of all sanitary protocols.</p></div>
+        
+        <div class="page hidden" id="page-add-purchase"><h2>Add New Purchase</h2><p>This page will contain the form to add a new animal purchase.</p></div>
+        <div class="page hidden" id="page-add-sale"><h2>Add New Sale</h2><p>This page will contain the form to record a sale of an animal.</p></div>
+        <div class="page hidden" id="page-add-weighting"><h2>Add New Weighting</h2><p>This page will contain the form to add a new animal weighting.</p></div>
+        <div class="page hidden" id="page-add-location-change"><h2>Add New Location Change</h2><p>This page will contain the form to record a location change for an animal.</p></div>
+        <div class="page hidden" id="page-add-diet-log"><h2>Add New Diet Log</h2><p>This page will contain the form to log a new diet for an animal.</p></div>
+        <div class="page hidden" id="page-add-sanitary"><h2>Add New Sanitary Protocol</h2><p>This page will contain the form to record a new sanitary protocol.</p></div>
 
+        <div class="page hidden" id="page-consult-animal"><h2>Consult Animal Record</h2><p>This page will have a search bar to find and display the full history of a single animal.</p></div>
+        <div class="page hidden" id="page-consult-location"><h2>Consult Location</h2><p>This page will have a search bar to find and display all animals in a specific location.</p></div>
+        <div class="page hidden" id="page-consult-diet"><h2>Consult Diet Lot</h2><p>This page will have a search bar to find and display all animals on a specific diet.</p></div>
         <!-- This is a modal for adding a new farm (Initially hidden) -->
         <div id="add-farm-modal" class="modal-backdrop hidden">
             <div class="modal-content">

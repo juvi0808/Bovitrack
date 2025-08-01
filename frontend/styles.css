@@ -59,6 +59,7 @@ tbody tr:hover {
 }
 
 .main-header {
+    /* We still need these properties from before */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -66,6 +67,16 @@ tbody tr:hover {
     background-color: #004a99;
     color: white;
     margin-bottom: 20px;
+    
+    /* This establishes the header as a "layer" on top */
+    position: relative;
+    z-index: 100; 
+}
+
+#app-content {
+    /* This explicitly puts the main content in a "layer" below the header */
+    position: relative;
+    z-index: 1;
 }
 
 .header-left {
@@ -93,17 +104,7 @@ tbody tr:hover {
     cursor: pointer;
 }
 
-.main-nav .nav-link {       /* This is a "Descendant Selector". It targets any <a> element that is inside */               
-    color: white;         /* an element with class="main-nav". */
-    text-decoration: none;
-    padding: 10px 15px;
-    border-radius: 4px;
-}
 
-.main-nav .nav-link.active,
-.main-nav .nav-link:hover {         /* This is a "Pseudo-class Selector". It targets any <a> element with */
-    background-color: #0056b3;    /* class="nav-link" ONLY when the mouse pointer is hovering over it. */
-}
 
 
 /* --- Modal Styles --- */
@@ -156,4 +157,92 @@ tbody tr:hover {
 .ag-header-cell-label {
     display: flex;
     justify-content: center;
+}
+
+.main-nav > ul {
+    margin: 0;
+    padding: 0;
+    list-style: none; /* Removes the black dots from the list */
+    display: flex;    /* Aligns the main menu items horizontally */
+    color: #ffffff; /* Sets the text color for the main menu items */
+}
+
+/* This targets the top-level menu items (History, Add, etc.) */
+/* --- 2. Menu and Dropdown Logic (Based on JS class) --- */
+
+.main-nav li {
+    position: relative;
+}
+
+.main-nav > ul > li > a {
+    display: block;
+    padding: 10px 15px;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+/* Style for the currently active TOP-LEVEL page link (e.g., Active Stock) */
+.main-nav > ul > li > a.nav-link.active {
+    background-color: #005dc0; /* Brighter blue for the active page */
+    color: #ffffff
+}
+
+/* Style for hovering over a TOP-LEVEL menu item (e.g., History, Add) */
+.main-nav > ul > li:hover > a,
+.main-nav .has-dropdown.dropdown-is-active > a {
+    background-color: #005dc0; /* Darker blue for hover/open */
+    color: #ffffff; /* Ensure text remains white on hover */
+}
+
+/* The dropdown panel itself */
+.dropdown {
+    visibility: hidden; /* Hide by default */
+    opacity: 0;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: #ffffff;
+    border-radius: 8px 8px 8px 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    min-width: 180px;
+    padding: 5px 0;
+    transition: opacity 0.3s ease-in-out; /* Only transition opacity */
+ /*Allow items to wrap to the next line if they don't fit */
+}
+
+/* THE MAGIC: When the parent LI has the '.dropdown-is-active' class... */
+.has-dropdown.dropdown-is-active > .dropdown {
+    visibility: visible; /* ...make the dropdown visible */
+    opacity: 1;
+}
+
+
+/* This targets the links themselves */
+.dropdown a {
+    color: #333;
+    text-align: left;
+    padding: 10px 10px;
+    display: block; /* Makes the entire row clickable and hoverable */
+    white-space: nowrap;
+    text-decoration: none; /* Removes underline from links */
+    text-align: center; /* Centers text in the dropdown */
+
+}
+
+.dropdown a:hover {
+    background-color: #e9ecef; /* Light gray for hover effect */
+}
+
+/* Right-aligned dropdown rule (This is correct and stays) */
+.dropdown-align-right .dropdown {
+    left: auto;
+    right: 0;
+}
+
+.dropdown-align-center .dropdown {
+    /* 1. Move the dropdown's left edge to the center of the parent */
+    left: 50%;
+    /* 2. Use transform to pull the dropdown back to the left by half of its own width */
+    transform: translateX(-50%);
 }
