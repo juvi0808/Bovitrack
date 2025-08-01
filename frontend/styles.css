@@ -58,20 +58,7 @@ tbody tr:hover {
     display: none !important;
 }
 
-.main-header {
-    /* We still need these properties from before */
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 20px;
-    background-color: #004a99;
-    color: white;
-    margin-bottom: 20px;
-    
-    /* This establishes the header as a "layer" on top */
-    position: relative;
-    z-index: 100; 
-}
+
 
 #app-content {
     /* This explicitly puts the main content in a "layer" below the header */
@@ -159,12 +146,28 @@ tbody tr:hover {
     justify-content: center;
 }
 
+.main-header {
+    /* We still need these properties from before */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #004a99;
+    color: white;
+    margin-bottom: 20px;
+    border-radius: 8px 8px 8px 8px; /* Rounded corners on the top */
+    /* This establishes the header as a "layer" on top */
+    position: relative;
+    z-index: 100; 
+}
+
 .main-nav > ul {
     margin: 0;
     padding: 0;
     list-style: none; /* Removes the black dots from the list */
     display: flex;    /* Aligns the main menu items horizontally */
     color: #ffffff; /* Sets the text color for the main menu items */
+    
 }
 
 /* This targets the top-level menu items (History, Add, etc.) */
