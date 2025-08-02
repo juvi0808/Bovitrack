@@ -50,6 +50,18 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
     background-color: #94573f;
 }
 
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.page-header h2 {
+    margin: 0;
+}
+
+
 .status-active { /* This is a "Class Selector". It targets any element with class="status-active". */
     color: green;
     font-weight: bold;
@@ -99,7 +111,7 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
     height: 30px; /* Ensures the select box has a consistent height */
     background-color: #f0f0f0; /* White background for the select box */
 }
-/* --- Action Buttons --- */
+/* --- BUTTON STYLES --- */
 .action-button {
     display: flex;
     align-items: center;
@@ -137,49 +149,210 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
     margin-bottom: 15px;
 }
 
+.button-primary {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+}
 
+.button-primary:hover {
+    background-color: #0069d9;
+}
+
+.button-secondary {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.button-secondary:hover {
+    background-color: #5a6268;
+}
+
+.remove-item-btn {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+/* FORM STYTLES */
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Two equal columns */
+    gap: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group-full {
+    grid-column: 1 / -1; /* Make this item span the full width */
+}
+
+.form-group label {
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group select {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.sub-form-section {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.sub-form-section h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.sub-form-inputs {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.sub-form-inputs input {
+    margin-bottom: 0; /* Override default margin from .form-group */
+}
+
+.dynamic-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 150px; /* Give it a max height with a scrollbar */
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 5px;
+}
+
+.dynamic-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #eee;
+}
+
+.dynamic-list li:last-child {
+    border-bottom: none;
+}
 
 /* --- Modal Styles --- */
 
-.modal-backdrop { /* This is a "Class Selector". It targets any element with class="modal-backdrop". */
+.modal-backdrop {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.6); /* Slightly darker for better contrast */
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 200;
 }
 
-.modal-content { /* This is a "Class Selector". It targets any element with class="modal-content". */
+.modal-content {
     background-color: white;
-    padding: 30px;
+    padding: 20px 30px; /* Adjust padding */
     border-radius: 8px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
     color: #333;
-    width: 400px;
+    width: 100%; /* Let the modal grow */
+    max-width: 700px; /* But not too wide */
+    max-height: 90vh; /* Prevent it from being taller than the screen */
+    display: flex; /* Use flexbox for layout */
+    flex-direction: column; /* Stack children vertically */
 }
 
-.modal-content h3 { /* This is a "Type Selector". It targets all <h3> elements inside .modal-content */
+.modal-content h3 {
     margin-top: 0;
+    margin-bottom: 20px;
+    text-align: center;
 }
 
-.modal-content input { /* This is a "Type Selector". It targets all <input> elements inside .modal-content */
+/* This is the container for the main form content */
+.modal-content form {
+    overflow-y: auto; /* Make the form scrollable if content is too tall */
+    padding-right: 15px; /* Add space for the scrollbar */
+}
+
+/* This makes sure all inputs and selects in a form group are styled correctly */
+.form-group input,
+.form-group select {
     width: 100%;
     padding: 8px;
     margin-top: 5px;
-    margin-bottom: 15px;
-    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; /* Crucial for consistent sizing */
 }
 
-.modal-actions { /* This is a "Class Selector". It targets any element with class="modal-actions". */
+.modal-actions {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
     margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee; /* Add a separator line */
+}
+
+/* --- Sub-form specific styles from before, now integrated --- */
+.sub-form-section {
+    /* This tells the section to span from the first grid line to the last one */
+    grid-column: 1 / -1;
+
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+.sub-form-section h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+/* The container for the inputs and button */
+.sub-form-inputs {
+    display: grid;
+    /* FIX: Define 4 equal columns for the four text/date inputs */
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 10px;
+    align-items: center;
+    margin-top: 10px;
+}
+
+/* NEW RULE: Target the button directly by its ID */
+#add-protocol-btn {
+    /* Make the button span all 4 columns of the grid on the next line */
+    grid-column: 1 / -1;
+    /* Add a little space above it for better aesthetics */
+    margin-top: 10px;
+}
+/* Ensure inputs inside the sub-form take up full width of their grid cell */
+.sub-form-inputs input {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
 }
 
 /* --- AG Grid Header Customization --- */

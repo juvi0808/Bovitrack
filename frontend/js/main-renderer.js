@@ -28,6 +28,7 @@ const farmSelect = document.getElementById('farm-select');
 const addFarmBtn = document.getElementById('add-farm-btn');
 const renameFarmBtn = document.getElementById('rename-farm-btn');
 const deleteFarmBtn = document.getElementById('delete-farm-btn');
+const LAST_FARM_ID_KEY = 'bovitrack-last-farm-id';
 
 // Add Farm Modal Elements
 const addFarmModal = document.getElementById('add-farm-modal');
@@ -57,9 +58,32 @@ document.addEventListener('DOMContentLoaded', initializeApp);
 // This is our main "controller" that runs when the app is ready.
 async function initializeApp() {
     console.log("Initializing App...");
-    await loadFarms();
-    setupEventListeners();
+    await loadFarms(); 
+    setupEventListeners(); 
+
+    // Try to load the last selected farm ID from storage.
+    const lastSelectedId = localStorage.getItem(LAST_FARM_ID_KEY);
+
+    // Check if the loaded ID is actually a valid farm that we have.
+    if (lastSelectedId && allFarms.some(farm => farm.id == lastSelectedId)) {
+        // If it's valid, set the dropdown to that value.
+        farmSelect.value = lastSelectedId;
+    }
+
+    // Manually trigger the 'change' event to ensure the page loads the correct data.
+    // This will update the selectedFarmId global variable and load the dashboard.
+    farmSelect.dispatchEvent(new Event('change'));
+
+    // Go to the default page.
+    await showPage('page-active-stock');
+
+    // FIX: Find the correct link now and handle the case where it might not exist.
+    const activeLink = document.querySelector('.nav-link[data-page="page-active-stock"]');
+    if (activeLink) {
+        activeLink.classList.add('active');
+    }
 }
+
 
 function setupEventListeners() {
     const mainNav = document.querySelector('.main-nav');
@@ -119,14 +143,12 @@ async function loadFarms() {
             addFarmModal.classList.remove('hidden');
             renameFarmBtn.disabled = true;
             deleteFarmBtn.disabled = true;
-            loadDashboardData();
         } else {
             // We now pass the global variable to the populator function
             populateFarmSelector(allFarms);
             selectedFarmId = farmSelect.value;
             renameFarmBtn.disabled = false;
             deleteFarmBtn.disabled = false;
-            await loadDashboardData();
         }
     } catch (error) {
         console.error("Error loading farms:", error);
@@ -152,10 +174,30 @@ function populateFarmSelector(farms) {
 async function handleFarmSelection() {
     selectedFarmId = farmSelect.value;
     console.log(`Farm changed to: ${selectedFarmId}`);
-    // When the farm changes, reload the dashboard data
-    await loadDashboardData();
-}
 
+    // Save the newly selected ID to localStorage for next time.
+    localStorage.setItem(LAST_FARM_ID_KEY, selectedFarmId);
+    
+    // Find the currently active page to know which data to refresh
+    const activeLink = document.querySelector('.nav-link.active');
+    if (!activeLink) return;
+
+    const pageId = activeLink.dataset.page;
+
+    // Simple router to call the correct data-loading function
+    // This is much more efficient than reloading the whole page HTML.
+    if (pageId === 'page-active-stock') {
+        // Since loadDashboardData is now a top-level function in active-stock.js,
+        // we can call it directly from here.
+        await loadDashboardData();
+    }
+    else if (pageId === 'page-history-purchases') {
+        await loadPurchaseHistoryData(); 
+    }
+    // else if (pageId === 'page-history-sales') {
+    //     await loadSalesHistoryData(); // We will create this for the sales page later
+    // }
+}
 async function handleAddFarmSubmit(event) {
     event.preventDefault();
     const farmName = newFarmNameInput.value.trim();
@@ -271,88 +313,38 @@ function handleNavigation(event) {
     // to avoid breaking anything else that might call it, just in case.
 }
 
-// --- Data Loading & Display Functions ---
-
-async function loadDashboardData() {
-    // Check if a farm is selected
-    if (!selectedFarmId) {
-        console.log("No farm selected. Skipping data load.");
-        summaryDiv.innerHTML = 'Please select a farm to view data.';
-        gridDiv.innerHTML = '';
-        return;
-    }
-    console.log(`Fetching data for farm ID: ${selectedFarmId}`);
-
-    // Show loading state
-    summaryDiv.innerHTML = 'Loading summary...';
-    gridDiv.innerHTML = ''; // Clear grid
-
-    try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/stock/active_summary`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        displaySummary(data.summary_kpis);
-        createAnimalGrid(data.animals);
-    } catch (error) {
-        console.error('Failed to fetch dashboard data:', error);
-        summaryDiv.innerHTML = 'Error: Could not load summary data.';
-        gridDiv.innerHTML = 'Error: Could not load animal list.';
-    }
-}
-
-function displaySummary(kpis) {
-    // This function is the same as before
-    summaryDiv.innerHTML = `
-        <p><strong>Total Active Animals:</strong> ${kpis.total_active_animals}</p>
-        <p><strong>Males:</strong> ${kpis.number_of_males} | <strong>Females:</strong> ${kpis.number_of_females}</p>
-        <p><strong>Average Age:</strong> ${kpis.average_age_months.toFixed(2)} months</p>
-        <p><strong>Average GMD:</strong> ${kpis.average_gmd_kg_day.toFixed(3)} kg/day</p>
-    `;
-}
-
-function createAnimalGrid(animals) {
-    // This function is the same as before
-    const columnDefs = [
-        { headerName: "Ear Tag", field: "ear_tag", width: 120 },
-        { headerName: "Lot", field: "lot", width: 100 },
-        { headerName: "Entry Date", field: "entry_date", width: 150 },
-        { headerName: "Sex", field: "sex", width: 120 },
-        { headerName: "Age (Months)", field: "kpis.current_age_months", valueFormatter: p => p.value.toFixed(2), width: 150 },
-        { headerName: "Last Wt (kg)", field: "kpis.last_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 150 },
-        { headerName: "Last Wt Date", field: "kpis.last_weighting_date", width: 150 },
-        { headerName: "Avg Daily Gain (kg)", field: "kpis.average_daily_gain_kg", valueFormatter: p => p.value.toFixed(3), width: 180 },
-        { headerName: "Forecasted Weight", field: "kpis.forecasted_current_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 180 },
-        { headerName: "Current Location", field: "kpis.current_location_name" },
-        { headerName: "Diet Type", field: "kpis.current_diet_type" },
-        { headerName: "Diet Intake (%)", field: "kpis.current_diet_intake", valueFormatter: p => p.value ? `${p.value}%` : 'N/A', width: 150 },
-    ];
-    const gridOptions = {
-        columnDefs: columnDefs,
-        rowData: animals,
-        defaultColDef: { sortable: true, filter: true, resizable: true, cellStyle: { 'text-align': 'center' } },
-        onGridReady: (params) => params.api.sizeColumnsToFit(),
-    };
-    gridDiv.innerHTML = '';
-    createGrid(gridDiv, gridOptions);
-}
-
 // --- Page Navigation Logic ---
 
-function showPage(pageId) {
-    // 1. Get all the page containers
-    const pages = document.querySelectorAll('.page');
-    // 2. Hide all of them
-    pages.forEach(page => {
-        page.classList.add('hidden');
-    });
-    // 3. Find the one page we want to show
-    const pageToShow = document.getElementById(pageId);
-    // 4. Show it (if it exists)
-    if (pageToShow) {
-        pageToShow.classList.remove('hidden');
-    } else {
-        console.error(`Page with ID "${pageId}" not found.`);
+async function showPage(pageId) {
+    const appContent = document.getElementById('app-content');
+
+    // 1. Construct the path to the HTML partial.
+    //    e.g., if pageId is 'page-dashboard', the path will be './pages/dashboard.html'
+    const pageName = pageId.replace('page-', '');
+    const pagePath = `./pages/${pageName}.html`;
+
+    try {
+        // 2. Fetch the content of the HTML file.
+        const response = await fetch(pagePath);
+        if (!response.ok) {
+            throw new Error(`Could not load page: ${pagePath}`);
+        }
+        const htmlContent = await response.text();
+
+        // 3. Inject the new HTML into our main content area.
+        appContent.innerHTML = htmlContent;
+
+        // NEW ROUTER LOGIC: Call the correct init function for the page we just loaded.
+        console.log(`Page ${pageName} loaded. Initializing...`);
+        if (pageName === 'active-stock') {
+            initActiveStockPage();}
+        else if (pageName === 'history-purchases') {
+            initHistoryPurchasesPage();
+        }
+
+    } catch (error) {
+        console.error("Error loading page:", error);
+        appContent.innerHTML = `<p style="color: red; padding: 20px;">Error: Could not load the requested page.</p>`;
     }
 }
-
 
