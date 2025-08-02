@@ -125,13 +125,15 @@ class Purchase(db.Model):
             latest_change = sorted(self.location_changes, key=lambda lc: lc.date, reverse=True)[0]
             current_location_name = latest_change.location.name
             current_location_id = latest_change.location.id
+        
         current_diet_type = "N/A"
         current_diet_intake = None
-        if self.location_changes:
+        if self.diet_logs:
             # Sort changes by date to find the most recent one
             latest_diet = sorted(self.diet_logs, key=lambda lc: lc.date, reverse=True)[0]
             current_diet_type = latest_diet.diet_type
             current_diet_intake = latest_diet.daily_intake_percentage
+        
         # --- GMD and Last Weight Calculation (works for both active and sold) ---
         sorted_weights = sorted(self.weightings, key=lambda w: w.date)
         gmd = 0.0
@@ -220,15 +222,20 @@ class Weighting(db.Model):
     animal_id = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=False)
     farm_id = db.Column(db.Integer, db.ForeignKey('farm.id'), nullable=False)
 
-    def to_dict(self):    
+    def to_dict(self):
+        # This is a safe way to access the related animal's data.
+        # If self.animal exists, we get its ear_tag. Otherwise, we return a default value like 'N/A' or None.
+        ear_tag = self.animal.ear_tag if self.animal else 'Orphaned Record'
+        lot = self.animal.lot if self.animal else 'N/A'
+        
         return {
             'id': self.id,
             'date': self.date.isoformat(),
             'weight_kg': self.weight_kg,
             'animal_id': self.animal_id,
             'farm_id': self.farm_id,
-            'ear_tag': self.animal.ear_tag,
-            'lot': self.animal.lot# Thanks to backref='animal', we can easily access the parent Purchase object.
+            'ear_tag': ear_tag, # Use the safe variable
+            'lot': lot          # Use the safe variable
         }
 
     def __repr__(self):

@@ -1,9 +1,10 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
 from .models import Farm, Location, Purchase, Sale, Weighting, SanitaryProtocol, LocationChange, DietLog, Death # Notice the '.' - it means "from the same package"
 from . import db # Also import the db object
 from .utils import find_active_animal_by_eartag, calculate_weight_history_with_gmd, calculate_location_kpis
+import json
 
 # Create a Blueprint. 'api' is the name of the blueprint.
 api = Blueprint('api', __name__)
@@ -42,6 +43,43 @@ def add_farm():
         db.session.rollback()
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
+@api.route('/farm/<int:farm_id>/rename', methods=['POST'])
+def rename_farm(farm_id):
+    """Renames an existing farm."""
+    farm = Farm.query.get_or_404(farm_id)
+    data = request.get_json()
+    
+    if not data or 'name' not in data or not data['name'].strip():
+        return jsonify({'error': "The 'name' field is required."}), 400
+
+    new_name = data['name'].strip()
+
+    # Check if another farm with this name already exists
+    existing_farm = Farm.query.filter(Farm.name == new_name, Farm.id != farm_id).first()
+    if existing_farm:
+        return jsonify({'error': f"A farm with the name '{new_name}' already exists."}), 409
+
+    try:
+        farm.name = new_name
+        db.session.commit()
+        return jsonify({'message': 'Farm renamed successfully!', 'farm': farm.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
+
+@api.route('/farm/<int:farm_id>/delete', methods=['DELETE'])
+def delete_farm(farm_id):
+    """Deletes a farm and all its associated data (animals, sales, etc.)."""
+    farm = Farm.query.get_or_404(farm_id)
+    try:
+        # Thanks to 'cascade="all, delete-orphan"' in models.py,
+        # deleting the farm will automatically delete all its children records.
+        db.session.delete(farm)
+        db.session.commit()
+        return jsonify({'message': f"Farm '{farm.name}' and all its data have been deleted."})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
 @api.route('/farm/<int:farm_id>/location/add', methods=['POST'])
 def add_location(farm_id):
@@ -114,6 +152,8 @@ def add_purchase(farm_id):
     if not location:
         return jsonify({'error': f"Location with id {location_id} not found on this farm."}), 404
 
+    protocols_to_add = data.get('sanitary_protocols', [])
+    
     try:
         # Process incoming data.
         entry_date_obj = datetime.strptime(data['entry_date'], '%Y-%m-%d').date()
@@ -154,6 +194,19 @@ def add_purchase(farm_id):
         )
         db.session.add(initial_location)
         
+        # 4. --- NEW: Loop through and create the SanitaryProtocol records ---
+        for protocol_data in protocols_to_add:
+            protocol_date = datetime.strptime(protocol_data['date'], '%Y-%m-%d').date()
+            new_protocol = SanitaryProtocol(
+                date=protocol_date,
+                protocol_type=protocol_data.get('protocol_type'),
+                product_name=protocol_data.get('product_name'),
+                invoice_number=protocol_data.get('invoice_number'),
+                animal_id=new_purchase.id, # Link to the animal we just created
+                farm_id=farm_id
+            )
+            db.session.add(new_protocol)
+
         # Commit all three new records to the database.
         db.session.commit()
 
@@ -580,18 +633,14 @@ def get_all_weightings(farm_id):
     Accepts optional 'start_date' and 'end_date' query parameters
     in YYYY-MM-DD format to filter the results by the weighing date.
     """
-    # Verify the farm exists.
     Farm.query.get_or_404(farm_id)
 
-    # Start with the base query for all weightings on this farm.
     weightings_query = Weighting.query.filter_by(farm_id=farm_id)
 
     try:
-        # Get optional date strings from the URL's query parameters.
         start_date_str = request.args.get('start_date')
         end_date_str = request.args.get('end_date')
 
-        # Conditionally add filters to the query if dates are provided.
         if start_date_str:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
             weightings_query = weightings_query.filter(Weighting.date >= start_date)
@@ -601,15 +650,13 @@ def get_all_weightings(farm_id):
             weightings_query = weightings_query.filter(Weighting.date <= end_date)
 
     except ValueError:
-        # Handle incorrectly formatted dates.
         return jsonify({'error': 'Invalid date format. Please use YYYY-MM-DD.'}), 400
 
-    # Execute the final, assembled query, ordered by most recent weighing first.
     all_weightings = weightings_query.order_by(Weighting.date.desc()).all()
     
-    # Convert results to a list of dictionaries and return as JSON.
-    # The .to_dict() method will automatically include the ear_tag and lot.
     results = [weighting.to_dict() for weighting in all_weightings]
+    
+    # Use jsonify, as it's the standard and correct way.
     return jsonify(results)
 
 @api.route('/farm/<int:farm_id>/location_log', methods=['GET'])
@@ -779,28 +826,36 @@ def get_all_locations(farm_id):
     Gets a list of all structured locations for a farm, enriched with
     capacity rate KPIs for each location.
     """
-    Farm.query.get_or_404(farm_id)
+    try:
+        Farm.query.get_or_404(farm_id)
 
-    # 1. Get all master locations for the farm.
-    all_locations = Location.query.filter_by(farm_id=farm_id).order_by(Location.name).all()
-    if not all_locations:
-        return jsonify([])
+        all_locations = Location.query.filter_by(farm_id=farm_id).order_by(Location.name).all()
+        if not all_locations:
+            return jsonify([])
 
-    # 2. Get all active animals on the farm to perform calculations.
-    # This is an efficient query to get all active animal IDs.
-    sold_ids = db.session.query(Sale.animal_id).filter(Sale.farm_id == farm_id)
-    dead_ids = db.session.query(Death.animal_id).filter(Death.farm_id == farm_id)
-    active_animals = Purchase.query.options(
-        db.joinedload(Purchase.location_changes) # Pre-load location changes
-    ).filter(
-        Purchase.farm_id == farm_id,
-        Purchase.id.notin_(sold_ids.union(dead_ids))
-    ).all()
+        sold_ids = db.session.query(Sale.animal_id).filter(Sale.farm_id == farm_id)
+        dead_ids = db.session.query(Death.animal_id).filter(Death.farm_id == farm_id)
+        active_animals = Purchase.query.options(
+            db.joinedload(Purchase.location_changes)
+        ).filter(
+            Purchase.farm_id == farm_id,
+            Purchase.id.notin_(sold_ids.union(dead_ids))
+        ).all()
 
-    # 3. Call the helper to do the heavy lifting.
-    results = calculate_location_kpis(all_locations, active_animals)
+        results = calculate_location_kpis(all_locations, active_animals)
+        
+        # This is the critical part. We try to jsonify, and if it fails, we catch the error.
+        return jsonify(results)
 
-    return jsonify(results)
+    except TypeError as e:
+        # If jsonify fails because of a non-serializable type, this will catch it.
+        print(f"!!! TYPE ERROR IN GET_ALL_LOCATIONS: {e}")
+        # We'll return a 500 error with a clear message in JSON format.
+        return jsonify({'error': f'A data type could not be serialized: {e}'}), 500
+    except Exception as e:
+        # Catch any other unexpected errors during the process.
+        print(f"!!! UNEXPECTED ERROR IN GET_ALL_LOCATIONS: {e}")
+        return jsonify({'error': f'An unexpected error occurred: {e}'}), 500
 
 # --- Search and Master Record Routes ---
 

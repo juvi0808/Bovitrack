@@ -172,4 +172,10 @@ def calculate_location_kpis(locations, active_animals):
         
         location_results.append(location_dict)
 
+        # --- THIS IS THE NEW DEBUGGING LINE ---
+    # It will print the exact data structure to your Python terminal.
+    print("--- DEBUG: Data being sent to jsonify from calculate_location_kpis ---")
+    print(location_results)
+    print("--------------------------------------------------------------------")
+
     return location_results

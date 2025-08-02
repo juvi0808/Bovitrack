@@ -9,7 +9,7 @@ def create_app():
     """Application factory function."""
     # Create the Flask app instance
     app = Flask(__name__, instance_relative_config=False)
-    CORS(app)
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     #
     app.config.from_mapping(
