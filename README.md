@@ -1,5 +1,4 @@
 
----
 
 # BoviTrack - Livestock Management Application
 
