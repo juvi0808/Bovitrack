@@ -42,6 +42,43 @@ def add_farm():
         db.session.rollback()
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
+@api.route('/farm/<int:farm_id>/rename', methods=['POST'])
+def rename_farm(farm_id):
+    """Renames an existing farm."""
+    farm = Farm.query.get_or_404(farm_id)
+    data = request.get_json()
+    
+    if not data or 'name' not in data or not data['name'].strip():
+        return jsonify({'error': "The 'name' field is required."}), 400
+
+    new_name = data['name'].strip()
+
+    # Check if another farm with this name already exists
+    existing_farm = Farm.query.filter(Farm.name == new_name, Farm.id != farm_id).first()
+    if existing_farm:
+        return jsonify({'error': f"A farm with the name '{new_name}' already exists."}), 409
+
+    try:
+        farm.name = new_name
+        db.session.commit()
+        return jsonify({'message': 'Farm renamed successfully!', 'farm': farm.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
+
+@api.route('/farm/<int:farm_id>/delete', methods=['DELETE'])
+def delete_farm(farm_id):
+    """Deletes a farm and all its associated data (animals, sales, etc.)."""
+    farm = Farm.query.get_or_404(farm_id)
+    try:
+        # Thanks to 'cascade="all, delete-orphan"' in models.py,
+        # deleting the farm will automatically delete all its children records.
+        db.session.delete(farm)
+        db.session.commit()
+        return jsonify({'message': f"Farm '{farm.name}' and all its data have been deleted."})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
 @api.route('/farm/<int:farm_id>/location/add', methods=['POST'])
 def add_location(farm_id):

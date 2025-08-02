@@ -6,7 +6,8 @@ body { /* This is a "Type Selector". It targets all <body> elements. */
     color: #333; /* A soft gray for text */
 }
 
-h1, h2 {
+/* These are the Titles inside the */
+h1, h2 { /* This is a "Type Selector". It targets all <h1> and <h2> elements. */
     color: #0056b3; /* A deep blue color for headings */
 }
 
@@ -24,32 +25,32 @@ hr { /* Horizontal rule for visual separation */
     margin-bottom: 20px;
 }
 
-table {
+table { /* This is a "Type Selector". It targets all <table> elements. */
     width: 100%;
     border-collapse: collapse;
     margin-top: 15px;
 }
 
-th, td {
+th, td { /* This is a "Type Selector". It targets all <th> and <td> elements. */
     border: 1px solid #ddd;
     padding: 12px;
     text-align: left;
 }
 
-thead {
+thead { /* This is a "Type Selector". It targets all <thead> elements. */
     background-color: #007bff;
     color: white;
 }
 
-tbody tr:nth-child(even) {
+tbody tr:nth-child(even) { /* This is a "Pseudo-class Selector". It targets every even row in the table body. */
     background-color: #f2f2f2;
 }
 
-tbody tr:hover {
-    background-color: #e9ecef;
+tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hovered over. */
+    background-color: #94573f;
 }
 
-.status-active {
+.status-active { /* This is a "Class Selector". It targets any element with class="status-active". */
     color: green;
     font-weight: bold;
 }
@@ -60,7 +61,7 @@ tbody tr:hover {
 
 
 
-#app-content {
+#app-content { 
     /* This explicitly puts the main content in a "layer" below the header */
     position: relative;
     z-index: 1;
@@ -68,35 +69,79 @@ tbody tr:hover {
 
 .header-left {
     display: flex;
+    /* This tells the logo and the farm-selector div to sit side-by-side */
+    flex-direction: row; 
     align-items: center;
     gap: 30px;
 }
 
-.logo {
+.logo { /* This is a "Class Selector". It targets any element with class="logo". */
     font-size: 1.5em;
     font-weight: bold;
 }
 
-#farm-select { /* This is an "ID Selector". It targets the single element with id="farm-select". */
+/* --- Find and modify this rule --- */
+.farm-selector {
     padding: 5px;
+    display: flex; /* This turns the farm-selector into a flex container */
+    /* ADD THIS: To make sure it has a consistent height */
+    align-items: stretch;
+    flex-direction: row; 
+    align-items: center;
+    gap: 4px;
+}
+
+#farm-select { /* This is an "ID Selector". It targets the single element with id="farm-select". */
+    padding: 5px 8px;
     border-radius: 4px;
     border: 1px solid #ccc;
     min-width: 150px;
+    height: 30px; /* Ensures the select box has a consistent height */
+    background-color: #f0f0f0; /* White background for the select box */
 }
-
-.add-button {
-    padding: 2px 8px;
-    font-size: 1.2em;
+/* --- Action Buttons --- */
+.action-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-weight: bold;
     cursor: pointer;
+    width: 30px;
+    height: 30px;
+    font-size: 1em; /* Increase icon size a bit */
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f0f0f0;
+    box-sizing: border-box; 
+    /* Remove default padding to rely on flex centering */
+    padding: 0;
 }
 
+.action-button:hover {
+    background-color: #e0e0e0;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #c82333;
+    color: white
+}
+
+.warning-text {
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
 
 
 
 /* --- Modal Styles --- */
 
-.modal-backdrop {
+.modal-backdrop { /* This is a "Class Selector". It targets any element with class="modal-backdrop". */
     position: fixed;
     top: 0;
     left: 0;
@@ -106,9 +151,10 @@ tbody tr:hover {
     display: flex;
     justify-content: center;
     align-items: center;
+    z-index: 200;
 }
 
-.modal-content {
+.modal-content { /* This is a "Class Selector". It targets any element with class="modal-content". */
     background-color: white;
     padding: 30px;
     border-radius: 8px;
@@ -117,11 +163,11 @@ tbody tr:hover {
     width: 400px;
 }
 
-.modal-content h3 {
+.modal-content h3 { /* This is a "Type Selector". It targets all <h3> elements inside .modal-content */
     margin-top: 0;
 }
 
-.modal-content input {
+.modal-content input { /* This is a "Type Selector". It targets all <input> elements inside .modal-content */
     width: 100%;
     padding: 8px;
     margin-top: 5px;
@@ -129,7 +175,7 @@ tbody tr:hover {
     box-sizing: border-box;
 }
 
-.modal-actions {
+.modal-actions { /* This is a "Class Selector". It targets any element with class="modal-actions". */
     display: flex;
     justify-content: flex-end;
     gap: 10px;
@@ -146,7 +192,7 @@ tbody tr:hover {
     justify-content: center;
 }
 
-.main-header {
+.main-header { 
     /* We still need these properties from before */
     display: flex;
     justify-content: space-between;
@@ -249,3 +295,5 @@ tbody tr:hover {
     /* 2. Use transform to pull the dropdown back to the left by half of its own width */
     transform: translateX(-50%);
 }
+
+
