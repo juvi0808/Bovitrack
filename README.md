@@ -1,4 +1,5 @@
 
+
 # BoviTrack - Livestock Management Application
 
 BoviTrack is a robust, desktop-based application designed for efficient and detailed management of livestock operations. Built with a powerful **Python/Flask backend** and a dynamic **JavaScript/HTML/CSS frontend**, it provides farmers and managers with the tools to track individual animal performance, manage resources, and gain key insights into their herd's productivity.
