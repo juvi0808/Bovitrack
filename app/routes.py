@@ -332,12 +332,11 @@ def add_sale(farm_id, purchase_id):
         db.session.rollback()
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
-@api.route('/farm/<int:farm_id>/purchase/<int:purchase_id>/sanitary/add', methods=['POST'])
-def add_sanitary_protocol(farm_id, purchase_id):
+@api.route('/farm/<int:farm_id>/purchase/<int:purchase_id>/sanitary/add_batch', methods=['POST'])
+def add_sanitary_protocols_batch(farm_id, purchase_id):
     """
-    Adds a new sanitary protocol record to a specific animal.
-    Expects a JSON body with date and protocol_type, and optional
-    product_name and invoice_number.
+    Adds a batch of new sanitary protocol records to a specific animal.
+    Expects a JSON body with a 'protocols' key, which is a list of protocol objects.
     """
     # Find the animal and verify it belongs to the specified farm.
     animal = Purchase.query.get_or_404(purchase_id)
@@ -345,37 +344,63 @@ def add_sanitary_protocol(farm_id, purchase_id):
         return jsonify({'error': 'This animal does not belong to the specified farm.'}), 403
 
     data = request.get_json()
-    # Validate required fields from the request body.
-    required_fields = ['date', 'protocol_type']
-    if not data or not all(field in data for field in required_fields):
-        return jsonify({'error': 'Missing required fields: date and protocol_type'}), 400
+    protocols_to_add = data.get('protocols')
+    optional_weight = data.get('weight_kg') # Get the optional weight
+
+    # Validate that we received a list.
+    if not isinstance(protocols_to_add, list):
+        return jsonify({'error': "Request body must contain a 'protocols' list."}), 400
 
     try:
-        # Create the new SanitaryProtocol object.
-        protocol_date_obj = datetime.strptime(data['date'], '%Y-%m-%d').date()
-        new_protocol = SanitaryProtocol(
-            date=protocol_date_obj,
-            protocol_type=data['protocol_type'],
-            product_name=data.get('product_name'),
-            dosage = data.get('dosage'),
-            invoice_number=data.get('invoice_number'), 
-            animal_id=purchase_id,
-            farm_id=farm_id
-        )
+        # We need a consistent date for both the protocols and the optional weighting
+        # We'll take it from the first protocol in the batch.
+        if not protocols_to_add:
+             return jsonify({'error': "Protocols list cannot be empty."}), 400
+        
+        reference_date_str = protocols_to_add[0]['date']
+        event_date_obj = datetime.strptime(reference_date_str, '%Y-%m-%d').date()
 
-        # Add and commit the new record to the database.
-        db.session.add(new_protocol)
+        # 1. Check if an optional weight was provided.
+        if optional_weight and float(optional_weight) > 0:
+            new_weighting = Weighting(
+                date=event_date_obj,
+                weight_kg=float(optional_weight),
+                animal_id=purchase_id,
+                farm_id=farm_id
+            )
+            db.session.add(new_weighting)
+            message = f'{len(protocols_to_add)} protocols and a new weight recorded successfully!'
+        else:
+            message = f'{len(protocols_to_add)} protocols recorded successfully!'
+
+        # 2. Loop through and add all the protocols
+        for protocol_data in protocols_to_add:
+            protocol_date = datetime.strptime(protocol_data['date'], '%Y-%m-%d').date()
+            
+            new_protocol = SanitaryProtocol(
+                date=protocol_date,
+                protocol_type=protocol_data.get('protocol_type'),
+                product_name=protocol_data.get('product_name'),
+                dosage=protocol_data.get('dosage'),
+                invoice_number=protocol_data.get('invoice_number'),
+                animal_id=purchase_id,
+                farm_id=farm_id
+            )
+            db.session.add(new_protocol)
+
+
+        # Commit the transaction once, after all protocols have been added.
+        # This ensures all are saved, or none are.
         db.session.commit()
 
         return jsonify({
-            'message': 'Sanitary protocol recorded successfully!',
-            'protocol_id': new_protocol.id
+            'message': f'{len(protocols_to_add)} protocols recorded successfully!',
         }), 201
 
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
-    
+
 @api.route('/farm/<int:farm_id>/purchase/<int:purchase_id>/location/add', methods=['POST'])
 def add_location_change(farm_id, purchase_id):
     """
@@ -402,24 +427,39 @@ def add_location_change(farm_id, purchase_id):
     if not location_to_add:
         return jsonify({'error': f"Location with id {location_id_to_add} not found on this farm."}), 404
 
+    # Get the optional weight from the data
+    optional_weight = data.get('weight_kg')
+
     try:
         # Process incoming data.
         change_date_obj = datetime.strptime(data['date'], '%Y-%m-%d').date()
 
-        # Create the new LocationChange object.
+        # 1. Create the new LocationChange object.
         new_location = LocationChange(
             date=change_date_obj,
             location_id=location_id_to_add, # Use the ID from the JSON
             animal_id=purchase_id,
             farm_id=farm_id
         )
-
-        # Add and commit the new record to the database.
         db.session.add(new_location)
+        # 2. Check if an optional weight was provided.
+        if optional_weight and float(optional_weight) > 0:
+            new_weighting = Weighting(
+                date=change_date_obj,
+                weight_kg=float(optional_weight),
+                animal_id=purchase_id,
+                farm_id=farm_id
+            )
+            db.session.add(new_weighting)
+            message = 'Location change and weighting recorded successfully!'
+        else:
+            message = 'Location change recorded successfully!'
+
+
         db.session.commit()
 
         return jsonify({
-            'message': 'Location change recorded successfully!',
+            'message': message,
             'location_change_id': new_location.id
         }), 201
 
@@ -446,6 +486,10 @@ def add_diet_log(farm_id, purchase_id):
     if not data or not all(field in data for field in required_fields):
         return jsonify({'error': 'Missing required fields: date, diet_type, and daily_intake_percentage'}), 400
 
+    optional_weight = data.get('weight_kg')
+    intake_str = data.get('daily_intake_percentage')
+    final_intake = float(intake_str) if intake_str and intake_str.strip() else None
+
     try:
         # Process incoming data.
         diet_date_obj = datetime.strptime(data['date'], '%Y-%m-%d').date()
@@ -454,17 +498,28 @@ def add_diet_log(farm_id, purchase_id):
         new_diet = DietLog(
             date=diet_date_obj,
             diet_type=data['diet_type'],
-            daily_intake_percentage=float(data['daily_intake_percentage']),
+            daily_intake_percentage=final_intake,
             animal_id=purchase_id,
             farm_id=farm_id
         )
-
-        # Add and commit the new record to the database.
         db.session.add(new_diet)
+        # 2. Check if an optional weight was provided.
+        if optional_weight and float(optional_weight) > 0:
+            new_weighting = Weighting(
+                date=diet_date_obj,
+                weight_kg=float(optional_weight),
+                animal_id=purchase_id,
+                farm_id=farm_id
+            )
+            db.session.add(new_weighting)
+            message = 'Diet log and weighting recorded successfully!'
+        else:
+            message = 'Diet log recorded successfully!'
+
         db.session.commit()
 
         return jsonify({
-            'message': 'Diet log recorded successfully!',
+            'message': message,
             'diet_log_id': new_diet.id
         }), 201
 
@@ -871,6 +926,54 @@ def get_all_locations(farm_id):
         # Catch any other unexpected errors during the process.
         print(f"!!! UNEXPECTED ERROR IN GET_ALL_LOCATIONS: {e}")
         return jsonify({'error': f'An unexpected error occurred: {e}'}), 500
+    
+@api.route('/farm/<int:farm_id>/deaths', methods=['GET'])
+def get_all_deaths(farm_id):
+    """
+    Gets a rich list of all death records for a specific farm.
+    Accepts optional 'start_date' and 'end_date' query parameters.
+    """
+    # Verify the farm exists.
+    Farm.query.get_or_404(farm_id)
+
+    # Start with the base query for all deaths on this farm.
+    deaths_query = Death.query.filter_by(farm_id=farm_id)
+
+    try:
+        # Handle optional date filters.
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            deaths_query = deaths_query.filter(Death.date >= start_date)
+
+        if end_date_str:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            deaths_query = deaths_query.filter(Death.date <= end_date)
+
+    except ValueError:
+        return jsonify({'error': 'Invalid date format. Please use YYYY-MM-DD.'}), 400
+
+    # Execute the final query, ordering by most recent first.
+    all_deaths = deaths_query.options(
+        db.joinedload(Death.animal)
+    ).order_by(Death.date.desc()).all()
+    
+    # Assemble the rich response.
+    results = []
+    for death in all_deaths:
+        death_summary = {
+            "death_id": death.id,
+            "date": death.date.isoformat(),
+            "ear_tag": death.animal.ear_tag,
+            "lot": death.animal.lot,
+            "cause": death.cause,
+            "animal_id": death.animal_id
+        }
+        results.append(death_summary)
+
+    return jsonify(results)
 
 # --- Search and Master Record Routes ---
 
@@ -885,7 +988,7 @@ def search_animal_by_eartag(farm_id):
     Farm.query.get_or_404(farm_id)
     # Get search parameters from the URL.
     tag_to_search = request.args.get('eartag')
-    ref_date = request.args.get('date')
+ 
 
     # Ensure the required eartag parameter was provided.
     if not tag_to_search:
@@ -893,7 +996,7 @@ def search_animal_by_eartag(farm_id):
 
     try:
         # Call the helper function to perform the complex query logic.
-        active_animals = find_active_animal_by_eartag(farm_id, tag_to_search, ref_date)
+        active_animals = find_active_animal_by_eartag(farm_id, tag_to_search)
         # Convert results and return.
         results = []
         for animal in active_animals:

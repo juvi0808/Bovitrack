@@ -2,7 +2,7 @@ from . import db
 from .models import Purchase, Sale, Death
 from datetime import datetime, date # Import the date object
 
-def find_active_animal_by_eartag(farm_id, eartag, reference_date_str=None):
+def find_active_animal_by_eartag(farm_id, eartag):
     """
     Finds active animals by ear tag for a especific farm, optionally for a specific reference date.
     - If reference_date_str is provided (e.g., "2024-01-15"), it finds animals
@@ -10,43 +10,18 @@ def find_active_animal_by_eartag(farm_id, eartag, reference_date_str=None):
       on or before that date.
     - If reference_date_str is None, it calculates for the current active stock.
     """
-    if reference_date_str:
-        # If a date string is provided, convert it to a real date object.
-        # This will raise a ValueError if the format is wrong, which we'll catch in the route.
-        reference_date = datetime.strptime(reference_date_str, '%Y-%m-%d').date()
-    else:
-        # If no date is provided, default to today.
-        reference_date = date.today()
 
-    # 1. Get the list of IDs for animals that were SOLD on or before the reference date.
-    #    This is a subquery. It finds all relevant sales and selects their animal_id.
-    sold_animal_ids_query = db.session.query(Sale.animal_id).filter(
-        Sale.farm_id == farm_id, # <-- ADDED farm filter
-        Sale.date <= reference_date
-    )
-
-    # 2. Get the list of IDs for animals that DIED on or before the reference date.
-    dead_animal_ids_query = db.session.query(Death.animal_id).filter(
-        Death.farm_id == farm_id,
-        Death.date <= reference_date
-    )
+    query = Purchase.query.outerjoin(Sale, Purchase.id == Sale.animal_id) \
+                          .outerjoin(Death, Purchase.id == Death.animal_id) \
+                          .filter(
+                              Purchase.farm_id == farm_id,
+                              Purchase.ear_tag == eartag,
+                              Sale.id == None,
+                              Death.id == None
+                          )
     
-    # 3. Combine these two lists into a single list of all "exited" animal IDs.
-    #    The .union() operator combines the results of the two queries.
-    exited_animal_ids_query = sold_animal_ids_query.union(dead_animal_ids_query)
+    return query.all()
 
-    # 2. Find all purchases that match the ear tag AND meet our date criteria.
-    active_animals = Purchase.query.filter(
-        Purchase.farm_id == farm_id, # <-- ADDED farm filter
-        # The animal must match the ear tag.
-        Purchase.ear_tag == eartag,
-        # The animal must have been PURCHASED on or before the reference date.
-        Purchase.entry_date <= reference_date,
-        # The animal's ID must NOT be in the list of animals sold by that date.
-        Purchase.id.notin_(exited_animal_ids_query)
-    ).all()
-
-    return active_animals
 
 def calculate_weight_history_with_gmd(animal):
     """

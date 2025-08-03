@@ -71,7 +71,7 @@ function initHistoryPurchasesPage() {
     // --- Event Listeners ---
     showModalBtn.addEventListener('click', openAddPurchaseModal);
     cancelAddPurchaseBtn.addEventListener('click', () => addPurchaseModal.classList.add('hidden'));
-    addPurchaseForm.addEventListener('submit', handleAddPurchaseSubmit);
+    addPurchaseForm.onsubmit = handleAddPurchaseSubmit;
     addProtocolBtn.addEventListener('click', handleAddProtocol);
     clearProtocolsBtn.addEventListener('click', () => {
         protocolsForCurrentPurchase.length = 0; // Clear the live array
