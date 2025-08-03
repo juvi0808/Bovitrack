@@ -7,7 +7,7 @@ async function loadPurchaseHistoryData() {
     }
 
     if (!selectedFarmId) {
-        gridDiv.innerHTML = '<p>Please select a farm to view purchase history.</p>';
+        gridDiv.innerHTML = `<p>${getTranslation('select_farm_to_view_purchase_history')}</p>`;
         return;
     }
 
@@ -19,13 +19,13 @@ async function loadPurchaseHistoryData() {
         // We still need a helper function to create the grid, but it can live inside this function's scope.
         function createPurchaseHistoryGrid(data) {
             const columnDefs = [
-                { headerName: "Ear Tag", field: "ear_tag" },
-                { headerName: "Lot", field: "lot" },
-                { headerName: "Entry Date", field: "entry_date" },
-                { headerName: "Entry Weight", field: "entry_weight", valueFormatter: p => p.value.toFixed(2) },
-                { headerName: "Sex", field: "sex" },
-                { headerName: "Race", field: "race" },
-                { headerName: "Purchase Price", field: "purchase_price", valueFormatter: p => p.value ? `$${p.value.toFixed(2)}` : 'N/A' },
+                { headerName: getTranslation("ear_tag"), field: "ear_tag" },
+                { headerName: getTranslation("lot"), field: "lot" },
+                { headerName: getTranslation("entry_date"), field: "entry_date" },
+                { headerName: getTranslation("entry_weight_kg"), field: "entry_weight", valueFormatter: p => p.value.toFixed(2) },
+                { headerName: getTranslation("sex"), field: "sex" },
+                { headerName: getTranslation("race"), field: "race" },
+                { headerName: getTranslation("purchase_price"), field: "purchase_price", valueFormatter: p => p.value ? `$${p.value.toFixed(2)}` : 'N/A' },
             ];
             const gridOptions = {
                 columnDefs: columnDefs,
@@ -41,7 +41,7 @@ async function loadPurchaseHistoryData() {
 
     } catch (error) {
         console.error("Error loading purchase history:", error);
-        gridDiv.innerHTML = '<p style="color: red;">Error loading purchase history.</p>';
+        gridDiv.innerHTML = `<p style="color: red;">${getTranslation('error_loading_purchase_history')}</p>`;
     }
 }
 
@@ -65,6 +65,8 @@ function initHistoryPurchasesPage() {
     const addProtocolBtn = document.getElementById('add-protocol-btn');
     const clearProtocolsBtn = document.getElementById('clear-protocols-btn');
     const protocolsListUl = document.getElementById('protocols-list');
+    const purchaseEntryDateInput = document.getElementById('purchase-entry-date');
+    const protocolDateInput = document.getElementById('protocol-date');
 
     // --- Event Listeners ---
     showModalBtn.addEventListener('click', openAddPurchaseModal);
@@ -82,30 +84,10 @@ function initHistoryPurchasesPage() {
         }
     });
 
-    function createPurchaseHistoryGrid(data) {
-        const columnDefs = [
-            { headerName: "Ear Tag", field: "ear_tag" },
-            { headerName: "Lot", field: "lot" },
-            { headerName: "Entry Date", field: "entry_date" },
-            { headerName: "Entry Weight", field: "entry_weight", valueFormatter: p => p.value.toFixed(2) },
-            { headerName: "Sex", field: "sex" },
-            { headerName: "Race", field: "race" },
-            { headerName: "Purchase Price", field: "purchase_price", valueFormatter: p => p.value ? `$${p.value.toFixed(2)}` : 'N/A' },
-        ];
-        const gridOptions = {
-            columnDefs: columnDefs,
-            rowData: data,
-            defaultColDef: {
-                sortable: true,
-                filter: true,
-                resizable: true,
-                cellStyle: { 'text-align': 'center' }
-            },
-            onGridReady: (params) => params.api.sizeColumnsToFit(),
-        };
-        gridDiv.innerHTML = '';
-        createGrid(gridDiv, gridOptions);
-    }
+    // When the main purchase date changes, automatically update the protocol date.
+    purchaseEntryDateInput.addEventListener('change', () => {
+        protocolDateInput.value = purchaseEntryDateInput.value;
+    });
 
     // --- Modal Logic ---
 async function openAddPurchaseModal() {
@@ -114,12 +96,17 @@ async function openAddPurchaseModal() {
     pprotocolsForCurrentPurchase = [...lastSavedProtocols];
     renderProtocolsList();
 
+    // Set default dates when modal opens ***
+    const today = new Date().toISOString().split('T')[0];
+    purchaseEntryDateInput.value = today; // Default purchase date to today
+    protocolDateInput.value = today;      // Sync protocol date immediately
+
     // Show the modal immediately so the user sees something happening.
     addPurchaseModal.classList.remove('hidden');
 
     // --- Now, populate the locations dropdown ---
     const locationSelect = document.getElementById('purchase-location');
-    locationSelect.innerHTML = '<option>Loading locations...</option>';
+    locationSelect.innerHTML = `<option>${getTranslation('loading_locations')}</option>`;
     locationSelect.disabled = true; // Disable it while loading
 
     try {
@@ -132,7 +119,7 @@ async function openAddPurchaseModal() {
         
         locationSelect.innerHTML = ''; // Clear "Loading..." message
         if (locations.length === 0) {
-            locationSelect.innerHTML = '<option value="">No locations found. Please add one first.</option>';
+            locationSelect.innerHTML = `<option value="">${getTranslation('no_locations_found')}</option>`;
             // Keep it disabled
         } else {
             locations.forEach(loc => {
@@ -151,7 +138,7 @@ async function openAddPurchaseModal() {
     
     function handleAddProtocol() {
         // Get values from the sub-form
-        const dateInput = document.getElementById('protocol-date');
+        // const dateInput = document.getElementById('protocol-date');
         const typeInput = document.getElementById('protocol-type');
         const productInput = document.getElementById('protocol-product');
         const invoiceInput = document.getElementById('protocol-invoice');
@@ -189,8 +176,8 @@ async function openAddPurchaseModal() {
     function renderProtocolsList() {
         protocolsListUl.innerHTML = ''; // Clear the list
         if (protocolsForCurrentPurchase.length === 0) {
-            protocolsListUl.innerHTML = '<li class="no-items">No protocols added.</li>';
-            return;
+            protocolsListUl.innerHTML = `<li class="no-items">${getTranslation('no_protocols_added')}</li>`;
+            return;                     
         }
 
         protocolsForCurrentPurchase.forEach((protocol, index) => {
@@ -217,7 +204,9 @@ async function openAddPurchaseModal() {
             race: document.getElementById('purchase-race').value,
             purchase_price: document.getElementById('purchase-price').value,
             location_id: document.getElementById('purchase-location').value,
-            sanitary_protocols: protocolsForCurrentPurchase 
+            sanitary_protocols: protocolsForCurrentPurchase,
+            diet_type: document.getElementById('purchase-diet-type').value,
+            daily_intake_percentage: document.getElementById('purchase-diet-intake').value, 
         };
 
         try {
@@ -233,8 +222,8 @@ async function openAddPurchaseModal() {
             lastSavedProtocols = [...protocolsForCurrentPurchase];
 
             // 2. Give the user clear feedback.
-            alert(`Animal ${formData.ear_tag} saved successfully! The form is ready for the next entry.`);
-
+            const successMessage = getTranslation('animal_saved_successfully', { earTag: formData.ear_tag });
+            alert(`${successMessage} ${getTranslation('form_ready_for_next_entry')}`);
             // 3. Refresh the data grid in the background so the user sees the new entry.
             loadPurchaseHistory(); 
 
@@ -246,7 +235,7 @@ async function openAddPurchaseModal() {
             document.getElementById('purchase-ear-tag').focus();
         }
         catch (error) {
-        alert(`Error saving animal: ${error.message}`);
+        alert(`${getTranslation('error_saving_animal')}: ${error.message}`);
         }
     }
 

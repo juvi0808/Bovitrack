@@ -13,10 +13,14 @@ console.log('Renderer.js script loaded!');
 const { ModuleRegistry, AllCommunityModule, createGrid } = require('ag-grid-community');
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// --- Global State ---
-const API_URL = 'http://127.0.0.1:5000'; // This is the base URL for our backend API
-let selectedFarmId = null; // This will hold the ID of the currently selected farm
-let allFarms = []; // This will hold the complete list of farm objects
+// --- Global State & Constants ---
+const API_URL = 'http://127.0.0.1:5000';
+const LAST_FARM_ID_KEY = 'bovitrack-last-farm-id';
+const LANGUAGE_KEY = 'bovitrack-language'; // Moved to the top for safety
+
+let selectedFarmId = null;
+let allFarms = [];
+let currentLanguage = 'en';
 
 // --- 3. ELEMENT REFERENCES ---
 // Main Page Elements
@@ -28,7 +32,6 @@ const farmSelect = document.getElementById('farm-select');
 const addFarmBtn = document.getElementById('add-farm-btn');
 const renameFarmBtn = document.getElementById('rename-farm-btn');
 const deleteFarmBtn = document.getElementById('delete-farm-btn');
-const LAST_FARM_ID_KEY = 'bovitrack-last-farm-id';
 
 // Add Farm Modal Elements
 const addFarmModal = document.getElementById('add-farm-modal');
@@ -58,6 +61,10 @@ document.addEventListener('DOMContentLoaded', initializeApp);
 // This is our main "controller" that runs when the app is ready.
 async function initializeApp() {
     console.log("Initializing App...");
+    // Load the saved language preference or default to English
+    currentLanguage = localStorage.getItem(LANGUAGE_KEY) || 'en';
+    applyTranslations();
+
     await loadFarms(); 
     setupEventListeners(); 
 
@@ -125,6 +132,44 @@ function setupEventListeners() {
     });
 }
 
+// --- Language Functions (REVISED) ---
+function setLanguage(lang) {
+    currentLanguage = lang;
+    localStorage.setItem(LANGUAGE_KEY, lang);
+    applyTranslations(); // Apply to currently visible content
+
+    // **FIX:** Refresh the data on the current page to update dynamic elements like grid headers
+    const activeLink = document.querySelector('.nav-link.active');
+    if (activeLink) {
+        const pageId = activeLink.dataset.page;
+        // Re-run the data loading function for the current page
+        if (pageId === 'page-active-stock') {
+            loadDashboardData();
+        } else if (pageId === 'page-history-purchases') {
+            loadPurchaseHistoryData();
+        }
+    }
+}
+
+function applyTranslations() {
+    document.querySelectorAll('[data-translate]').forEach(element => {
+        const key = element.getAttribute('data-translate');
+        element.textContent = getTranslation(key);
+    });
+    // **NEW:** Also translate placeholder text
+    document.querySelectorAll('[data-translate-placeholder]').forEach(element => {
+        const key = element.getAttribute('data-translate-placeholder');
+        element.placeholder = getTranslation(key);
+    });
+}
+
+function getTranslation(key, replacements = {}) {
+    let translation = translations[currentLanguage]?.[key] || key;
+    for (const placeholder in replacements) {
+        translation = translation.replace(`{${placeholder}}`, replacements[placeholder]);
+    }
+    return translation;
+}
 // --- Farm Management Functions ---
 
 async function loadFarms() {
@@ -334,12 +379,18 @@ async function showPage(pageId) {
         // 3. Inject the new HTML into our main content area.
         appContent.innerHTML = htmlContent;
 
-        // NEW ROUTER LOGIC: Call the correct init function for the page we just loaded.
+        // Apply translations to the newly loaded static elements.
+        applyTranslations();
+
+        //ROUTER LOGIC: Call the correct init function for the page we just loaded.
         console.log(`Page ${pageName} loaded. Initializing...`);
         if (pageName === 'active-stock') {
             initActiveStockPage();}
         else if (pageName === 'history-purchases') {
             initHistoryPurchasesPage();
+        }
+        else if (pageName === 'settings') {
+            initSettingsPage();
         }
 
     } catch (error) {

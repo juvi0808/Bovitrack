@@ -1,53 +1,45 @@
+/* ==========================================================================
+   1. General & Global Styles
+   ========================================================================== */
 
-body { /* This is a "Type Selector". It targets all <body> elements. */
+body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    padding: 20px;
     background-color: #f4f4f9;
-    color: #333; /* A soft gray for text */
+    color: #333;
+    padding: 20px;
+    margin: 0;
+    display: flex; /* 1. Turn on Flexbox */
+    flex-direction: column; /* 2. Stack children vertically */
 }
 
-/* These are the Titles inside the */
-h1, h2 { /* This is a "Type Selector". It targets all <h1> and <h2> elements. */
-    color: #0056b3; /* A deep blue color for headings */
+
+h1, h2 {
+    color: #0056b3;
 }
 
-hr { /* Horizontal rule for visual separation */
+hr {
     border: 0;
     height: 1px;
     background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0));
-} 
-
-#summary-kpis, #animal-list {
-    background-color: #ffffff;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
 }
 
-table { /* This is a "Type Selector". It targets all <table> elements. */
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 15px;
+/* ==========================================================================
+   2. Layout & Page Structure
+   ========================================================================== */
+
+#app-content {
+    padding: 0px; /* Move padding from body to here */
+    flex-grow: 1; /* THE KEY: This makes the container grow */
+    display: flex; /* It also needs to be a flex container... */
+    flex-direction: column; /* ...to manage its own children */
+    overflow-y: auto; /* Add a scrollbar if content overflows */
 }
 
-th, td { /* This is a "Type Selector". It targets all <th> and <td> elements. */
-    border: 1px solid #ddd;
-    padding: 12px;
-    text-align: left;
-}
-
-thead { /* This is a "Type Selector". It targets all <thead> elements. */
-    background-color: #007bff;
-    color: white;
-}
-
-tbody tr:nth-child(even) { /* This is a "Pseudo-class Selector". It targets every even row in the table body. */
-    background-color: #f2f2f2;
-}
-
-tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hovered over. */
-    background-color: #94573f;
+/* Any page loaded inside app-content should also be a flex column */
+.page {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Allow the page itself to grow */
 }
 
 .page-header {
@@ -55,63 +47,142 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    /* This element will have a natural height, it should not grow */
+    flex-shrink: 0; 
 }
 
-.page-header h2 {
-    margin: 0;
-}
+/* ==========================================================================
+   3. Main Header & Navigation
+   ========================================================================== */
 
-
-.status-active { /* This is a "Class Selector". It targets any element with class="status-active". */
-    color: green;
-    font-weight: bold;
-}
-
-.hidden { /* This is a "Class Selector". It targets any element with class="hidden". */
-    display: none !important;
-}
-
-
-
-#app-content { 
-    /* This explicitly puts the main content in a "layer" below the header */
+.main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #004a99;
+    color: white;
+    margin-bottom: 20px;
+    border-radius: 8px;
     position: relative;
-    z-index: 1;
+    z-index: 100;
 }
 
 .header-left {
     display: flex;
-    /* This tells the logo and the farm-selector div to sit side-by-side */
-    flex-direction: row; 
+    flex-direction: row;
     align-items: center;
     gap: 30px;
 }
 
-.logo { /* This is a "Class Selector". It targets any element with class="logo". */
+.logo {
     font-size: 1.5em;
     font-weight: bold;
 }
 
-/* --- Find and modify this rule --- */
 .farm-selector {
-    padding: 5px;
-    display: flex; /* This turns the farm-selector into a flex container */
-    /* ADD THIS: To make sure it has a consistent height */
-    align-items: stretch;
-    flex-direction: row; 
+    display: flex;
+    flex-direction: row;
     align-items: center;
     gap: 4px;
+    padding: 5px;
 }
 
-#farm-select { /* This is an "ID Selector". It targets the single element with id="farm-select". */
+#farm-select {
     padding: 5px 8px;
     border-radius: 4px;
     border: 1px solid #ccc;
     min-width: 150px;
-    height: 30px; /* Ensures the select box has a consistent height */
-    background-color: #f0f0f0; /* White background for the select box */
+    height: 30px;
+    background-color: #f0f0f0;
 }
-/* --- BUTTON STYLES --- */
+
+/* --- Navigation Menu --- */
+
+.main-nav > ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    color: #ffffff;
+}
+
+.main-nav li {
+    position: relative;
+}
+
+.main-nav > ul > li > a {
+    display: block;
+    padding: 10px 15px;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* Active and Hover States for Main Nav */
+.main-nav > ul > li > a.nav-link.active {
+    background-color: #005dc0;
+    color: #ffffff;
+}
+
+.main-nav > ul > li:hover > a,
+.main-nav .has-dropdown.dropdown-is-active > a {
+    background-color: #005dc0;
+    color: #ffffff;
+}
+
+/* --- Dropdown Menus --- */
+
+.dropdown {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    min-width: 180px;
+    padding: 5px 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.has-dropdown.dropdown-is-active > .dropdown {
+    visibility: visible;
+    opacity: 1;
+}
+
+.dropdown a {
+    color: #333;
+    padding: 10px 15px;
+    display: block;
+    white-space: nowrap;
+    text-decoration: none;
+    text-align: center;
+}
+
+.dropdown a:hover {
+    background-color: #e9ecef;
+}
+
+/* Dropdown Alignment */
+.dropdown-align-right .dropdown {
+    left: auto;
+    right: 0;
+}
+
+.dropdown-align-center .dropdown {
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* ==========================================================================
+   4. Buttons & Utility Classes
+   ========================================================================== */
+
+/* --- General Button Styles --- */
+
 .action-button {
     display: flex;
     align-items: center;
@@ -120,33 +191,16 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
     cursor: pointer;
     width: 30px;
     height: 30px;
-    font-size: 1em; /* Increase icon size a bit */
-    cursor: pointer;
+    font-size: 1em;
     border: 1px solid #ccc;
     border-radius: 4px;
     background-color: #f0f0f0;
-    box-sizing: border-box; 
-    /* Remove default padding to rely on flex centering */
+    box-sizing: border-box;
     padding: 0;
 }
 
 .action-button:hover {
     background-color: #e0e0e0;
-}
-
-.btn-danger:hover {
-    background-color: #c82333;
-    border-color: #c82333;
-    color: white
-}
-
-.warning-text {
-    color: #721c24;
-    background-color: #f8d7da;
-    border: 1px solid #f5c6cb;
-    padding: 10px;
-    border-radius: 4px;
-    margin-bottom: 15px;
 }
 
 .button-primary {
@@ -171,6 +225,7 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
     border-radius: 4px;
     cursor: pointer;
 }
+
 .button-secondary:hover {
     background-color: #5a6268;
 }
@@ -184,10 +239,41 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
     font-size: 1.2em;
 }
 
-/* FORM STYTLES */
+/* --- State-specific Button Styles --- */
+
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #c82333;
+    color: white;
+}
+
+/* --- Utility Classes --- */
+
+.hidden {
+    display: none !important;
+}
+
+.status-active {
+    color: green;
+    font-weight: bold;
+}
+
+.warning-text {
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+/* ==========================================================================
+   5. Forms & Inputs
+   ========================================================================== */
+
 .form-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* Two equal columns */
+    grid-template-columns: 1fr 1fr;
     gap: 15px;
 }
 
@@ -197,7 +283,7 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
 }
 
 .form-group-full {
-    grid-column: 1 / -1; /* Make this item span the full width */
+    grid-column: 1 / -1;
 }
 
 .form-group label {
@@ -207,12 +293,18 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
 
 .form-group input,
 .form-group select {
+    width: 100%;
     padding: 8px;
+    margin-top: 5px;
     border: 1px solid #ccc;
     border-radius: 4px;
+    box-sizing: border-box;
 }
 
+/* --- Sub-form (e.g., in Purchase Modal) --- */
+
 .sub-form-section {
+    grid-column: 1 / -1;
     margin-top: 20px;
     padding-top: 15px;
     border-top: 1px solid #eee;
@@ -224,21 +316,31 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
 }
 
 .sub-form-inputs {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 10px;
     align-items: center;
     margin-top: 10px;
 }
 
 .sub-form-inputs input {
-    margin-bottom: 0; /* Override default margin from .form-group */
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
 }
+
+#add-protocol-btn {
+    grid-column: 1 / -1;
+    margin-top: 10px;
+}
+
+/* --- Dynamic List (for protocols) --- */
 
 .dynamic-list {
     list-style: none;
     padding: 0;
     margin: 0;
-    max-height: 150px; /* Give it a max height with a scrollbar */
+    max-height: 150px;
     overflow-y: auto;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -258,7 +360,10 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
     border-bottom: none;
 }
 
-/* --- Modal Styles --- */
+
+/* ==========================================================================
+   6. Modal Styles
+   ========================================================================== */
 
 .modal-backdrop {
     position: fixed;
@@ -266,7 +371,7 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.6); /* Slightly darker for better contrast */
+    background-color: rgba(0, 0, 0, 0.6);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -275,15 +380,15 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
 
 .modal-content {
     background-color: white;
-    padding: 20px 30px; /* Adjust padding */
+    padding: 20px 30px;
     border-radius: 8px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
     color: #333;
-    width: 100%; /* Let the modal grow */
-    max-width: 700px; /* But not too wide */
-    max-height: 90vh; /* Prevent it from being taller than the screen */
-    display: flex; /* Use flexbox for layout */
-    flex-direction: column; /* Stack children vertically */
+    width: 100%;
+    max-width: 700px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
 }
 
 .modal-content h3 {
@@ -292,21 +397,9 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
     text-align: center;
 }
 
-/* This is the container for the main form content */
 .modal-content form {
-    overflow-y: auto; /* Make the form scrollable if content is too tall */
-    padding-right: 15px; /* Add space for the scrollbar */
-}
-
-/* This makes sure all inputs and selects in a form group are styled correctly */
-.form-group input,
-.form-group select {
-    width: 100%;
-    padding: 8px;
-    margin-top: 5px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box; /* Crucial for consistent sizing */
+    overflow-y: auto;
+    padding-right: 15px; /* Space for scrollbar */
 }
 
 .modal-actions {
@@ -315,158 +408,102 @@ tbody tr:hover { /* This is a "Pseudo-class Selector". It targets rows when hove
     gap: 10px;
     margin-top: 20px;
     padding-top: 15px;
-    border-top: 1px solid #eee; /* Add a separator line */
-}
-
-/* --- Sub-form specific styles from before, now integrated --- */
-.sub-form-section {
-    /* This tells the section to span from the first grid line to the last one */
-    grid-column: 1 / -1;
-
-    margin-top: 20px;
-    padding-top: 15px;
     border-top: 1px solid #eee;
 }
-.sub-form-section h4 {
-    margin-top: 0;
-    margin-bottom: 10px;
-}
-/* The container for the inputs and button */
-.sub-form-inputs {
-    display: grid;
-    /* FIX: Define 4 equal columns for the four text/date inputs */
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    gap: 10px;
-    align-items: center;
-    margin-top: 10px;
-}
 
-/* NEW RULE: Target the button directly by its ID */
-#add-protocol-btn {
-    /* Make the button span all 4 columns of the grid on the next line */
-    grid-column: 1 / -1;
-    /* Add a little space above it for better aesthetics */
-    margin-top: 10px;
-}
-/* Ensure inputs inside the sub-form take up full width of their grid cell */
-.sub-form-inputs input {
+/* ==========================================================================
+   7. Tables & AG-Grid
+   ========================================================================== */
+
+/* --- Standard HTML Table --- */
+table {
     width: 100%;
-    padding: 8px;
-    box-sizing: border-box;
+    border-collapse: collapse;
+    margin-top: 15px;
 }
 
-/* --- AG Grid Header Customization --- */
+th, td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
 
-/* AG Grid uses a class called '.ag-header-cell-label' for the container
-   that holds the header title text and the sort/filter icons.
-   We are turning this container into a flexbox and centering its content. */
+thead {
+    background-color: #007bff;
+    color: white;
+}
+
+tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+tbody tr:hover {
+    background-color: #e9ecef;
+}
+
+
+/* --- AG-Grid Customization --- */
+
 .ag-header-cell-label {
     display: flex;
     justify-content: center;
 }
 
-.main-header { 
-    /* We still need these properties from before */
+/* --- History Page Grid (Using Flexbox) --- */
+#purchase-history-grid {
+    width: 100%;
+    /* 
+      THE KEY: Instead of a fixed height, we tell the grid
+      to grow and fill all available vertical space within its
+      flexbox parent (.page).
+    */
+    flex-grow: 1; 
+}
+
+/* ==========================================================================
+   8. Page-Specific Styles
+   ========================================================================== */
+
+/* --- Dashboard / Summary --- */
+
+#summary-kpis, #animal-list {
+    background-color: #ffffff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+/* --- Settings Page --- */
+.settings-container {
+    background-color: #ffffff;
+    padding: 20px 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    max-width: 600px; /* Give it a max width for better readability */
+    margin: 20px auto; /* Center it on the page */
+}
+
+.setting-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 20px;
-    background-color: #004a99;
-    color: white;
-    margin-bottom: 20px;
-    border-radius: 8px 8px 8px 8px; /* Rounded corners on the top */
-    /* This establishes the header as a "layer" on top */
-    position: relative;
-    z-index: 100; 
+    padding: 15px 0;
+    border-bottom: 1px solid #eee;
 }
 
-.main-nav > ul {
-    margin: 0;
-    padding: 0;
-    list-style: none; /* Removes the black dots from the list */
-    display: flex;    /* Aligns the main menu items horizontally */
-    color: #ffffff; /* Sets the text color for the main menu items */
-    
+.setting-item:last-child {
+    border-bottom: none;
 }
 
-/* This targets the top-level menu items (History, Add, etc.) */
-/* --- 2. Menu and Dropdown Logic (Based on JS class) --- */
-
-.main-nav li {
-    position: relative;
-}
-
-.main-nav > ul > li > a {
-    display: block;
-    padding: 10px 15px;
-    color: white;
-    text-decoration: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-/* Style for the currently active TOP-LEVEL page link (e.g., Active Stock) */
-.main-nav > ul > li > a.nav-link.active {
-    background-color: #005dc0; /* Brighter blue for the active page */
-    color: #ffffff
-}
-
-/* Style for hovering over a TOP-LEVEL menu item (e.g., History, Add) */
-.main-nav > ul > li:hover > a,
-.main-nav .has-dropdown.dropdown-is-active > a {
-    background-color: #005dc0; /* Darker blue for hover/open */
-    color: #ffffff; /* Ensure text remains white on hover */
-}
-
-/* The dropdown panel itself */
-.dropdown {
-    visibility: hidden; /* Hide by default */
-    opacity: 0;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    background-color: #ffffff;
-    border-radius: 8px 8px 8px 8px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    min-width: 180px;
-    padding: 5px 0;
-    transition: opacity 0.3s ease-in-out; /* Only transition opacity */
- /*Allow items to wrap to the next line if they don't fit */
-}
-
-/* THE MAGIC: When the parent LI has the '.dropdown-is-active' class... */
-.has-dropdown.dropdown-is-active > .dropdown {
-    visibility: visible; /* ...make the dropdown visible */
-    opacity: 1;
-}
-
-
-/* This targets the links themselves */
-.dropdown a {
+.setting-item label {
+    font-weight: bold;
     color: #333;
-    text-align: left;
-    padding: 10px 10px;
-    display: block; /* Makes the entire row clickable and hoverable */
-    white-space: nowrap;
-    text-decoration: none; /* Removes underline from links */
-    text-align: center; /* Centers text in the dropdown */
-
 }
 
-.dropdown a:hover {
-    background-color: #e9ecef; /* Light gray for hover effect */
+.setting-item select {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    min-width: 200px; /* Ensure select is wide enough */
 }
-
-/* Right-aligned dropdown rule (This is correct and stays) */
-.dropdown-align-right .dropdown {
-    left: auto;
-    right: 0;
-}
-
-.dropdown-align-center .dropdown {
-    /* 1. Move the dropdown's left edge to the center of the parent */
-    left: 50%;
-    /* 2. Use transform to pull the dropdown back to the left by half of its own width */
-    transform: translateX(-50%);
-}
-
-

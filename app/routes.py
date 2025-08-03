@@ -141,25 +141,28 @@ def add_purchase(farm_id):
     Farm.query.get_or_404(farm_id)
     data = request.get_json()
 
-    # MODIFIED: Add 'location_id' to the list of required fields.
+    # Add 'location_id' to the list of required fields.
     required_fields = ['entry_date', 'ear_tag', 'lot', 'entry_weight', 'sex', 'entry_age', 'location_id']
     if not data or not all(field in data for field in required_fields):
         return jsonify({'error': 'Missing required fields'}), 400
 
-    # --- NEW: Validate the provided location_id ---
+    # --- Validate the provided location_id ---
     location_id = data.get('location_id')
     location = Location.query.filter_by(id=location_id, farm_id=farm_id).first()
     if not location:
         return jsonify({'error': f"Location with id {location_id} not found on this farm."}), 404
 
+    initial_diet_type = data.get('diet_type')
     protocols_to_add = data.get('sanitary_protocols', [])
     
     try:
         # Process incoming data.
         entry_date_obj = datetime.strptime(data['entry_date'], '%Y-%m-%d').date()
         entry_weight_val = float(data['entry_weight'])
-
-        # --- Create THREE records in one transaction ---
+        price_str = data.get('purchase_price')
+        final_price = float(price_str) if price_str else None
+        intake_str = data.get('daily_intake_percentage')
+        final_intake = float(intake_str) if intake_str else None
 
         # 1. Create the main Purchase record.
         new_purchase = Purchase(
@@ -168,8 +171,8 @@ def add_purchase(farm_id):
             lot=str(data['lot']),
             entry_weight=entry_weight_val,
             sex=data['sex'],
-            entry_age=data['entry_age'],
-            purchase_price=data.get('purchase_price'),
+            entry_age=float(data['entry_age']),
+            purchase_price=final_price,
             race=data.get('race'),
             farm_id=farm_id
         )
@@ -206,6 +209,16 @@ def add_purchase(farm_id):
                 farm_id=farm_id
             )
             db.session.add(new_protocol)
+
+        if initial_diet_type and initial_diet_type.strip():
+            new_diet_log = DietLog(
+                date=entry_date_obj,
+                diet_type=initial_diet_type.strip(),
+                daily_intake_percentage=final_intake,
+                animal_id=new_purchase.id, # Link to the animal we just created
+                farm_id=farm_id
+            )
+            db.session.add(new_diet_log)
 
         # Commit all three new records to the database.
         db.session.commit()
