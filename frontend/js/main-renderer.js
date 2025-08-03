@@ -399,3 +399,25 @@ async function showPage(pageId) {
     }
 }
 
+// A global timer for the toast to prevent overlaps ---
+let toastTimer;
+
+// The Toast Notification Function ---
+function showToast(message, type = 'success') {
+    const notification = document.getElementById('toast-notification');
+    if (!notification) return;
+
+    // Clear any existing timer to reset the fade-out
+    clearTimeout(toastTimer);
+
+    notification.textContent = message;
+    // Set class for styling (success or error)
+    notification.className = 'show ' + type;
+
+    // Set a timer to automatically hide the toast after 3 seconds
+    toastTimer = setTimeout(() => {
+        notification.className = notification.className.replace('show', '');
+    }, 3000);
+}
+
+

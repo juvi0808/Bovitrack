@@ -28,9 +28,11 @@
         </div>
         <nav class="main-nav">
             <ul>
+                <!-- Active Stock Menu -->
                 <li><a href="#" class="nav-link active" data-page="page-active-stock" data-translate="active_stock">Active Stock</a></li>
+                <!-- Operations Menu -->
                 <li class="has-dropdown dropdown-align-center">
-                    <a href="#" data-translate="history">History</a>
+                    <a href="#" data-translate="operations">Operations</a>
                     <ul class="dropdown">
                         <li><a href="#" class="nav-link" data-page="page-history-purchases" data-translate="purchases">Purchases</a></li>
                         <li><a href="#" class="nav-link" data-page="page-history-sales" data-translate="sales">Sales</a></li>
@@ -39,46 +41,33 @@
                         <li><a href="#" class="nav-link" data-page="page-history-diet-logs" data-translate="diet_logs">Diet Logs</a></li>
                         <li><a href="#" class="nav-link" data-page="page-history-sanitary" data-translate="sanitary_protocols">Sanitary Protocols</a></li>
                         <li><a href="#" class="nav-link" data-page="page-history-death" data-translate="deaths">Deaths</a></li>
-
-                        
-                        <!-- Add other history links as needed -->
                     </ul>
                 </li>
+                <!-- Farm Setup Menu -->
                 <li class="has-dropdown dropdown-align-center">
-                    <a href="#" data-translate="add">Add</a>
+                    <a href="#" data-translate="farm">Farm</a>
                     <ul class="dropdown">
-                        <li><a href="#" class="nav-link" data-page="page-add-purchase" data-translate="purchase">Purchase</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-sale" data-translate="sale">Sale</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-weighting" data-translate="weighting">Weighting</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-location" data-translate="location">Location</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-location-change" data-translate="location_change">Location Change</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-diet-log" data-translate="diet_log">Diet Log</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-sanitary" data-translate="sanitary_protocol">Sanitary Protocol</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-death" data-translate="death">Death</a></li>
-                        <!-- Add other 'add' links as needed -->
+                        <li><a href="#" class="nav-link" data-page="page-locations" data-translate="locations">Locations</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-lots" data-translate="lots">Lots</a></li>
                     </ul>
                 </li>
+                <!-- Lookup Menu -->
                 <li class="has-dropdown dropdown-align-right">
-                    <a href="#" data-translate="consult">Consult</a>
+                    <a href="#" data-translate="lookup">Lookup</a>
                     <ul class="dropdown">
-                        <li><a href="#" class="nav-link" data-page="page-consult-animal" data-translate="animal">Animal</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-consult-location" data-translate="location">Location</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-consult-diet" data-translate="lot">Lot</a></li>
-                        <!-- Add other 'consult' links as needed -->
+                        <li><a href="#" class="nav-link" data-page="page-consult-animal" data-translate="animal_details">Animal Details</a></li>
                     </ul>
                 </li>
                 <li><a href="#" class="nav-link" data-page="page-settings">⚙️</a></li>
             </ul>
         </nav>
     </header>
-    <!-- The main content area where pages will be swapped out -->
-    <main id="app-content"> 
-        <!-- Inside, we have different "pages", which are just <div> containers. -->
 
-        <!-- Page 1: The Active Stock Summary -->
-
-
-    </main>
+    <main id="app-content"> </main>
+    
+<!-- ==========================================================================
+    Modals
+    ========================================================================== -->
     <!-- ADD FARM MODAL -->
     <div id="add-farm-modal" class="modal-backdrop hidden">
         <div class="modal-content">
@@ -183,19 +172,27 @@
                     <!-- NEW: Sanitary Protocols Section -->
                     <div class="sub-form-section">
                         <h4 data-translate="add_sanitary_protocols_optional">Add Sanitary Protocols (Optional)</h4>
+                        
                         <!-- This is where the list of added protocols will appear -->
                         <ul id="protocols-list" class="dynamic-list">
                             <!-- Items will be added here by JavaScript -->
                         </ul>
-                        <!-- This is the mini-form for adding a new protocol -->
-                    <div class="sub-form-inputs">
-                        <input type="date" id="protocol-date" data-translate-placeholder="date_placeholder">
-                        <input type="text" id="protocol-type" data-translate-placeholder="protocol_type_placeholder">
-                        <input type="text" id="protocol-product" data-translate-placeholder="product_name_placeholder">
-                        <input type="text" id="protocol-invoice" data-translate-placeholder="invoice_number_placeholder">
-                        <button type="button" id="add-protocol-btn" class="button-secondary" data-translate="add_protocol">Add Protocol</button>
-                        <button type="button" id="clear-protocols-btn" class="button-secondary btn-danger" data-translate="clear_all">Clear All</button>
-                    </div>
+
+                        <!-- Container for ONLY the input fields -->
+                        <div class="sub-form-inputs">
+                            <input type="date" id="protocol-date" data-translate-placeholder="date_placeholder">
+                            <input type="text" id="protocol-type" data-translate-placeholder="protocol_type_placeholder">
+                            <input type="text" id="protocol-product" data-translate-placeholder="product_name_placeholder">
+                            <input type="text" id="protocol-dosage" data-translate-placeholder="dosage_placeholder">
+                            <input type="text" id="protocol-invoice" data-translate-placeholder="invoice_number_placeholder">
+                        </div>
+
+                        <!-- **** NEW **** Container for ONLY the action buttons -->
+                        <div class="sub-form-actions">
+                            <button type="button" id="add-protocol-btn" class="button-primary" data-translate="add_protocol">Add Protocol</button>
+                            <button type="button" id="clear-protocols-btn" class="button-secondary btn-danger" data-translate="clear_all">Clear All</button>
+                        </div>
+                    </div>  
                     
                 </div>
                 <div class="modal-actions">
@@ -206,6 +203,7 @@
         </div>
     </div>
 
+    <div id="toast-notification"></div>
     <!-- CRITICAL: This line loads and executes our JavaScript files. -->
     <!-- It is placed at the end of the <body> so that the JavaScript code runs -->
     <!-- AFTER all the HTML elements above it have been created. This ensures -->

@@ -204,6 +204,7 @@ def add_purchase(farm_id):
                 date=protocol_date,
                 protocol_type=protocol_data.get('protocol_type'),
                 product_name=protocol_data.get('product_name'),
+                dosage=protocol_data.get('dosage'), # Safely get dosage
                 invoice_number=protocol_data.get('invoice_number'),
                 animal_id=new_purchase.id, # Link to the animal we just created
                 farm_id=farm_id
@@ -356,7 +357,8 @@ def add_sanitary_protocol(farm_id, purchase_id):
             date=protocol_date_obj,
             protocol_type=data['protocol_type'],
             product_name=data.get('product_name'),
-            invoice_number=data.get('invoice_number'),
+            dosage = data.get('dosage'),
+            invoice_number=data.get('invoice_number'), 
             animal_id=purchase_id,
             farm_id=farm_id
         )
