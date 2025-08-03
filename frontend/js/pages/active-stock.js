@@ -10,12 +10,12 @@ async function loadDashboardData() {
     }
 
     if (!selectedFarmId) {
-        summaryDiv.innerHTML = 'Please select a farm to view data.';
+        summaryDiv.innerHTML = getTranslation('select_farm_to_view_data');
         gridDiv.innerHTML = '';
         return;
     }
-    summaryDiv.innerHTML = 'Loading summary...';
-    gridDiv.innerHTML = 'Loading animals...';
+    summaryDiv.innerHTML = getTranslation('loading_summary');
+    gridDiv.innerHTML = getTranslation('loading_animals');
 
     try {
         const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/stock/active_summary`);
@@ -26,8 +26,8 @@ async function loadDashboardData() {
         createAnimalGrid(data.animals);
     } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
-        summaryDiv.innerHTML = 'Error: Could not load summary data.';
-        gridDiv.innerHTML = 'Error: Could not load animal list.';
+        summaryDiv.innerHTML = `Error: ${getTranslation('could_not_load_summary_data')}`;
+        gridDiv.innerHTML = `Error: ${getTranslation('could_not_load_animal_list')}`;
     }
 }
 
@@ -35,10 +35,10 @@ function displaySummary(kpis) {
     const summaryDiv = document.getElementById('summary-kpis');
     if (summaryDiv) {
         summaryDiv.innerHTML = `
-            <p><strong>Total Active Animals:</strong> ${kpis.total_active_animals}</p>
-            <p><strong>Males:</strong> ${kpis.number_of_males} | <strong>Females:</strong> ${kpis.number_of_females}</p>
-            <p><strong>Average Age:</strong> ${kpis.average_age_months.toFixed(2)} months</p>
-            <p><strong>Average GMD:</strong> ${kpis.average_gmd_kg_day.toFixed(3)} kg/day</p>
+            <p><strong>${getTranslation('total_active_animals')}:</strong> ${kpis.total_active_animals}</p>
+            <p><strong>${getTranslation('males')}:</strong> ${kpis.number_of_males} | <strong>${getTranslation('females')}:</strong> ${kpis.number_of_females}</p>
+            <p><strong>${getTranslation('average_age')}:</strong> ${kpis.average_age_months.toFixed(2)} ${getTranslation('months')}</p>
+            <p><strong>${getTranslation('average_gmd')}:</strong> ${kpis.average_gmd_kg_day.toFixed(3)} kg/day</p>
         `;
     }
 }
@@ -47,20 +47,19 @@ function createAnimalGrid(animals) {
     const gridDiv = document.getElementById('animal-grid');
     if (gridDiv) {
         const columnDefs = [
-        { headerName: "Ear Tag", field: "ear_tag", width: 120 },
-        { headerName: "Lot", field: "lot", width: 100 },
-        { headername: "Entry Date", field: "entry_date", width: 150 },
-        { headerName: "Sex", field: "sex", width: 120 },
-        { headerName: "Age (Months)", field: "kpis.current_age_months", valueFormatter: p => p.value.toFixed(2), width: 150 },
-        { headerName: "Last Wt (kg)", field: "kpis.last_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 150 },
-        { headerName: "Last Wt Date", field: "kpis.last_weighting_date", width: 150 },
-        { headerName: "Avg Daily Gain (kg)", field: "kpis.average_daily_gain_kg", valueFormatter: p => p.value.toFixed(3), width: 180 },
-        { headerName: "Forecasted Weight", field: "kpis.forecasted_current_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 180 },
-        { headerName: "Current Location", field: "kpis.current_location_name" },
-        { headerName: "Diet Type", field: "kpis.current_diet_type" },
-        { headerName: "Diet Intake (%)", field: "kpis.current_diet_intake", valueFormatter: p => p.value ? `${p.value}%` : 'N/A', width: 150 },
-    ];
-        const gridOptions = {
+       { headerName: getTranslation("ear_tag"), field: "ear_tag", width: 120 },
+        { headerName: getTranslation("lot"), field: "lot", width: 100 },
+        { headerName: getTranslation("entry_date"), field: "entry_date", width: 150 },
+        { headerName: getTranslation("sex"), field: "sex", width: 120 },
+        { headerName: `${getTranslation('age')} (${getTranslation('months')})`, field: "kpis.current_age_months", valueFormatter: p => p.value.toFixed(2), width: 150 },
+        { headerName: `${getTranslation('last_wt_kg')}`, field: "kpis.last_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 150 },
+        { headerName: getTranslation("last_wt_date"), field: "kpis.last_weighting_date", width: 150 },
+        { headerName: getTranslation("avg_daily_gain_kg"), field: "kpis.average_daily_gain_kg", valueFormatter: p => p.value.toFixed(3), width: 180 },
+        { headerName: getTranslation("forecasted_weight"), field: "kpis.forecasted_current_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 180 },
+        { headerName: getTranslation("current_location"), field: "kpis.current_location_name" },
+        { headerName: getTranslation("diet_type"), field: "kpis.current_diet_type" },
+        { headerName: `${getTranslation('diet_intake')} (%)`, field: "kpis.current_diet_intake", valueFormatter: p => p.value ? `${p.value}%` : 'N/A', width: 150 },
+    ];const gridOptions = {
             columnDefs: columnDefs,
             rowData: animals,
             defaultColDet: {

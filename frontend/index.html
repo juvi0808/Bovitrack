@@ -18,7 +18,7 @@
         <div class="header-left">
             <span class="logo">BoviTrack</span> 
             <div class="farm-selector">
-                <label for="farm-select">Current Farm:</label>
+                <label for="farm-select" data-translate="current_farm">Current Farm:</label>
                 <!-- The farm dropdown will be populated by JavaScript -->
                 <select id="farm-select" name="farms"></select>
                 <button id="add-farm-btn" class="action-button" title="Add New Farm">+</button>
@@ -28,49 +28,49 @@
         </div>
         <nav class="main-nav">
             <ul>
-                <li><a href="#" class="nav-link active" data-page="page-active-stock">Active Stock</a></li>
+                <li><a href="#" class="nav-link active" data-page="page-active-stock" data-translate="active_stock">Active Stock</a></li>
                 <li class="has-dropdown dropdown-align-center">
-                    <a href="#">History</a>
+                    <a href="#" data-translate="history">History</a>
                     <ul class="dropdown">
-                        <li><a href="#" class="nav-link" data-page="page-history-purchases">Purchases</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-history-sales">Sales</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-history-weightings">Weightings</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-history-loc-changes">Location Changes</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-history-diet-logs">Diet Logs</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-history-sanitary">Sanitary Protocols</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-history-death">Deaths</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-history-purchases" data-translate="purchases">Purchases</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-history-sales" data-translate="sales">Sales</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-history-weightings" data-translate="weightings">Weightings</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-history-loc-changes" data-translate="location_changes">Location Changes</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-history-diet-logs" data-translate="diet_logs">Diet Logs</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-history-sanitary" data-translate="sanitary_protocols">Sanitary Protocols</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-history-death" data-translate="deaths">Deaths</a></li>
 
                         
                         <!-- Add other history links as needed -->
                     </ul>
                 </li>
                 <li class="has-dropdown dropdown-align-center">
-                    <a href="#">Add</a>
+                    <a href="#" data-translate="add">Add</a>
                     <ul class="dropdown">
-                        <li><a href="#" class="nav-link" data-page="page-add-purchase">Purchase</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-sale">Sale</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-weighting">Weighting</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-location">Location</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-location-change">Location Change</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-diet-log">Diet Log</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-sanitary">Sanitary Protocol</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-death">Death</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-add-purchase" data-translate="purchase">Purchase</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-add-sale" data-translate="sale">Sale</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-add-weighting" data-translate="weighting">Weighting</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-add-location" data-translate="location">Location</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-add-location-change" data-translate="location_change">Location Change</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-add-diet-log" data-translate="diet_log">Diet Log</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-add-sanitary" data-translate="sanitary_protocol">Sanitary Protocol</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-add-death" data-translate="death">Death</a></li>
                         <!-- Add other 'add' links as needed -->
                     </ul>
                 </li>
                 <li class="has-dropdown dropdown-align-right">
-                    <a href="#">Consult</a>
+                    <a href="#" data-translate="consult">Consult</a>
                     <ul class="dropdown">
-                        <li><a href="#" class="nav-link" data-page="page-consult-animal">Animal</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-consult-location">Location</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-consult-diet">Lot</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-consult-animal" data-translate="animal">Animal</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-consult-location" data-translate="location">Location</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-consult-diet" data-translate="lot">Lot</a></li>
                         <!-- Add other 'consult' links as needed -->
                     </ul>
                 </li>
+                <li><a href="#" class="nav-link" data-page="page-settings">⚙️</a></li>
             </ul>
         </nav>
     </header>
-
     <!-- The main content area where pages will be swapped out -->
     <main id="app-content"> 
         <!-- Inside, we have different "pages", which are just <div> containers. -->
@@ -78,40 +78,17 @@
         <!-- Page 1: The Active Stock Summary -->
 
 
-        <div class="page hidden" id="page-history-purchases"><h2>History: Purchases</h2><p>This page will show a table of all past purchases.</p></div>
-        <div class="page hidden" id="page-history-sales"><h2>History: Sales</h2><p>This page will show a table of all past sales.</p></div>
-        <div class="page hidden" id="page-history-weightings"><h2>History: Weightings</h2><p>This page will show a table of all weight records.</p></div>
-        <div class="page hidden" id="page-history-loc-changes"><h2>History: Location Changes</h2><p>This page will show a table of all location changes.</p></div>
-        <div class="page hidden" id="page-history-diet-logs"><h2>History: Diet Logs</h2><p>This page will show a table of all diet logs.</p></div>
-        <div class="page hidden" id="page-history-sanitary"><h2>History: Sanitary Protocols</h2><p>This page will show a table of all sanitary protocols.</p></div>
-        <div class="page hidden" id="page-history-death"><h2>History: Deaths</h2><p>This page will show a table of all recorded animal deaths.</p></div>
-        
-        
-        
-        <div class="page hidden" id="page-add-weighting"><h2>Add New Weighting</h2><p>This page will contain the form to add a new animal weighting.</p></div>
-        
-        <div class="page hidden" id="page-add-location-change"><h2>Add New Location Change</h2><p>This page will contain the form to record a location change for an animal.</p></div>
-        <div class="page hidden" id="page-add-diet-log"><h2>Add New Diet Log</h2><p>This page will contain the form to log a new diet for an animal.</p></div>
-        <div class="page hidden" id="page-add-sanitary"><h2>Add New Sanitary Protocol</h2><p>This page will contain the form to record a new sanitary protocol.</p></div>
-        <div class="page hidden" id="page-add-death"><h2>Add New Death Record</h2><p>This page will contain the form to record an animal death.</p></div>
-
-        <div class="page hidden" id="page-consult-animal"><h2>Consult Animal Record</h2><p>This page will have a search bar to find and display the full history of a single animal.</p></div>
-        <div class="page hidden" id="page-consult-location"><h2>Consult Location</h2><p>This page will have a search bar to find and display all animals in a specific location.</p></div>
-        <div class="page hidden" id="page-consult-diet"><h2>Consult Diet Lot</h2><p>This page will have a search bar to find and display all animals on a specific diet.</p></div>
-        <!-- This is a modal for adding a new farm (Initially hidden) -->
-
-
     </main>
     <!-- ADD FARM MODAL -->
     <div id="add-farm-modal" class="modal-backdrop hidden">
         <div class="modal-content">
-            <h3>Register New Farm</h3>
+            <h3 data-translate="register_new_farm">Register New Farm</h3>
             <form id="add-farm-form">
-                <label for="new-farm-name">Farm Name:</label>
+                <label for="new-farm-name" data-translate="farm_name">Farm Name:</label>
                 <input type="text" id="new-farm-name" required>
                 <div class="modal-actions">
-                    <button type="submit">Save Farm</button>
-                    <button type="button" id="cancel-add-farm">Cancel</button>
+                    <button type="submit" data-translate="save_farm">Save Farm</button>
+                    <button type="button" id="cancel-add-farm" data-translate="cancel">Cancel</button>
                 </div>
             </form>
         </div>
@@ -120,13 +97,13 @@
     <!-- Rename Farm Modal -->
     <div id="rename-farm-modal" class="modal-backdrop hidden">
         <div class="modal-content">
-            <h3>Rename Farm</h3>
+            <h3 data-translate="rename_farm">Rename Farm</h3>
             <form id="rename-farm-form">
-                <label for="rename-farm-name">New Farm Name:</label>
+                <label for="rename-farm-name" data-translate="new_farm_name">New Farm Name:</label>
                 <input type="text" id="rename-farm-name" required>
                 <div class="modal-actions">
-                    <button type="submit">Save Changes</button>
-                    <button type="button" id="cancel-rename-farm">Cancel</button>
+                    <button type="submit" data-translate="save_changes">Save Changes</button>
+                    <button type="button" id="cancel-rename-farm" data-translate="cancel">Cancel</button>
                 </div>
             </form>
         </div>
@@ -135,14 +112,14 @@
         <!-- NEW: Delete Farm Confirmation Modal -->
     <div id="delete-farm-modal" class="modal-backdrop hidden">
         <div class="modal-content">
-            <h3>Confirm Deletion</h3>
-            <p class="warning-text">Are you sure you want to delete the farm "<strong id="farm-name-to-delete"></strong>"?</p>
-            <p class="warning-text"><strong>This action is permanent and cannot be undone.</strong> All animals, sales, weightings, and other associated data for this farm will be permanently deleted.</p>
+            <h3 data-translate="confirm_deletion">Confirm Deletion</h3>
+            <p class="warning-text" data-translate="confirm_delete_farm_message_1">Are you sure you want to delete the farm "<strong id="farm-name-to-delete"></strong>"?</p>
+            <p class="warning-text" data-translate="confirm_delete_farm_message_2"><strong>This action is permanent and cannot be undone.</strong> All animals, sales, weightings, and other associated data for this farm will be permanently deleted.</p>
             <div class="modal-actions">
                 <!-- We will use a form here to listen for the submit event -->
                 <form id="delete-farm-form">
-                    <button type="button" id="cancel-delete-farm">Cancel</button>
-                    <button type="submit" class="btn-danger">Confirm Delete</button>
+                    <button type="button" id="cancel-delete-farm" data-translate="cancel">Cancel</button>
+                    <button type="submit" class="btn-danger" data-translate="confirm_delete">Confirm Delete</button>
                 </form>
             </div>
         </div>
@@ -151,84 +128,79 @@
      <!-- ADD PURCHASE MODAL -->
     <div id="add-purchase-modal" class="modal-backdrop hidden">
         <div class="modal-content">
-            <h3>Add New Purchase</h3>
+            <h3 data-translate="add_new_purchase">Add New Purchase</h3>
             <form id="add-purchase-form">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="purchase-ear-tag">Ear Tag</label>
+                        <label for="purchase-ear-tag" data-translate="ear_tag">Ear Tag</label>
                         <input type="text" id="purchase-ear-tag" required>
                     </div>
                     <div class="form-group">
-                        <label for="purchase-lot">Lot</label>
+                        <label for="purchase-lot" data-translate="lot">Lot</label>
                         <input type="text" id="purchase-lot" required>
                     </div>
                     <div class="form-group">
-                        <label for="purchase-entry-date">Entry Date</label>
+                        <label for="purchase-entry-date" data-translate="entry_date">Entry Date</label>
                         <input type="date" id="purchase-entry-date" required>
                     </div>
                     <div class="form-group">
-                        <label for="purchase-entry-age">Entry Age (Months)</label>
+                        <label for="purchase-entry-age" data-translate="entry_age_months">Entry Age (Months)</label>
                         <input type="number" step="0.1" id="purchase-entry-age" required>
                     </div>
                     <div class="form-group">
-                        <label for="purchase-entry-weight">Entry Weight (kg)</label>
+                        <label for="purchase-entry-weight" data-translate="entry_weight_kg">Entry Weight (kg)</label>
                         <input type="number" step="0.01" id="purchase-entry-weight" required>
                     </div>
                     <div class="form-group">
-                        <label for="purchase-sex">Sex</label>
+                        <label for="purchase-sex" data-translate="sex">Sex</label>
                         <select id="purchase-sex" required>
-                            <option value="M">Male</option>
-                            <option value="F">Female</option>
+                            <option value="M" data-translate="male">Male</option>
+                            <option value="F" data-translate="female">Female</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="purchase-race">Race (Optional)</label>
+                        <label for="purchase-race" data-translate="race_optional">Race (Optional)</label>
                         <input type="text" id="purchase-race">
                     </div>
                     <div class="form-group">
-                        <label for="purchase-price">Purchase Price (Optional)</label>
+                        <label for="purchase-price" data-translate="purchase_price_optional">Purchase Price (Optional)</label>
                         <input type="number" step="0.01" id="purchase-price">
                     </div>
                     <div class="form-group form-group-full">
-                        <label for="purchase-location">Initial Location</label>
+                        <label for="purchase-location" data-translate="initial_location">Initial Location</label>
                         <select id="purchase-location" required>
                             <!-- Locations will be populated by JavaScript -->
                         </select>
                     </div>
-                    <!-- <div class="form-group form-group-full">
-                        <label for="purchase-location">Initial Diet Type</label>
-                        <select id="purchase-location" > -->
-                            <!-- Locations will be populated by JavaScript -->
-                        <!-- </select>
+                    <div class="form-group">
+                        <label for="purchase-diet-type" data-translate="initial_diet_type">Initial Diet Type (Optional)</label>
+                        <input type="text" id="purchase-diet-type">
                     </div>
-                    <div class="form-group form-group-full">
-                        <label for="purchase-location">Initial Diet Intake</label>
-                        <select id="purchase-location" > -->
-                            <!-- Locations will be populated by JavaScript -->
-                        <!-- </select>
-                    </div> -->
+                    <div class="form-group">
+                        <label for="purchase-diet-intake" data-translate="initial_diet_intake_percentage">Initial Diet Intake (%)</label>
+                        <input type="number" step="0.1" id="purchase-diet-intake">
+                    </div>
                     <!-- NEW: Sanitary Protocols Section -->
                     <div class="sub-form-section">
-                        <h4>Add Sanitary Protocols (Optional)</h4>
+                        <h4 data-translate="add_sanitary_protocols_optional">Add Sanitary Protocols (Optional)</h4>
                         <!-- This is where the list of added protocols will appear -->
                         <ul id="protocols-list" class="dynamic-list">
                             <!-- Items will be added here by JavaScript -->
                         </ul>
                         <!-- This is the mini-form for adding a new protocol -->
-                        <div class="sub-form-inputs">
-                            <input type="date" id="protocol-date" placeholder="Date">
-                            <input type="text" id="protocol-type" placeholder="Protocol Type (e.g., Vaccine)">
-                            <input type="text" id="protocol-product" placeholder="Product Name (e.g., Ivermectin)">
-                            <input type="text" id="protocol-invoice" placeholder="Invoice Number (If Any)">
-                            <button type="button" id="add-protocol-btn" class="button-secondary">Add Protocol</button>
-                            <button type="button" id="clear-protocols-btn" class="button-secondary btn-danger">Clear All</button>
-                        </div>
+                    <div class="sub-form-inputs">
+                        <input type="date" id="protocol-date" data-translate-placeholder="date_placeholder">
+                        <input type="text" id="protocol-type" data-translate-placeholder="protocol_type_placeholder">
+                        <input type="text" id="protocol-product" data-translate-placeholder="product_name_placeholder">
+                        <input type="text" id="protocol-invoice" data-translate-placeholder="invoice_number_placeholder">
+                        <button type="button" id="add-protocol-btn" class="button-secondary" data-translate="add_protocol">Add Protocol</button>
+                        <button type="button" id="clear-protocols-btn" class="button-secondary btn-danger" data-translate="clear_all">Clear All</button>
                     </div>
                     
                 </div>
                 <div class="modal-actions">
-                    <button type="submit">Save Purchase</button>
-                    <button type="button" id="cancel-add-purchase">Cancel</button>
+                    <button type="submit" data-translate="save_purchase">Save Purchase</button>
+                    <button type="button" id="cancel-add-purchase" data-translate="cancel">Cancel</button>
                 </div>
             </form>
         </div>
@@ -238,8 +210,10 @@
     <!-- It is placed at the end of the <body> so that the JavaScript code runs -->
     <!-- AFTER all the HTML elements above it have been created. This ensures -->
     <!-- that getElementById() can find the elements it's looking for. -->
+    <script src="./js/translations.js"></script>
     <script src="./js/main-renderer.js"></script>
     <script src="./js/pages/active-stock.js"></script>
     <script src="./js/pages/history-purchases.js"></script>
+    <script src="./js/pages/settings.js"></script>
 </body>
 </html>
