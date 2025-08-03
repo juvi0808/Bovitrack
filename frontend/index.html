@@ -28,57 +28,46 @@
         </div>
         <nav class="main-nav">
             <ul>
+                <!-- Active Stock Menu -->
                 <li><a href="#" class="nav-link active" data-page="page-active-stock" data-translate="active_stock">Active Stock</a></li>
+                <!-- Operations Menu -->
                 <li class="has-dropdown dropdown-align-center">
-                    <a href="#" data-translate="history">History</a>
+                    <a href="#" data-translate="operations">Operations</a>
                     <ul class="dropdown">
-                        <li><a href="#" class="nav-link" data-page="page-history-purchases" data-translate="purchases">Purchases</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-history-sales" data-translate="sales">Sales</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-history-weightings" data-translate="weightings">Weightings</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-history-loc-changes" data-translate="location_changes">Location Changes</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-history-diet-logs" data-translate="diet_logs">Diet Logs</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-history-sanitary" data-translate="sanitary_protocols">Sanitary Protocols</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-history-death" data-translate="deaths">Deaths</a></li>
-
-                        
-                        <!-- Add other history links as needed -->
+                        <li><a href="#" class="nav-link" data-page="page-operations-purchases" data-translate="purchases">Purchases</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-operations-sales" data-translate="sales">Sales</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-operations-weightings" data-translate="weightings">Weightings</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-operations-loc-change" data-translate="location_changes">Location Changes</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-operations-diet-log" data-translate="diet_logs">Diet Logs</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-operations-sanitary" data-translate="sanitary_protocols">Sanitary Protocols</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-operations-death" data-translate="deaths">Deaths</a></li>
                     </ul>
                 </li>
+                <!-- Farm Setup Menu -->
                 <li class="has-dropdown dropdown-align-center">
-                    <a href="#" data-translate="add">Add</a>
+                    <a href="#" data-translate="farm">Farm</a>
                     <ul class="dropdown">
-                        <li><a href="#" class="nav-link" data-page="page-add-purchase" data-translate="purchase">Purchase</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-sale" data-translate="sale">Sale</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-weighting" data-translate="weighting">Weighting</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-location" data-translate="location">Location</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-location-change" data-translate="location_change">Location Change</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-diet-log" data-translate="diet_log">Diet Log</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-sanitary" data-translate="sanitary_protocol">Sanitary Protocol</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-add-death" data-translate="death">Death</a></li>
-                        <!-- Add other 'add' links as needed -->
+                        <li><a href="#" class="nav-link" data-page="page-locations" data-translate="locations">Locations</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-lots" data-translate="lots">Lots</a></li>
                     </ul>
                 </li>
+                <!-- Lookup Menu -->
                 <li class="has-dropdown dropdown-align-right">
-                    <a href="#" data-translate="consult">Consult</a>
+                    <a href="#" data-translate="lookup">Lookup</a>
                     <ul class="dropdown">
-                        <li><a href="#" class="nav-link" data-page="page-consult-animal" data-translate="animal">Animal</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-consult-location" data-translate="location">Location</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-consult-diet" data-translate="lot">Lot</a></li>
-                        <!-- Add other 'consult' links as needed -->
+                        <li><a href="#" class="nav-link" data-page="page-consult-animal" data-translate="search_animal">Search Animal</a></li>
                     </ul>
                 </li>
                 <li><a href="#" class="nav-link" data-page="page-settings">⚙️</a></li>
             </ul>
         </nav>
     </header>
-    <!-- The main content area where pages will be swapped out -->
-    <main id="app-content"> 
-        <!-- Inside, we have different "pages", which are just <div> containers. -->
 
-        <!-- Page 1: The Active Stock Summary -->
-
-
-    </main>
+    <main id="app-content"> </main>
+    
+<!-- ==========================================================================
+    Modals
+    ========================================================================== -->
     <!-- ADD FARM MODAL -->
     <div id="add-farm-modal" class="modal-backdrop hidden">
         <div class="modal-content">
@@ -183,19 +172,27 @@
                     <!-- NEW: Sanitary Protocols Section -->
                     <div class="sub-form-section">
                         <h4 data-translate="add_sanitary_protocols_optional">Add Sanitary Protocols (Optional)</h4>
+                        
                         <!-- This is where the list of added protocols will appear -->
                         <ul id="protocols-list" class="dynamic-list">
                             <!-- Items will be added here by JavaScript -->
                         </ul>
-                        <!-- This is the mini-form for adding a new protocol -->
-                    <div class="sub-form-inputs">
-                        <input type="date" id="protocol-date" data-translate-placeholder="date_placeholder">
-                        <input type="text" id="protocol-type" data-translate-placeholder="protocol_type_placeholder">
-                        <input type="text" id="protocol-product" data-translate-placeholder="product_name_placeholder">
-                        <input type="text" id="protocol-invoice" data-translate-placeholder="invoice_number_placeholder">
-                        <button type="button" id="add-protocol-btn" class="button-secondary" data-translate="add_protocol">Add Protocol</button>
-                        <button type="button" id="clear-protocols-btn" class="button-secondary btn-danger" data-translate="clear_all">Clear All</button>
-                    </div>
+
+                        <!-- Container for ONLY the input fields -->
+                        <div class="sub-form-inputs">
+                            <input type="date" id="protocol-date" data-translate-placeholder="date_placeholder">
+                            <input type="text" id="protocol-type" data-translate-placeholder="protocol_type_placeholder">
+                            <input type="text" id="protocol-product" data-translate-placeholder="product_name_placeholder">
+                            <input type="text" id="protocol-dosage" data-translate-placeholder="dosage_placeholder">
+                            <input type="text" id="protocol-invoice" data-translate-placeholder="invoice_number_placeholder">
+                        </div>
+
+                        <!-- **** NEW **** Container for ONLY the action buttons -->
+                        <div class="sub-form-actions">
+                            <button type="button" id="add-protocol-btn" class="button-primary" data-translate="add_protocol">Add Protocol</button>
+                            <button type="button" id="clear-protocols-btn" class="button-secondary btn-danger" data-translate="clear_all">Clear All</button>
+                        </div>
+                    </div>  
                     
                 </div>
                 <div class="modal-actions">
@@ -205,7 +202,233 @@
             </form>
         </div>
     </div>
+    
+    <!-- ADD SALE MODAL -->
+    <div id="add-sale-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 data-translate="add_new_sale">Add New Sale</h3>
+            <form id="add-sale-form">
+                <!-- Animal Search Section -->
+                <div class="form-group form-group-full">
+                    <label for="sale-animal-search-eartag" data-translate="search_animal_to_sell">Search Animal to Sell by Ear Tag</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="sale-animal-search-eartag" required>
+                        <button type="button" id="search-animal-btn" class="button-primary" data-translate="search">Search</button>
+                    </div>
+                    <div id="search-animal-result" class="animal-search-results-container"></div>
 
+                </div>
+
+                <!-- Sale Details Section -->
+                <div class="form-grid" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                    <div class="form-group">
+                        <label for="sale-date" data-translate="sale_date">Sale Date</label>
+                        <input type="date" id="sale-date" required>
+                   </div>
+                     <div class="form-group">
+                        <label for="sale-exit-weight" data-translate="exit_weight_kg">Exit Weight (kg)</label>
+                        <input type="number" step="0.01" id="sale-exit-weight" required>
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label for="sale-price" data-translate="sale_price">Sale Price</label>
+                       <input type="number" step="0.01" id="sale-price" required>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" data-translate="save_sale">Save Sale</button>
+                   <button type="button" id="cancel-add-sale" data-translate="cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+<!-- ADD WEIGHTING MODAL -->
+    <div id="add-weighting-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 data-translate="add_new_weighting">Add New Weighting</h3>
+            <form id="add-weighting-form">
+                <!-- Animal Search Section -->
+                <div class="form-group form-group-full">
+                    <label for="weighting-animal-search-eartag" data-translate="search_animal_to_weigh">Search Animal to Weigh by Ear Tag</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="weighting-animal-search-eartag" required>
+                        <button type="button" id="weighting-search-animal-btn" class="button-primary" data-translate="search">Search</button>
+                    </div>
+                    <div id="weighting-search-animal-result" class="animal-search-results-container"></div>
+                </div>
+
+                <!-- Weighting Details Section -->
+                <div class="form-grid" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                    <div class="form-group">
+                        <label for="weighting-date" data-translate="date">Date</label>
+                        <input type="date" id="weighting-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="weighting-weight-kg" data-translate="weighting_kg">Weight (kg)</label>
+                        <input type="number" step="0.01" id="weighting-weight-kg" required>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" data-translate="save_weighting">Save Weighting</button>
+                    <button type="button" id="cancel-add-weighting" data-translate="cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- ADD LOCATION CHANGE MODAL -->
+    <div id="add-location-change-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 data-translate="add_new_location_change">Add New Location Change</h3>
+            <form id="add-location-change-form">
+                <!-- Animal Search Section -->
+                <div class="form-group form-group-full">
+                    <label for="location-change-animal-search-eartag" data-translate="search_animal_for_loc_change">Search Animal to Move by Ear Tag</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="location-change-animal-search-eartag" required>
+                        <button type="button" id="location-change-search-animal-btn" class="button-primary" data-translate="search">Search</button>
+                    </div>
+                    <div id="location-change-search-animal-result" class="animal-search-results-container"></div>
+                </div>
+
+                <!-- Details Section -->
+                <div class="form-grid" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                    <div class="form-group">
+                        <label for="location-change-date" data-translate="date">Date</label>
+                        <input type="date" id="location-change-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-location-select" data-translate="new_location">New Location</label>
+                        <select id="new-location-select" required></select>
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label for="location-change-weight-kg" data-translate="optional_weight_kg">Weight (kg, Optional)</label>
+                        <input type="number" step="0.01" id="location-change-weight-kg">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" data-translate="save_location_change">Save Location Change</button>
+                    <button type="button" id="cancel-add-location-change" data-translate="cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+     <!-- ADD DIET LOG MODAL -->
+    <div id="add-diet-log-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 data-translate="add_new_diet_log">Add New Diet Log</h3>
+            <form id="add-diet-log-form">
+                <!-- Animal Search Section -->
+                <div class="form-group form-group-full">
+                    <label for="diet-log-animal-search-eartag" data-translate="search_animal_for_diet_log">Search Animal to Update Diet by Ear Tag</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="diet-log-animal-search-eartag" required>
+                        <button type="button" id="diet-log-search-animal-btn" class="button-primary" data-translate="search">Search</button>
+                    </div>
+                    <div id="diet-log-search-animal-result" class="animal-search-results-container"></div>
+                </div>
+
+                <!-- Details Section -->
+                <div class="form-grid" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                    <div class="form-group">
+                        <label for="diet-log-date" data-translate="date">Date</label>
+                        <input type="date" id="diet-log-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-diet-type" data-translate="new_diet_type">New Diet Type</label>
+                        <input type="text" id="new-diet-type" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-diet-intake" data-translate="diet_intake">Daily Intake (%)</label>
+                        <input type="number" step="0.1" id="new-diet-intake">
+                    </div>
+                    <div class="form-group">
+                        <label for="diet-log-weight-kg" data-translate="optional_weight_kg">Weight (kg, Optional)</label>
+                        <input type="number" step="0.01" id="diet-log-weight-kg">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" data-translate="save_diet_log">Save Diet Log</button>
+                    <button type="button" id="cancel-add-diet-log" data-translate="cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- ADD SANITARY PROTOCOL MODAL -->
+    <div id="add-sanitary-protocol-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 data-translate="add_new_sanitary_protocol">Add New Sanitary Protocol</h3>
+            <form id="add-sanitary-protocol-form">
+                <!-- Animal Search Section -->
+                <div class="form-group form-group-full">
+                    <label for="sp-animal-search-eartag" data-translate="search_animal_for_protocol">Search Animal for Protocol by Ear Tag</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="sp-animal-search-eartag" required>
+                        <button type="button" id="sp-search-animal-btn" class="button-primary" data-translate="search">Search</button>
+                    </div>
+                    <div id="sp-search-animal-result" class="animal-search-results-container"></div>
+                </div>
+
+                <!-- Protocol Sub-form Section -->
+                <div class="sub-form-section" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                    <h4 data-translate="add_sanitary_protocols">Add Sanitary Protocols</h4>
+                    <ul id="sp-protocols-list" class="dynamic-list"></ul>
+                    <div class="sub-form-inputs">
+                        <input type="date" id="sp-protocol-date" data-translate-placeholder="date_placeholder">
+                        <input type="text" id="sp-protocol-type" data-translate-placeholder="protocol_type_placeholder">
+                        <input type="text" id="sp-protocol-product" data-translate-placeholder="product_name_placeholder">
+                        <input type="text" id="sp-protocol-dosage" data-translate-placeholder="dosage_placeholder">
+                        <input type="text" id="sp-protocol-invoice" data-translate-placeholder="invoice_number_placeholder">
+                    </div>
+                    <div class="sub-form-actions">
+                        <button type="button" id="sp-add-protocol-btn" class="button-primary" data-translate="add_protocol">Add Protocol</button>
+                        <button type="button" id="sp-clear-protocols-btn" class="button-secondary btn-danger" data-translate="clear_all">Clear All</button>
+                    </div>
+                </div>
+                <!-- THE FIX: Optional Weight Field -->
+                <div class="form-group form-group-full" style="margin-top: 10px;">
+                    <label for="sp-weight-kg" data-translate="optional_weight_kg">Weight (kg, Optional)</label>
+                    <input type="number" step="0.01" id="sp-weight-kg">
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" data-translate="save_protocols">Save Protocols</button>
+                    <button type="button" id="cancel-add-sanitary-protocol" data-translate="cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- ADD DEATH MODAL -->
+    <div id="add-death-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 data-translate="add_new_death_record">Add New Death Record</h3>
+            <form id="add-death-form">
+                <!-- Animal Search Section -->
+                <div class="form-group form-group-full">
+                    <label for="death-animal-search-eartag" data-translate="search_animal_for_death_record">Search Animal to Record Death by Ear Tag</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="death-animal-search-eartag" required>
+                        <button type="button" id="death-search-animal-btn" class="button-primary" data-translate="search">Search</button>
+                    </div>
+                    <div id="death-search-animal-result" class="animal-search-results-container"></div>
+                </div>
+
+                <!-- Details Section -->
+                <div class="form-grid" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                    <div class="form-group">
+                        <label for="death-date" data-translate="date">Date</label>
+                        <input type="date" id="death-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="death-cause" data-translate="cause_of_death_optional">Cause of Death (Optional)</label>
+                        <input type="text" id="death-cause">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" data-translate="save_death_record">Save Death Record</button>
+                    <button type="button" id="cancel-add-death" data-translate="cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="toast-notification"></div>
     <!-- CRITICAL: This line loads and executes our JavaScript files. -->
     <!-- It is placed at the end of the <body> so that the JavaScript code runs -->
     <!-- AFTER all the HTML elements above it have been created. This ensures -->
@@ -213,7 +436,13 @@
     <script src="./js/translations.js"></script>
     <script src="./js/main-renderer.js"></script>
     <script src="./js/pages/active-stock.js"></script>
-    <script src="./js/pages/history-purchases.js"></script>
+    <script src="./js/pages/operations-purchases.js"></script>
+    <script src="./js/pages/operations-sales.js"></script>
+    <script src="./js/pages/operations-weightings.js"></script>
+    <script src="./js/pages/operations-loc-change.js"></script>
+    <script src="./js/pages/operations-diet-log.js"></script>
+    <script src="./js/pages/operations-sanitary.js"></script>
+    <script src="./js/pages/operations-death.js"></script>
     <script src="./js/pages/settings.js"></script>
 </body>
 </html>

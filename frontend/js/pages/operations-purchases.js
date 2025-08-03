@@ -71,7 +71,7 @@ function initHistoryPurchasesPage() {
     // --- Event Listeners ---
     showModalBtn.addEventListener('click', openAddPurchaseModal);
     cancelAddPurchaseBtn.addEventListener('click', () => addPurchaseModal.classList.add('hidden'));
-    addPurchaseForm.addEventListener('submit', handleAddPurchaseSubmit);
+    addPurchaseForm.onsubmit = handleAddPurchaseSubmit;
     addProtocolBtn.addEventListener('click', handleAddProtocol);
     clearProtocolsBtn.addEventListener('click', () => {
         protocolsForCurrentPurchase.length = 0; // Clear the live array
@@ -141,25 +141,27 @@ async function openAddPurchaseModal() {
         // const dateInput = document.getElementById('protocol-date');
         const typeInput = document.getElementById('protocol-type');
         const productInput = document.getElementById('protocol-product');
+        const dosageInput = document.getElementById('protocol-dosage');
         const invoiceInput = document.getElementById('protocol-invoice');
 
-        if (!dateInput.value || !typeInput.value.trim()) {
+        if (!protocolDateInput.value || !typeInput.value.trim()) {
             alert('Protocol Date and Type are required.');
             return;
         }
 
         // Add the new protocol to our temporary array
         protocolsForCurrentPurchase.push({
-            date: dateInput.value,
+            date: protocolDateInput.value,
             protocol_type: typeInput.value.trim(),
             product_name: productInput.value.trim(),
+            dosage: dosageInput.value.trim(),
             invoice_number: invoiceInput.value.trim()
         });
 
         // Clear the inputs for the next entry
-        dateInput.value = '';
         typeInput.value = '';
         productInput.value = '';
+        dosageInput.value = '';
         invoiceInput.value = '';
         
         // Update the visual list on the screen
@@ -182,8 +184,9 @@ async function openAddPurchaseModal() {
 
         protocolsForCurrentPurchase.forEach((protocol, index) => {
             const li = document.createElement('li');
+            const dosageText = protocol.dosage ? ` - ${protocol.dosage}` : '';
             li.innerHTML = `
-                <span>${protocol.date} - ${protocol.protocol_type} (${protocol.product_name || 'N/A'})</span>
+                <span>${protocol.date} - ${protocol.protocol_type} (${protocol.product_name || 'N/A'})${dosageText}</span>
                 <button type="button" class="remove-item-btn" data-index="${index}">×</button>
             `;
             protocolsListUl.appendChild(li);
@@ -223,9 +226,9 @@ async function openAddPurchaseModal() {
 
             // 2. Give the user clear feedback.
             const successMessage = getTranslation('animal_saved_successfully', { earTag: formData.ear_tag });
-            alert(`${successMessage} ${getTranslation('form_ready_for_next_entry')}`);
+            showToast(`${successMessage} ${getTranslation('form_ready_for_next_entry')}`, 'success');
             // 3. Refresh the data grid in the background so the user sees the new entry.
-            loadPurchaseHistory(); 
+            loadPurchaseHistoryData(); 
 
             // 4. Reset only the fields unique to each animal.
             document.getElementById('purchase-ear-tag').value = '';
@@ -233,11 +236,12 @@ async function openAddPurchaseModal() {
             document.getElementById('purchase-entry-age').value = '';
             // 5. (UX) Automatically focus the cursor on the next ear tag field.
             document.getElementById('purchase-ear-tag').focus();
-        }
+            }
         catch (error) {
-        alert(`${getTranslation('error_saving_animal')}: ${error.message}`);
+            showToast(`${getTranslation('error_saving_animal')}: ${error.message}`, 'error');
+            }
         }
-    }
+    
 
     // Initial data load for the page
     loadPurchaseHistoryData();

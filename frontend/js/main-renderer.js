@@ -144,10 +144,11 @@ function setLanguage(lang) {
         const pageId = activeLink.dataset.page;
         // Re-run the data loading function for the current page
         if (pageId === 'page-active-stock') {
-            loadDashboardData();
-        } else if (pageId === 'page-history-purchases') {
-            loadPurchaseHistoryData();
-        }
+            loadDashboardData();} 
+        else if (pageId === 'page-operations-purchases') {
+            loadPurchaseHistoryData();}
+        else if (pageId === 'page-operations-sales') {
+            loadSalesHistoryData();}
     }
 }
 
@@ -234,14 +235,21 @@ async function handleFarmSelection() {
     if (pageId === 'page-active-stock') {
         // Since loadDashboardData is now a top-level function in active-stock.js,
         // we can call it directly from here.
-        await loadDashboardData();
-    }
-    else if (pageId === 'page-history-purchases') {
-        await loadPurchaseHistoryData(); 
-    }
-    // else if (pageId === 'page-history-sales') {
-    //     await loadSalesHistoryData(); // We will create this for the sales page later
-    // }
+        await loadDashboardData();}
+    else if (pageId === 'page-operations-purchases') {
+        await loadPurchaseHistoryData(); }
+    else if (pageId === 'page-operations-sales') {
+        await loadSalesHistoryData();}
+    else if (pageId === 'page-operations-weightings') {
+        await loadWeightingHistoryData();}
+    else if (pageId === 'page-operations-loc-change') {
+        await loadLocationChangeHistoryData();}
+    else if (pageId === 'page-operations-diet-log') {
+        await loadDietLogHistoryData();}
+    else if (pageId === 'page-operations-sanitary') {
+        await loadSanitaryProtocolHistoryData();}
+    else if (pageId === 'page-operations-death') {
+        await loadDeathHistoryData();}       
 }
 async function handleAddFarmSubmit(event) {
     event.preventDefault();
@@ -386,16 +394,50 @@ async function showPage(pageId) {
         console.log(`Page ${pageName} loaded. Initializing...`);
         if (pageName === 'active-stock') {
             initActiveStockPage();}
-        else if (pageName === 'history-purchases') {
-            initHistoryPurchasesPage();
-        }
+        else if (pageName === 'operations-purchases') {
+            initHistoryPurchasesPage();}
+        else if (pageName === 'operations-sales') {
+            initHistorySalesPage();}
+        else if (pageId === 'page-operations-weightings') {
+            initHistoryWeightingsPage();}  
+        else if (pageId === 'page-operations-loc-change') {
+            initHistoryLocationChangesPage();}    
+        else if (pageId === 'page-operations-diet-log') {
+            initHistoryDietLogsPage();}
+        else if (pageId === 'page-operations-sanitary') {
+            initHistorySanitaryProtocolsPage();}   
+        else if (pageId === 'page-operations-death') {
+            initHistoryDeathsPage();} 
         else if (pageName === 'settings') {
-            initSettingsPage();
-        }
+            initSettingsPage();}
+
+
 
     } catch (error) {
         console.error("Error loading page:", error);
         appContent.innerHTML = `<p style="color: red; padding: 20px;">Error: Could not load the requested page.</p>`;
     }
 }
+
+// A global timer for the toast to prevent overlaps ---
+let toastTimer;
+
+// The Toast Notification Function ---
+function showToast(message, type = 'success') {
+    const notification = document.getElementById('toast-notification');
+    if (!notification) return;
+
+    // Clear any existing timer to reset the fade-out
+    clearTimeout(toastTimer);
+
+    notification.textContent = message;
+    // Set class for styling (success or error)
+    notification.className = 'show ' + type;
+
+    // Set a timer to automatically hide the toast after 3 seconds
+    toastTimer = setTimeout(() => {
+        notification.className = notification.className.replace('show', '');
+    }, 3000);
+}
+
 

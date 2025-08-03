@@ -273,7 +273,9 @@ class SanitaryProtocol(db.Model):
     date = db.Column(db.Date, nullable=False)
     protocol_type = db.Column(db.String(50), nullable=False)
     product_name = db.Column(db.String(100), nullable=True) # Optional
+    dosage = db.Column(db.String(50), nullable=True) # Optional
     invoice_number = db.Column(db.String(50), nullable=True) # Optional
+    
 
     # --- Foreign Keys ---
     animal_id = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=False)
@@ -286,6 +288,7 @@ class SanitaryProtocol(db.Model):
             'date': self.date.isoformat(),
             'protocol_type': self.protocol_type,
             'product_name': self.product_name,
+            'dosage': self.dosage, 
             'invoice_number': self.invoice_number,
             'animal_id': self.animal_id,
             'farm_id': self.farm_id

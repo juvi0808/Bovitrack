@@ -62,7 +62,8 @@ function createAnimalGrid(animals) {
     ];const gridOptions = {
             columnDefs: columnDefs,
             rowData: animals,
-            defaultColDet: {
+
+            defaultColDef: {
                 sortable: true,
                 filter: true,
                 resizable: true,
