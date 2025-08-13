@@ -32,7 +32,7 @@ hr {
     flex-grow: 1; /* THE KEY: This makes the container grow */
     display: flex; /* It also needs to be a flex container... */
     flex-direction: column; /* ...to manage its own children */
-    overflow-y: hidden; /* Add a scrollbar if content overflows */
+    overflow-y: auto; /* Add a scrollbar if content overflows */
 }
 
 /* Any page loaded inside app-content should also be a flex column */
@@ -614,4 +614,93 @@ tbody tr:hover {
 /* Style for error messages (red) */
 #toast-notification.error {
     background-color: #dc3545;
+}
+
+/* ==========================================================================
+   10. Locations Page Specific Styles
+   ========================================================================== */
+
+   .locations-list-container {
+    flex-grow: 1; /* Make the container fill available space */
+    overflow-y: auto; /* Add a scrollbar if content overflows */
+    padding: 5px;
+}
+
+.location-card {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.location-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background-color: #f7f9fc;
+    border-bottom: 1px solid #e0e0e0;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.location-card-header h3 {
+    margin: 0;
+    color: #0056b3;
+}
+
+.location-card-body {
+    padding: 20px;
+}
+
+.sublocation-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sublocation-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.sublocation-list li:last-child {
+    border-bottom: none;
+}
+
+.sublocation-list li span:first-child {
+    font-weight: 500;
+}
+
+.sublocation-list li span:last-child {
+    color: #555;
+    font-size: 0.9em;
+}
+
+.location-card-kpis {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+    padding: 15px 10px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.kpi-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.kpi-value {
+    font-size: 1.4em;
+    font-weight: 600;
+    color: #333;
+}
+
+.kpi-label {
+    font-size: 0.8em;
+    color: #6c757d;
+    text-transform: uppercase;
 }

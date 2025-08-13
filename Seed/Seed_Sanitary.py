@@ -18,7 +18,8 @@ CSV_COLUMN_MAP = {
     'lot_col': 'Lote',                # CHANGE THIS
     'date_col': 'Data',               # CHANGE THIS
     'type_col': 'Protocolo',          # CHANGE THIS (e.g., Vaccine, Deworming)
-    'product_col': 'Produto',         # CHANGE THIS (e.g., Ivermectin)
+    'product_col': 'Produto',
+    'dosage_col' : 'Dosagem',         # CHANGE THIS (e.g., Ivermectin)
     'invoice_col': 'Nota Fiscal'      # CHANGE THIS (the invoice number column)
 }
 
@@ -71,6 +72,7 @@ def seed_protocols_database():
                 protocol_type=str(row[CSV_COLUMN_MAP['type_col']]),
                 product_name=product_name,
                 invoice_number=invoice_number,
+                dosage = str(row[CSV_COLUMN_MAP['dosage_col']]),
                 animal_id=animal_id,
                 farm_id=farm_id # Explicitly add the farm_id
             )

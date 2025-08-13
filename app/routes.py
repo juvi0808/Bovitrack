@@ -1,7 +1,9 @@
 from flask import Blueprint, request, jsonify, Response
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
-from .models import Farm, Location, Purchase, Sale, Weighting, SanitaryProtocol, LocationChange, DietLog, Death # Notice the '.' - it means "from the same package"
+from sqlalchemy.orm import aliased
+from sqlalchemy import func
+from .models import Farm, Location, Purchase, Sale, Weighting, SanitaryProtocol, LocationChange, DietLog, Death, Sublocation # Notice the '.' - it means "from the same package"
 from . import db # Also import the db object
 from .utils import find_active_animal_by_eartag, calculate_weight_history_with_gmd, calculate_location_kpis
 import json
@@ -85,7 +87,7 @@ def delete_farm(farm_id):
 def add_location(farm_id):
     """
     Creates a new, named location (e.g., a pasture or module) for a specific farm.
-    Expects a JSON body with a 'name' and an optional 'area_hectares'.
+    Expects a JSON body with a 'name' and an optional 'area_hectares', 'grass type' and geojson.
     """
     # Verify the farm exists before proceeding.
     Farm.query.get_or_404(farm_id)
@@ -113,6 +115,7 @@ def add_location(farm_id):
             area_hectares=area,
             grass_type=grass_type,
             location_type=location_type,
+            geo_json_data=data.get('geo_json_data'),
             farm_id=farm_id
         )
 
@@ -128,6 +131,111 @@ def add_location(farm_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
+    
+@api.route('/farm/<int:farm_id>/location/<int:location_id>/sublocation/add', methods=['POST'])
+def add_sublocation(farm_id, location_id):
+    """Creates a new sublocation (paddock) and attaches it to a parent location."""
+    parent_location = Location.query.filter_by(id=location_id, farm_id=farm_id).first_or_404()
+    
+    data = request.get_json()
+    if not data or 'name' not in data:
+        return jsonify({'error': "Missing required field: 'name'"}), 400
+
+    sub_name = data.get('name')
+    
+    # 2. Business Logic: Check for duplicate sublocation names WITHIN the same parent
+    existing_sub = Sublocation.query.filter_by(location_id=location_id, name=sub_name).first()
+    if existing_sub:
+        return jsonify({'error': f"A sublocation named '{sub_name}' already exists in '{parent_location.name}'."}), 409
+
+    try:
+        new_sublocation = Sublocation( # 3. Create the new Sublocation object.
+            name=sub_name,
+            area_hectares=data.get('area_hectares'), # --- THE FIX ---
+            geo_json_data=data.get('geo_json_data'),
+            location_id=location_id, # Link to the parent
+            farm_id=farm_id # Link to the farm
+        )
+        db.session.add(new_sublocation)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Sublocation created successfully!',
+            'sublocation': new_sublocation.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
+
+@api.route('/farm/<int:farm_id>/sublocation/bulk_move', methods=['POST'])
+def bulk_move_herd(farm_id):
+    """Moves all active animals from a source sublocation to a destination sublocation."""
+    data = request.get_json()
+    required_fields = ['date', 'source_sublocation_id', 'destination_sublocation_id']
+    if not data or not all(field in data for field in required_fields):
+        return jsonify({'error': 'Missing required fields: date, source_sublocation_id, destination_sublocation_id'}), 400
+
+    try:
+        source_id = int(data['source_sublocation_id'])
+        dest_id = int(data['destination_sublocation_id'])
+        move_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+
+        source_sub = Sublocation.query.get_or_404(source_id)
+        dest_sub = Sublocation.query.get_or_404(dest_id)
+        
+        if not (source_sub.farm_id == farm_id and dest_sub.farm_id == farm_id):
+            return jsonify({'error': 'Sublocations do not belong to the specified farm.'}), 403
+        
+        if source_sub.location_id != dest_sub.location_id:
+            return jsonify({'error': 'Source and destination sublocations must be in the same parent location.'}), 400
+            
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid sublocation ID format.'}), 400
+
+    sold_animal_ids = db.session.query(Sale.animal_id).filter(Sale.farm_id == farm_id)
+    dead_animal_ids = db.session.query(Death.animal_id).filter(Death.farm_id == farm_id)
+    exited_animal_ids = sold_animal_ids.union(dead_animal_ids)
+    
+    # Create a subquery with the latest location change date for each anima_id
+    lc_alias = aliased(LocationChange)
+    most_recent_changes_subquery = db.session.query(
+        func.max(lc_alias.date).label('max_date'),
+        lc_alias.animal_id
+    ).group_by(lc_alias.animal_id).subquery()
+    
+    animals_to_move = db.session.query(Purchase).join(
+        LocationChange, Purchase.id == LocationChange.animal_id
+    ).join(
+        most_recent_changes_subquery,
+        (LocationChange.animal_id == most_recent_changes_subquery.c.animal_id) &
+        (LocationChange.date == most_recent_changes_subquery.c.max_date)
+    ).filter(
+        Purchase.farm_id == farm_id,
+        Purchase.id.notin_(exited_animal_ids),
+        LocationChange.sublocation_id == source_id
+    ).all()
+    
+    if not animals_to_move:
+        return jsonify({'message': 'No active animals found in the source sublocation to move.'}), 200
+
+    try:
+        for animal in animals_to_move:
+            new_change = LocationChange(
+                date=move_date,
+                animal_id=animal.id,
+                location_id=dest_sub.location_id,
+                sublocation_id=dest_id,
+                farm_id=farm_id
+            )
+            db.session.add(new_change)
+        
+        db.session.commit()
+        return jsonify({'message': f'Successfully moved {len(animals_to_move)} animals.'}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'An unexpected error occurred during the move: {str(e)}'}), 500
 
 @api.route('/farm/<int:farm_id>/purchase/add', methods=['POST'])
 def add_purchase(farm_id):
@@ -404,7 +512,7 @@ def add_sanitary_protocols_batch(farm_id, purchase_id):
 @api.route('/farm/<int:farm_id>/purchase/<int:purchase_id>/location/add', methods=['POST'])
 def add_location_change(farm_id, purchase_id):
     """
-    Adds a new location change record to a specific animal.
+    Adds a new location change record to a specific animal, with optional sublocation support.
     This now expects a JSON body with a 'date' and the unique 'location_id'
     of the new location.
     """
@@ -417,15 +525,13 @@ def add_location_change(farm_id, purchase_id):
     data = request.get_json()
 
     # Validate that the required fields are present.
-    required_fields = ['date', 'location_id']
-    if not data or not all(field in data for field in required_fields):
+    if not data or 'date' not in data or 'location_id' not in data:
         return jsonify({'error': 'Missing required fields: date and location_id'}), 400
     
-    # --- NEW: Verify that the provided location_id is valid for this farm ---
-    location_id_to_add = data.get('location_id')
-    location_to_add = Location.query.filter_by(id=location_id_to_add, farm_id=farm_id).first()
-    if not location_to_add:
-        return jsonify({'error': f"Location with id {location_id_to_add} not found on this farm."}), 404
+    # --- Verify that the provided location_id is valid for this farm ---
+    location_id = data.get('location_id')
+    sublocation_id = data.get('sublocation_id') # Get the optional sublocation
+    location = Location.query.filter_by(id=location_id, farm_id=farm_id).first_or_404()
 
     # Get the optional weight from the data
     optional_weight = data.get('weight_kg')
@@ -435,14 +541,19 @@ def add_location_change(farm_id, purchase_id):
         change_date_obj = datetime.strptime(data['date'], '%Y-%m-%d').date()
 
         # 1. Create the new LocationChange object.
-        new_location = LocationChange(
-            date=change_date_obj,
-            location_id=location_id_to_add, # Use the ID from the JSON
-            animal_id=purchase_id,
+        new_location_change = LocationChange(
+            date=change_date_obj, 
+            location_id=location.id, 
+            sublocation_id=sublocation_id,
+            animal_id=purchase_id, 
             farm_id=farm_id
-        )
-        db.session.add(new_location)
+            )
+        
+        db.session.add(new_location_change)
+
+        message = 'Location change recorded successfully!'
         # 2. Check if an optional weight was provided.
+        optional_weight = data.get('weight_kg')
         if optional_weight and float(optional_weight) > 0:
             new_weighting = Weighting(
                 date=change_date_obj,
@@ -452,17 +563,13 @@ def add_location_change(farm_id, purchase_id):
             )
             db.session.add(new_weighting)
             message = 'Location change and weighting recorded successfully!'
-        else:
-            message = 'Location change recorded successfully!'
-
 
         db.session.commit()
 
         return jsonify({
             'message': message,
-            'location_change_id': new_location.id
+            'location_change_id': location.id
         }), 201
-
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
@@ -658,41 +765,9 @@ def get_all_sales(farm_id):
     all_sales = sales_query.order_by(Sale.date.desc()).all()
 
     # --- Assemble the Rich Response with KPIs ---
-    results = []
-    for sale in all_sales:
-        # Get the final weight from the animal's weight history for accuracy.
-        exit_weighting = Weighting.query.filter_by(animal_id=sale.animal_id, date=sale.date).first()
-        exit_weight = exit_weighting.weight_kg if exit_weighting else 0.0 # Default to 0 if not found
-
-        # --- NEW KPI CALCULATIONS ---
-        days_on_farm = (sale.date - sale.animal.entry_date).days
-        
-        # Calculate GMD only if the data is valid
-        total_gain = exit_weight - sale.animal.entry_weight
-        gmd_kg_day = (total_gain / days_on_farm) if days_on_farm > 0 and exit_weight > 0 else 0.0
-        
-        # Calculate exit age
-        exit_age_months = sale.animal.entry_age + (days_on_farm / 30.44)
-
-        sale_summary = {
-            "sale_id": sale.id,
-            "animal_id": sale.animal_id,
-            "ear_tag": sale.animal.ear_tag,
-            "lot": sale.animal.lot,
-            "race": sale.animal.race,
-            "sex": sale.animal.sex,
-            "entry_date": sale.animal.entry_date.isoformat(),
-            "exit_date": sale.date.isoformat(),
-            "entry_weight": sale.animal.entry_weight,
-            "exit_weight": exit_weight,
-            "entry_price": sale.animal.purchase_price,
-            "exit_price": sale.sale_price,
-            "exit_age_months": round(exit_age_months, 2),
-            # --- ADDED KPIs ---
-            "days_on_farm": days_on_farm,
-            "gmd_kg_day": round(gmd_kg_day, 3)
-        }
-        results.append(sale_summary)
+    # We just loop through the Sale objects and call our powerful to_dict() method.
+    # All the complex logic is now neatly contained within the Sale model.
+    results = [sale.to_dict() for sale in all_sales]
 
     return jsonify(results)
 
@@ -764,24 +839,11 @@ def get_all_location_changes(farm_id):
     # We use joinedload for performance to fetch related data efficiently.
     all_changes = changes_query.options(
         db.joinedload(LocationChange.animal),
-        db.joinedload(LocationChange.location)
+        db.joinedload(LocationChange.location),
+        db.joinedload(LocationChange.sublocation)
     ).order_by(LocationChange.date.desc()).all()
     
-    # Assemble the rich response.
-    results = []
-    for change in all_changes:
-        change_summary = {
-            "location_change_id": change.id,
-            "date": change.date.isoformat(),
-            "ear_tag": change.animal.ear_tag,
-            "lot": change.animal.lot,
-            "location_name": change.location.name,
-            "location_id": change.location.id,
-            "animal_id": change.animal_id
-        }
-        results.append(change_summary)
-
-    return jsonify(results)
+    return jsonify([change.to_dict() for change in all_changes])
 
 @api.route('/farm/<int:farm_id>/sanitary', methods=['GET'])
 def get_all_sanitary_protocols(farm_id):
@@ -821,20 +883,7 @@ def get_all_sanitary_protocols(farm_id):
     ).order_by(SanitaryProtocol.date.desc()).all()
     
     # Assemble the rich response.
-    results = []
-    for protocol in all_protocols:
-        protocol_summary = {
-            "protocol_id": protocol.id,
-            "date": protocol.date.isoformat(),
-            "ear_tag": protocol.animal.ear_tag,
-            "lot": protocol.animal.lot,
-            "protocol_type": protocol.protocol_type,
-            "product_name": protocol.product_name,
-            "invoice_number": protocol.invoice_number,
-            "animal_id": protocol.animal_id
-        }
-        results.append(protocol_summary)
-
+    results = [p.to_dict() for p in all_protocols] # Using to_dict for consistency
     return jsonify(results)
 
 @api.route('/farm/<int:farm_id>/diets', methods=['GET'])
@@ -875,20 +924,7 @@ def get_all_diet_logs(farm_id):
     ).order_by(DietLog.date.desc()).all()
     
     # Assemble the rich response.
-    results = []
-    for diet_log in all_diets:
-        diet_summary = {
-            "diet_log_id": diet_log.id,
-            "date": diet_log.date.isoformat(),
-            "ear_tag": diet_log.animal.ear_tag,
-            "lot": diet_log.animal.lot,
-            "diet_type": diet_log.diet_type,
-            "daily_intake_percentage": diet_log.daily_intake_percentage,
-            "animal_id": diet_log.animal_id
-        }
-        results.append(diet_summary)
-
-    return jsonify(results)
+    return jsonify([d.to_dict() for d in all_diets])
 
 @api.route('/farm/<int:farm_id>/locations', methods=['GET'])
 def get_all_locations(farm_id):
@@ -961,19 +997,7 @@ def get_all_deaths(farm_id):
     ).order_by(Death.date.desc()).all()
     
     # Assemble the rich response.
-    results = []
-    for death in all_deaths:
-        death_summary = {
-            "death_id": death.id,
-            "date": death.date.isoformat(),
-            "ear_tag": death.animal.ear_tag,
-            "lot": death.animal.lot,
-            "cause": death.cause,
-            "animal_id": death.animal_id
-        }
-        results.append(death_summary)
-
-    return jsonify(results)
+    return jsonify([d.to_dict() for d in all_deaths])
 
 # --- Search and Master Record Routes ---
 

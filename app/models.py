@@ -19,6 +19,7 @@ class Farm(db.Model):
     location_changes = db.relationship('LocationChange', backref='farm', lazy=True, cascade="all, delete-orphan")
     diet_logs = db.relationship('DietLog', backref='farm', lazy=True, cascade="all, delete-orphan")
     deaths = db.relationship('Death', backref='farm', lazy=True, cascade="all, delete-orphan")
+    sublocations = db.relationship('Sublocation', backref='farm', lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
         """Serializes the Farm object to a dictionary."""
@@ -38,6 +39,7 @@ class Location(db.Model):
     area_hectares = db.Column(db.Float, nullable=True) # Optional field for area
     grass_type = db.Column(db.String(50), nullable=True) # Optional field for grass type
     location_type = db.Column(db.String(50), nullable=True) # Optional field for type of location (e.g., pasture, feedlot)
+    geo_json_data = db.Column(db.Text, nullable=True) # For future map use
 
     # --- Foreign Keys ---
     # Ensures location belongs to a specific farm.
@@ -48,7 +50,8 @@ class Location(db.Model):
     # No two locations on the same farm can have the same name.
     # We will add a relationship back to LocationChange later, but for now, we leave it simple.
     change_events = db.relationship('LocationChange', backref='location', lazy=True, cascade="all, delete-orphan")
-    
+    sublocations = db.relationship('Sublocation', backref='parent_location', lazy=True, cascade="all, delete-orphan")
+
     def to_dict(self):
         """Serializes the Location object to a dictionary."""
         return {
@@ -57,12 +60,41 @@ class Location(db.Model):
             'area_hectares': self.area_hectares,
             'grass_type': self.grass_type,
             'location_type': self.location_type,
-            'farm_id': self.farm_id
+            'farm_id': self.farm_id,
+            'geo_json_data': self.geo_json_data,
+            'sublocations': [sub.to_dict() for sub in self.sublocations],
         }
 
     def __repr__(self):
         """Provides a developer-friendly string representation of the object."""
         return f'<Location {self.name} (Farm: {self.farm_id})>'
+
+class Sublocation(db.Model):
+    """Represents a subdivision within a parent Location (e.g., a rotational paddock)."""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    area_hectares = db.Column(db.Float, nullable=True) # The dedicated area column
+    geo_json_data = db.Column(db.Text, nullable=True)
+
+    # --- Foreign Keys ---
+    location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
+    farm_id = db.Column(db.Integer, db.ForeignKey('farm.id'), nullable=False)
+
+    # --- Relationships ---
+    change_events = db.relationship('LocationChange', backref='sublocation', lazy=True)
+
+    def to_dict(self):
+        """Serializes the Sublocation object to a dictionary."""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'area_hectares': self.area_hectares, # Added to the response
+            'location_id': self.location_id,
+            'geo_json_data': self.geo_json_data,
+        }
+
+    def __repr__(self):
+        return f'<Sublocation {self.name} (Parent ID: {self.location_id})>'
 
 class Purchase(db.Model):
     """Represents the entry record of a single animal into a farm."""
@@ -120,11 +152,16 @@ class Purchase(db.Model):
         # --- NEW: Add Current Location ---
         current_location_name = "N/A"
         current_location_id = None
+        current_sublocation_name = None 
+        current_sublocation_id = None   
         if self.location_changes:
             # Sort changes by date to find the most recent one
             latest_change = sorted(self.location_changes, key=lambda lc: lc.date, reverse=True)[0]
             current_location_name = latest_change.location.name
             current_location_id = latest_change.location.id
+            if latest_change.sublocation: 
+                current_sublocation_name = latest_change.sublocation.name
+                current_sublocation_id = latest_change.sublocation.id
         
         current_diet_type = "N/A"
         current_diet_intake = None
@@ -182,6 +219,8 @@ class Purchase(db.Model):
             kpis['days_on_farm'] = days_on_farm
             kpis['current_location_name'] = current_location_name        
             kpis['current_location_id'] = current_location_id
+            kpis['current_sublocation_name'] = current_sublocation_name
+            kpis['current_sublocation_id'] = current_sublocation_id
             kpis['current_diet_type'] = current_diet_type
             kpis['current_diet_intake'] = current_diet_intake
         
@@ -254,13 +293,50 @@ class Sale(db.Model):
     farm_id = db.Column(db.Integer, db.ForeignKey('farm.id'), nullable=False)
 
     def to_dict(self):
-        """Serializes the Sale object to a dictionary."""
+        """
+        Serializes the Sale object to a dictionary, now including all
+        relevant KPIs calculated on the fly.
+        """
+        # --- Start of new, improved logic ---
+        
+        # 1. Get the final weight from the animal's weight history for accuracy.
+        exit_weighting = Weighting.query.filter_by(animal_id=self.animal_id, date=self.date).first()
+        exit_weight = exit_weighting.weight_kg if exit_weighting else 0.0
+
+        # 2. Calculate all the KPIs right here.
+        days_on_farm = (self.date - self.animal.entry_date).days
+        total_gain = exit_weight - self.animal.entry_weight
+        gmd_kg_day = (total_gain / days_on_farm) if days_on_farm > 0 and exit_weight > 0 else 0.0
+        exit_age_months = self.animal.entry_age + (days_on_farm / 30.44)
+
+        # --- End of new logic ---
+
         return {
-            'id': self.id,
-            'date': self.date.isoformat(),
-            'sale_price': self.sale_price,
-            'animal_id': self.animal_id,
-            'farm_id': self.farm_id
+            # Core data from the animal
+            "animal_id": self.animal_id,
+            "ear_tag": self.animal.ear_tag,
+            "lot": self.animal.lot,
+            "race": self.animal.race,
+            "sex": self.animal.sex,
+            
+            # Core data from the sale itself
+            "sale_id": self.id,
+            "exit_date": self.date.isoformat(),
+            "exit_price": self.sale_price,
+            
+            # Calculated KPIs
+            "days_on_farm": days_on_farm,
+            "exit_weight": exit_weight,
+            "exit_age_months": round(exit_age_months, 2),
+            "gmd_kg_day": round(gmd_kg_day, 3),
+
+            # Historical data for context
+            "entry_date": self.animal.entry_date.isoformat(),
+            "entry_weight": self.animal.entry_weight,
+            "entry_price": self.animal.purchase_price,
+            
+            # ID fields
+            'farm_id': self.farm_id,
         }
 
     def __repr__(self):
@@ -274,7 +350,7 @@ class SanitaryProtocol(db.Model):
     protocol_type = db.Column(db.String(50), nullable=False)
     product_name = db.Column(db.String(100), nullable=True) # Optional
     dosage = db.Column(db.String(50), nullable=True) # Optional
-    invoice_number = db.Column(db.String(50), nullable=True) # Optional
+    invoice_number = db.Column(db.String(50), nullable=True) # Optional 
     
 
     # --- Foreign Keys ---
@@ -284,15 +360,19 @@ class SanitaryProtocol(db.Model):
     def to_dict(self):
         """Serializes the SanitaryProtocol object to a dictionary."""
         return {
-            'id': self.id,
-            'date': self.date.isoformat(),
-            'protocol_type': self.protocol_type,
-            'product_name': self.product_name,
-            'dosage': self.dosage, 
-            'invoice_number': self.invoice_number,
-            'animal_id': self.animal_id,
+            "protocol_id": self.id,
+            "date": self.date.isoformat(),
+            "ear_tag": self.animal.ear_tag,
+            "lot": self.animal.lot,
+            "protocol_type": self.protocol_type,
+            "product_name": self.product_name,
+            "invoice_number": self.invoice_number,
+            "dosage":self.dosage,
+            "animal_id": self.animal_id,
             'farm_id': self.farm_id
         }
+
+
 
     def __repr__(self):
         """Provides a developer-friendly string representation of the object."""
@@ -306,10 +386,10 @@ class LocationChange(db.Model):
     animal_id = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=False)
     farm_id = db.Column(db.Integer, db.ForeignKey('farm.id'), nullable=False)
 
-    # --- MODIFIED COLUMN ---
     # This now stores the ID of the structured Location, not a string name.
     # This creates a formal link to the Location table.
     location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
+    sublocation_id = db.Column(db.Integer, db.ForeignKey('sublocation.id'), nullable=True)
 
     def to_dict(self):
         """
@@ -317,13 +397,14 @@ class LocationChange(db.Model):
         the name of the linked location for convenience.
         """
         return {
-            'id': self.id,
-            'date': self.date.isoformat(),
-            'animal_id': self.animal_id,
-            'farm_id': self.farm_id,
-            'location_id': self.location_id,
-            # We can include the location name through the relationship's backref.
-            'location_name': self.location.name if self.location else None
+            "location_change_id": self.id,
+            "date": self.date.isoformat(),
+            "ear_tag": self.animal.ear_tag,
+            "lot": self.animal.lot,
+            "location_name": self.location.name,
+            "location_id": self.location.id,
+            "animal_id": self.animal_id,
+            'farm_id': self.farm_id
         }
 
     def __repr__(self):
@@ -346,11 +427,13 @@ class DietLog(db.Model):
     def to_dict(self):
         """Serializes the DietLog object to a dictionary."""
         return {
-            'id': self.id,
-            'date': self.date.isoformat(),
-            'diet_type': self.diet_type,
-            'daily_intake_percentage': self.daily_intake_percentage,
-            'animal_id': self.animal_id,
+            "diet_log_id": self.id,
+            "date": self.date.isoformat(),
+            "ear_tag": self.animal.ear_tag,
+            "lot": self.animal.lot,
+            "diet_type": self.diet_type,
+            "daily_intake_percentage": self.daily_intake_percentage,
+            "animal_id": self.animal_id,
             'farm_id': self.farm_id
         }
 
@@ -372,10 +455,12 @@ class Death(db.Model):
     def to_dict(self):
         """Serializes the Death object to a dictionary."""
         return {
-            'id': self.id,
-            'date': self.date.isoformat(),
-            'cause': self.cause,
-            'animal_id': self.animal_id,
+            "death_id": self.id,
+            "date": self.date.isoformat(),
+            "ear_tag": self.animal.ear_tag,
+            "lot": self.animal.lot,
+            "cause": self.cause,
+            "animal_id": self.animal_id,
             'farm_id': self.farm_id
         }
 
