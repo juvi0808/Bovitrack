@@ -350,7 +350,7 @@ class SanitaryProtocol(db.Model):
     protocol_type = db.Column(db.String(50), nullable=False)
     product_name = db.Column(db.String(100), nullable=True) # Optional
     dosage = db.Column(db.String(50), nullable=True) # Optional
-    invoice_number = db.Column(db.String(50), nullable=True) # Optional
+    invoice_number = db.Column(db.String(50), nullable=True) # Optional 
     
 
     # --- Foreign Keys ---

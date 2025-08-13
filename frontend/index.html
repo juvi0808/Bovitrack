@@ -428,6 +428,29 @@
             </form>
         </div>
     </div>
+    <!-- ADD SUB-LOCATION MODAL -->
+    <div id="add-sublocation-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 data-translate="add_new_subdivision">Add New Subdivision</h3>
+            <p>Adding to: <strong id="parent-location-name"></strong></p>
+            <form id="add-sublocation-form">
+                <div class="form-grid">
+                    <div class="form-group form-group-full">
+                        <label for="sublocation-name-input" data-translate="subdivision_name">Subdivision Name</label>
+                        <input type="text" id="sublocation-name-input" required>
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label for="sublocation-area-input" data-translate="area_hectares">Area (Hectares)</label>
+                        <input type="number" step="0.01" id="sublocation-area-input">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" data-translate="save_subdivision">Save Subdivision</button>
+                    <button type="button" id="cancel-add-sublocation" data-translate="cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
         <!-- Add Location Modal -->
     <div id="add-location-modal" class="modal-backdrop hidden">
         <div class="modal-content">

@@ -183,7 +183,16 @@ const translations = {
         animal_count: "Animal Count",
         select_farm_to_view_locations: "Please select a farm to view locations.",
         error_loading_locations_history: "Error loading locations.",
-        dosage_placeholder: "Dosage"
+        dosage_placeholder: "Dosage",
+        add_new_subdivision: "Add New Subdivision",
+        subdivision_name: "Subdivision Name",
+        save_subdivision: "Save Subdivision",
+        error_saving_subdivision: "Error saving subdivision",
+        subdivision_saved_successfully: "Subdivision '{name}' saved successfully!",
+        no_subdivisions_yet: "No subdivisions yet.",
+        history_locations:"Locations",
+        capacity_rate_actual_ua_ha: "Capacity rate actual (UA/HA)",
+        capacity_rate_forecasted_ua_ha: "Capacity rate forecasted (UA/HA)",
     },
     es: {
         // Navbar
@@ -369,7 +378,16 @@ const translations = {
         animal_count: "Cantidad de Animales",
         select_farm_to_view_locations: "Por favor seleccione una finca para ver las ubicaciones.",
         error_loading_locations_history: "Error al cargar las ubicaciones.",
-        dosage_placeholder: "Dosagem"
+        dosage_placeholder: "Dosagem",
+        add_new_subdivision: "Añadir Nueva Subdivisión",
+        subdivision_name: "Nombre de la Subdivisión",
+        save_subdivision: "Guardar Subdivisión",
+        error_saving_subdivision: "Error al guardar la subdivisión",
+        subdivision_saved_successfully: "¡Subdivisión '{name}' guardada con éxito!",
+        history_locations:"Ubicaciones",
+        no_subdivisions_yet:"No hay subdivisones",
+        capacity_rate_actual_ua_ha: "Taxa de Lotação Atual (UA/HA)",
+        capacity_rate_forecasted_ua_ha: "Taxa de Lotação Projetada (UA/HA)",
     },
     pt: {
         // Navbar
@@ -555,7 +573,16 @@ const translations = {
         animal_count: "Número de Animais",
         select_farm_to_view_locations: "Por favor, selecione uma fazenda para ver os locais.",
         error_loading_locations_history: "Erro ao carregar os locais.",
-        dosage_placeholder: "Dosagem"
+        dosage_placeholder: "Dosagem",
+        add_new_subdivision: "Adicionar Nova Subdivisão",
+        subdivision_name: "Nome da Subdivisão",
+        save_subdivision: "Salvar Subdivisão",
+        error_saving_subdivision: "Erro ao salvar a subdivisão",
+        subdivision_saved_successfully: "Subdivisão '{name}' salva com sucesso!",
+        no_subdivisions_yet:"Nenhuma subdivisão",
+        history_locations:"Locais",
+        capacity_rate_actual_ua_ha: "Taxa de Lotação Atual (UA/HA)",
+        capacity_rate_forecasted_ua_ha: "Taxa de Lotação Projetada (UA/HA)",
     }
 };
 
