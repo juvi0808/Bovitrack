@@ -17,7 +17,8 @@ CSV_COLUMN_MAP = {
     'ear_tag_col': 'N° Brinco',
     'lot_col': 'Lote',
     'date_col': 'Data',
-    'location_id_col': 'Location ID' # The column with the ID of the master location
+    'location_id_col': 'Location ID', # The column with the ID of the master location
+    'sublocation_id_col': 'Sublocation ID'
 }
 # The path to your CSV file
 CSV_FILE_PATH = "B:\live_stock_manager\Support\Location_Artificial_Data.csv" # Adjust file name
@@ -59,12 +60,22 @@ def seed_location_changes_database():
                     print(f"  > WARNING: Animal ear_tag '{ear_tag}', lot '{lot}' not found. Skipping row {index+1}.")
                     continue
 
+                        # --- THE FIX: Gracefully handle empty sublocation IDs ---
+            sublocation_id_raw = row[CSV_COLUMN_MAP['sublocation_id_col']]
+            
+            # Use pd.isna() to check for NaN (missing) values
+            if pd.isna(sublocation_id_raw):
+                final_sublocation_id = None # Use Python's None for database NULL
+            else:
+                final_sublocation_id = int(sublocation_id_raw) # It's safe to convert
+            
             # --- Create the LocationChange object ---
             change_date = datetime.strptime(row[CSV_COLUMN_MAP['date_col']], '%Y-%m-%d').date()
 
             new_location_change = LocationChange(
                 date=change_date,
                 location_id=int(row[CSV_COLUMN_MAP['location_id_col']]),
+                sublocation_id=final_sublocation_id,
                 animal_id=animal_id,
                 farm_id=farm_id
             )

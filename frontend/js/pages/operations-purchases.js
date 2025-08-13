@@ -68,11 +68,13 @@ function initHistoryPurchasesPage() {
     const purchaseEntryDateInput = document.getElementById('purchase-entry-date');
     const protocolDateInput = document.getElementById('protocol-date');
 
-    // --- Event Listeners ---
-    showModalBtn.addEventListener('click', openAddPurchaseModal);
-    cancelAddPurchaseBtn.addEventListener('click', () => addPurchaseModal.classList.add('hidden'));
+    // By using '.onclick' instead of 'addEventListener', we ensure there is only EVER ONE
+    // instruction attached to the button. If this init function runs again, it just
+    // replaces the old instruction with the exact same new one, preventing duplicates.
+    showModalBtn.onclick = openAddPurchaseModal;
+    cancelAddPurchaseBtn.onclick = () => addPurchaseModal.classList.add('hidden');
     addPurchaseForm.onsubmit = handleAddPurchaseSubmit;
-    addProtocolBtn.addEventListener('click', handleAddProtocol);
+    addProtocolBtn.onclick = handleAddProtocol;
     clearProtocolsBtn.addEventListener('click', () => {
         protocolsForCurrentPurchase.length = 0; // Clear the live array
         renderProtocolsList(); // Update the UI
@@ -93,7 +95,9 @@ function initHistoryPurchasesPage() {
 async function openAddPurchaseModal() {
     // First, clear any old data from the form and reset the protocol list.
     addPurchaseForm.reset();
-    pprotocolsForCurrentPurchase = [...lastSavedProtocols];
+    
+    protocolsForCurrentPurchase = [];
+    lastSavedProtocols = [];
     renderProtocolsList();
 
     // Set default dates when modal opens ***
@@ -145,7 +149,7 @@ async function openAddPurchaseModal() {
         const invoiceInput = document.getElementById('protocol-invoice');
 
         if (!protocolDateInput.value || !typeInput.value.trim()) {
-            alert('Protocol Date and Type are required.');
+            showToast(getTranslation('protocol_date_and_type_required'), 'error');
             return;
         }
 
@@ -166,6 +170,7 @@ async function openAddPurchaseModal() {
         
         // Update the visual list on the screen
         renderProtocolsList();
+        typeInput.focus(); // Move focus for faster data entry
     }
 
     function handleRemoveProtocol(index) {

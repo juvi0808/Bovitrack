@@ -173,6 +173,17 @@ const translations = {
         error_no_animal_selected_for_death: "Error: You must search for and select an animal to record a death.",
         death_recorded_successfully: "Death for animal {earTag} recorded successfully.",
         error_recording_death: "Error recording death",
+        add_new_location: "Add New Location",
+        area_hectares: "Area (Hectares)",
+        grass_type: "Grass Type (Optional)",
+        location_type: "Location Type (Optional)",
+        save_location: "Save Location",
+        error_saving_location: "Error saving location",
+        location_saved_successfully: "Location '{name}' saved successfully!",
+        animal_count: "Animal Count",
+        select_farm_to_view_locations: "Please select a farm to view locations.",
+        error_loading_locations_history: "Error loading locations.",
+        dosage_placeholder: "Dosage"
     },
     es: {
         // Navbar
@@ -348,6 +359,17 @@ const translations = {
         error_no_animal_selected_for_death: "Error: Debe buscar y seleccionar un animal para registrar una muerte.",
         death_recorded_successfully: "¡Muerte del animal {earTag} registrada con éxito!",
         error_recording_death: "Error al registrar la muerte",
+        add_new_location: "Añadir Nueva Ubicación",
+        area_hectares: "Área (Hectáreas)",
+        grass_type: "Tipo de Pasto (Opcional)",
+        location_type: "Tipo de Ubicación (Opcional)",
+        save_location: "Guardar Ubicación",
+        error_saving_location: "Error al guardar la ubicación",
+        location_saved_successfully: "¡Ubicación '{name}' guardada con éxito!",
+        animal_count: "Cantidad de Animales",
+        select_farm_to_view_locations: "Por favor seleccione una finca para ver las ubicaciones.",
+        error_loading_locations_history: "Error al cargar las ubicaciones.",
+        dosage_placeholder: "Dosagem"
     },
     pt: {
         // Navbar
@@ -523,6 +545,17 @@ const translations = {
         error_no_animal_selected_for_death: "Erro: Você deve pesquisar e selecionar um animal para registrar uma morte.",
         death_recorded_successfully: "Morte do animal {earTag} registrada",
         error_recording_death: "Erro ao registrar a morte",
+        add_new_location: "Adicionar Novo Local",
+        area_hectares: "Área (Hectares)",
+        grass_type: "Tipo de Pastagem (Opcional)",
+        location_type: "Tipo de Local (Opcional)",
+        save_location: "Salvar Local",
+        error_saving_location: "Erro ao salvar o local",
+        location_saved_successfully: "Local '{name}' salvo com sucesso!",
+        animal_count: "Número de Animais",
+        select_farm_to_view_locations: "Por favor, selecione uma fazenda para ver os locais.",
+        error_loading_locations_history: "Erro ao carregar os locais.",
+        dosage_placeholder: "Dosagem"
     }
 };
 

@@ -132,13 +132,13 @@ function setupEventListeners() {
     });
 }
 
-// --- Language Functions (REVISED) ---
+// --- Language Functions  ---
 function setLanguage(lang) {
     currentLanguage = lang;
     localStorage.setItem(LANGUAGE_KEY, lang);
     applyTranslations(); // Apply to currently visible content
 
-    // **FIX:** Refresh the data on the current page to update dynamic elements like grid headers
+    // Refresh the data on the current page to update dynamic elements like grid headers
     const activeLink = document.querySelector('.nav-link.active');
     if (activeLink) {
         const pageId = activeLink.dataset.page;
@@ -157,7 +157,7 @@ function applyTranslations() {
         const key = element.getAttribute('data-translate');
         element.textContent = getTranslation(key);
     });
-    // **NEW:** Also translate placeholder text
+    // Also translate placeholder text
     document.querySelectorAll('[data-translate-placeholder]').forEach(element => {
         const key = element.getAttribute('data-translate-placeholder');
         element.placeholder = getTranslation(key);
@@ -178,7 +178,7 @@ async function loadFarms() {
         const response = await fetch(`${API_URL}/api/farms`);
         if (!response.ok) throw new Error('Failed to fetch farms');
         
-        // THIS IS THE FIX. We assign the fetched data to our global variable.
+        //We assign the fetched data to our global variable.
         allFarms = await response.json(); 
         
         console.log('Farms loaded into global allFarms:', allFarms);
@@ -249,7 +249,10 @@ async function handleFarmSelection() {
     else if (pageId === 'page-operations-sanitary') {
         await loadSanitaryProtocolHistoryData();}
     else if (pageId === 'page-operations-death') {
-        await loadDeathHistoryData();}       
+        await loadDeathHistoryData();}  
+    else if (pageId === 'page-locations') { 
+        await loadLocationsData();
+    }      
 }
 async function handleAddFarmSubmit(event) {
     event.preventDefault();
@@ -390,26 +393,29 @@ async function showPage(pageId) {
         // Apply translations to the newly loaded static elements.
         applyTranslations();
 
-        //ROUTER LOGIC: Call the correct init function for the page we just loaded.
+        // ROUTER LOGIC: Call the correct init function for the page we just loaded.
         console.log(`Page ${pageName} loaded. Initializing...`);
         if (pageName === 'active-stock') {
-            initActiveStockPage();}
-        else if (pageName === 'operations-purchases') {
-            initHistoryPurchasesPage();}
-        else if (pageName === 'operations-sales') {
-            initHistorySalesPage();}
-        else if (pageId === 'page-operations-weightings') {
-            initHistoryWeightingsPage();}  
-        else if (pageId === 'page-operations-loc-change') {
-            initHistoryLocationChangesPage();}    
-        else if (pageId === 'page-operations-diet-log') {
-            initHistoryDietLogsPage();}
-        else if (pageId === 'page-operations-sanitary') {
-            initHistorySanitaryProtocolsPage();}   
-        else if (pageId === 'page-operations-death') {
-            initHistoryDeathsPage();} 
-        else if (pageName === 'settings') {
-            initSettingsPage();}
+            initActiveStockPage();
+        } else if (pageName === 'operations-purchases') {
+            initHistoryPurchasesPage();
+        } else if (pageName === 'operations-sales') {
+            initHistorySalesPage();
+        } else if (pageId === 'page-operations-weightings') {
+            initHistoryWeightingsPage();  
+        } else if (pageId === 'page-operations-loc-change') {
+            initHistoryLocationChangesPage();    
+        } else if (pageId === 'page-operations-diet-log') {
+            initHistoryDietLogsPage();
+        } else if (pageId === 'page-operations-sanitary') {
+            initHistorySanitaryProtocolsPage();   
+        } else if (pageId === 'page-operations-death') {
+            initHistoryDeathsPage(); 
+        } else if (pageName === 'locations') { // ADDED THIS
+            initLocationsPage();
+        } else if (pageName === 'settings') {
+            initSettingsPage();
+        }
 
 
 

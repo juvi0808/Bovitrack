@@ -240,6 +240,7 @@ function createSanitaryProtocolHistoryGrid(data) {
         { headerName: getTranslation("lot"), field: "lot" },
         { headerName: getTranslation("protocol_type_placeholder"), field: "protocol_type" },
         { headerName: getTranslation("product_name_placeholder"), field: "product_name" },
+        { headerName: getTranslation("dosage_placeholder"), field: "dosage" },
         { headerName: getTranslation("invoice_number_placeholder"), field: "invoice_number" },
     ];
 
