@@ -203,6 +203,9 @@ const translations = {
         subdivisions: "Subdivisions",
         confirm_bulk_assign: "Confirm assign all animals from {parentName} to {subName}?",
         animal_occupation: "Animals",
+        see_details: "See Details",
+        back_to_locations_list: "Back to Locations List",
+        animals_in_location: "Animals in this Location",
     },
     es: {
         // Navbar
@@ -408,6 +411,9 @@ const translations = {
         subdivisions: "Sububicaciones",
         confirm_bulk_assign: "Confirmar asignar todos los animales de {parentName} a {subName}?",
         animal_occupation: "Animales",
+        see_details: "Ver Detalles",
+        back_to_locations_list: "Regresar a la lista de ubicaciones",
+        animals_in_location: "Animales en esta ubicación",
     },
     pt: {
         // Navbar
@@ -613,6 +619,9 @@ const translations = {
         subdivisions: "Subdivisões",
         confirm_bulk_assign: "Confirmar mover todos os animais de {parentName} para {subName}?",
         animal_occupation: "Animais",
+        see_details: "Ver Detalhes",
+        back_to_locations_list: "Voltar à lista de locais",
+        animals_in_location: "Animais nesta localização",
     }
 };
 

@@ -70,6 +70,11 @@ function renderLocationsList(locations) {
             <div class="location-card-header">
                 <h3>${location.name}</h3>
                 <div class="location-card-actions">
+                    <button class="button-primary see-details-btn" 
+                            data-location-id="${location.id}" 
+                            data-location-name="${location.name}">
+                        ${getTranslation('see_details')}
+                    </button>
                     <button class="button-secondary add-subdivision-btn" 
                             data-location-id="${location.id}" 
                             data-location-name="${location.name}">
@@ -110,10 +115,72 @@ function renderLocationsList(locations) {
     });
 }
 
+// Renders the summary KPIs for the consult view.
+function renderLocationSummary(location, container) {
+    if (!container) return;
+    container.innerHTML = `
+        <div class="kpi-item">
+            <span class="kpi-value">${location.kpis.animal_count}</span>
+            <span class="kpi-label">${getTranslation('animal_count')}</span>
+        </div>
+        <div class="kpi-item">
+            <span class="kpi-value">${location.area_hectares ? location.area_hectares.toFixed(2) + ' ha' : 'N/A'}</span>
+            <span class="kpi-label">${getTranslation('area_hectares')}</span>
+        </div>
+        <div class="kpi-item">
+            <span class="kpi-value">${location.grass_type || 'N/A'}</span>
+            <span class="kpi-label">${getTranslation('grass_type')}</span>
+        </div>
+        <div class="kpi-item">
+            <span class="kpi-value">${location.kpis.capacity_rate_actual_ua_ha || 'N/A'}</span>
+            <span class="kpi-label">${getTranslation('capacity_rate_actual_ua_ha')}</span>
+        </div>
+        <div class="kpi-item">
+            <span class="kpi-value">${location.kpis.capacity_rate_forecasted_ua_ha || 'N/A'}</span>
+            <span class="kpi-label">${getTranslation('capacity_rate_forecasted_ua_ha')}</span>
+        </div>
+    `;
+}
+
+// Creates the AG Grid for animals in the selected location.
+function createLocationAnimalsGrid(animals) {
+    const gridDiv = document.getElementById('location-animals-grid');
+    if (!gridDiv) return;
+
+    const columnDefs = [
+        { headerName: getTranslation("ear_tag"), field: "ear_tag", width: 120 },
+        { headerName: getTranslation("lot"), field: "lot", width: 100 },
+        { headerName: getTranslation("sex"), field: "sex", width: 100 },
+        { headerName: `${getTranslation('age')} (${getTranslation('months')})`, field: "kpis.current_age_months", valueFormatter: p => p.value.toFixed(2), width: 150 },
+        { headerName: getTranslation("last_wt_kg"), field: "kpis.last_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 150 },
+        { headerName: getTranslation("avg_daily_gain_kg"), field: "kpis.average_daily_gain_kg", valueFormatter: p => p.value.toFixed(3), width: 180 },
+        { headerName: getTranslation("forecasted_weight"), field: "kpis.forecasted_current_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 180 },
+        { headerName: getTranslation("diet_type"), field: "kpis.current_diet_type" },
+        { headerName: getTranslation("sublocation_name"), field: "kpis.current_sublocation_name" },
+    ];
+
+    const gridOptions = {
+        columnDefs: columnDefs,
+        rowData: animals,
+        defaultColDef: {
+            sortable: true,
+            filter: true,
+            resizable: true,
+            cellStyle: { 'text-align': 'center' }
+        },
+        onGridReady: (params) => params.api.sizeColumnsToFit(),
+    };
+    gridDiv.innerHTML = '';
+    createGrid(gridDiv, gridOptions);
+}
+
 function initLocationsPage() {
     console.log("Initializing Locations Page...");
     
-    // --- Element References ---
+    // --- Element References for BOTH views ---
+    const locationsListView = document.getElementById('locations-list-view');
+    const locationConsultView = document.getElementById('location-consult-view');
+
     // We get all references up front.
     const showAddLocationModalBtn = document.getElementById('show-add-location-modal-btn');
     const addLocationModal = document.getElementById('add-location-modal');
@@ -125,6 +192,11 @@ function initLocationsPage() {
     const parentLocationNameSpan = document.getElementById('parent-location-name');
     const locationsContainer = document.getElementById('locations-container');
 
+    const backBtn = document.getElementById('back-to-locations-list-btn');
+    const consultTitle = document.getElementById('location-consult-title');
+    const summaryContainer = document.getElementById('location-summary-kpis');
+    const gridContainer = document.getElementById('location-animals-grid');
+
     // Before we do anything else, we check if our core elements were found.
     // If not, it means the HTML didn't load correctly, and we stop execution.
     if (!showAddLocationModalBtn || !locationsContainer || !addSublocationModal) {
@@ -133,6 +205,36 @@ function initLocationsPage() {
     }
 
     let currentParentLocationId = null; 
+
+    // --- View Switching Logic ---
+    const showListView = () => {
+        locationConsultView.classList.add('hidden');
+        locationsListView.classList.remove('hidden');
+        loadLocationsData(); // Refresh list data in case of changes
+    };
+
+    const showConsultView = async (locationId, locationName) => {
+        locationsListView.classList.add('hidden');
+        locationConsultView.classList.remove('hidden');
+
+        consultTitle.textContent = `${getTranslation('location_occupancy')}: ${locationName}`;
+        summaryContainer.innerHTML = `<p>${getTranslation('loading_summary')}...</p>`;
+        if (gridContainer) gridContainer.innerHTML = `<p>${getTranslation('loading_animals')}...</p>`;
+
+        try {
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationId}/summary`);
+            if (!response.ok) throw new Error('Failed to fetch location summary');
+            const data = await response.json();
+            
+            renderLocationSummary(data.location_details, summaryContainer);
+            createLocationAnimalsGrid(data.animals);
+
+        } catch (error) {
+            console.error("Error loading location summary:", error);
+            summaryContainer.innerHTML = `<p style="color: red;">${getTranslation('could_not_load_summary_data')}</p>`;
+            if (gridContainer) gridContainer.innerHTML = '';
+        }
+    };
 
     // --- Event Listeners ---
     showAddLocationModalBtn.onclick = () => {
@@ -145,11 +247,19 @@ function initLocationsPage() {
     cancelAddSublocationBtn.onclick = () => addSublocationModal.classList.add('hidden');
     addSublocationForm.onsubmit = handleAddSublocationSubmit;
 
+    backBtn.onclick = showListView;
+
     locationsContainer.onclick = (event) => {
         const addBtn = event.target.closest('.add-subdivision-btn');
         const assignBtn = event.target.closest('.assign-herd-btn');
 
-        if (addBtn) {
+        const detailsBtn = event.target.closest('.see-details-btn');
+
+        if (detailsBtn) {
+            const locationId = detailsBtn.dataset.locationId;
+            const locationName = detailsBtn.dataset.locationName;
+            showConsultView(locationId, locationName);
+        } else if (addBtn) {
             currentParentLocationId = addBtn.dataset.locationId;
             const locationName = addBtn.dataset.locationName;
             
@@ -157,7 +267,6 @@ function initLocationsPage() {
             parentLocationNameSpan.textContent = locationName;
             addSublocationModal.classList.remove('hidden');
         } else if (assignBtn) {
-            // Call the new handler for the assign action
             handleAssignAnimalsToSublocation(assignBtn.dataset);
         }
     };

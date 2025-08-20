@@ -1,11 +1,30 @@
-<div class="page">
-    <div class="page-header">
-        <h1 data-translate="history_locations">Farm Locations</h1>
-        <button id="show-add-location-modal-btn" class="button-primary" data-translate="add_new_location">Add New Location</button>
+<div class="page" id="locations-page-container">
+
+    <!-- View 1: List of all locations (default view) -->
+    <div id="locations-list-view">
+        <div class="page-header">
+            <h2 data-translate="history_locations">Locations</h2>
+            <button id="show-add-location-modal-btn" class="button-primary" data-translate="add_new_location">Add New Location</button>
+        </div>
+        <div id="locations-container" class="locations-list-container">
+            <!-- Location cards will be rendered here by JavaScript -->
+        </div>
     </div>
 
-    <!-- This div will contain our AG-Grid -->
-    <div id="locations-container" class="locations-list-container">
-        <!-- AG-Grid will be created here by JavaScript -->
+    <!-- View 2: Detailed summary of a single location (hidden by default) -->
+    <div id="location-consult-view" class="hidden">
+        <div class="page-header">
+            <h2 id="location-consult-title">Location Details</h2>
+            <button id="back-to-locations-list-btn" class="button-secondary" data-translate="back_to_locations_list">Back to Locations List</button>
+        </div>
+        <!-- This container will display the summary KPIs using the same style as the location cards -->
+        <div id="location-summary-kpis" class="location-card-kpis">
+            <!-- Summary KPIs will be rendered here by JavaScript -->
+        </div>
+        <h3 data-translate="animals_in_location" style="text-align: center; margin-top: 20px;">Animals in this Location</h3>
+        <div id="location-animals-grid" class="full-height-grid ag-theme-quartz">
+            <!-- AG Grid for animals will be rendered here by JavaScript -->
+        </div>
     </div>
+
 </div>
