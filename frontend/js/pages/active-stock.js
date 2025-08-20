@@ -48,7 +48,7 @@ function createAnimalGrid(animals) {
     if (gridDiv) {
         const columnDefs = [
        { headerName: getTranslation("ear_tag"), field: "ear_tag", width: 120 },
-        { headerName: getTranslation("lot"), field: "lot", width: 100 },
+        { headerName: getTranslation("lot"), field: "lot", width: 100, filter: 'agNumberColumnFilter' },
         { headerName: getTranslation("entry_date"), field: "entry_date", width: 150 },
         { headerName: getTranslation("sex"), field: "sex", width: 120 },
         { headerName: `${getTranslation('age')} (${getTranslation('months')})`, field: "kpis.current_age_months", valueFormatter: p => p.value.toFixed(2), width: 150 },

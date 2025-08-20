@@ -250,8 +250,10 @@ async function handleFarmSelection() {
         await loadSanitaryProtocolHistoryData();}
     else if (pageId === 'page-operations-death') {
         await loadDeathHistoryData();}  
-    else if (pageId === 'page-locations') { 
-        await loadLocationsData();
+    else if (pageId === 'page-farm-locations') { 
+        await loadLocationsData();}      
+    else if (pageId === 'page-farm-lots') { 
+        await loadLotsData();
     }      
 }
 async function handleAddFarmSubmit(event) {
@@ -411,8 +413,10 @@ async function showPage(pageId) {
             initHistorySanitaryProtocolsPage();   
         } else if (pageId === 'page-operations-death') {
             initHistoryDeathsPage(); 
-        } else if (pageName === 'locations') { // ADDED THIS
+        } else if (pageName === 'farm-locations') { // ADDED THIS
             initLocationsPage();
+        } else if (pageName === 'farm-lots') { // ADDED THIS
+            initLotsPage();
         } else if (pageName === 'settings') {
             initSettingsPage();
         }

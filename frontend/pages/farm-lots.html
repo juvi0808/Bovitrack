@@ -1,0 +1,30 @@
+<div class="page" id="lots-page-container">
+
+    <!-- View 1: List of all lots -->
+    <div id="lots-list-view">
+        <div class="page-header">
+            <h1 data-translate="lots">Lots</h1>
+        </div>
+        <p class="page-hint" data-translate="click_lot_to_see_details">Click on a lot number to see its details.</p>
+        <div id="lots-list-grid" class="ag-theme-quartz full-height-grid"></div>
+    </div>
+
+    <!-- View 2: Detailed view for a single lot -->
+    <div id="lot-consult-view" class="hidden">
+        <div class="page-header">
+            <h1 id="lot-consult-title">Lot Details</h1>
+            <button id="back-to-lots-list-btn" class="button-secondary" data-translate="back_to_lots_list">Back to Lots List</button>
+        </div>
+        
+        <!-- Summary KPIs for the lot -->
+        <div id="lot-summary-kpis" class="location-card-kpis">
+            <!-- KPIs will be rendered here by JavaScript -->
+        </div>
+
+        <h2 data-translate="animals_in_lot" style="text-align: center; margin-top: 20px;">Animals in this Lot</h2>
+
+        <!-- Grid for all animals in the selected lot -->
+        <div id="lot-animals-grid" class="ag-theme-quartz full-height-grid"></div>
+    </div>
+
+</div>

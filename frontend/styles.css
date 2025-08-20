@@ -764,3 +764,29 @@ tbody tr:hover {
     border-radius: 4px;
     font-size: 0.9em;
 }
+
+/* ==========================================================================
+   11. Lots Page Specific Styles
+   ========================================================================== */
+
+#lots-list-view, #lot-consult-view {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* This is the key: it allows this view to fill the parent page container */
+}
+
+#lot-summary-kpis {
+    flex-shrink: 0; /* Prevents the KPI bar from shrinking when the grid loads */
+    margin-bottom: 20px;
+}
+
+/* ==========================================================================
+   12. Utility & Helper Styles
+   ========================================================================== */
+   .page-hint {
+    text-align: center;
+
+    color: #555;
+    margin-top: 5px; /* Pull it a bit closer to the header */
+    margin-bottom: 30px;
+}

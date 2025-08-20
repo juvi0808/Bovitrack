@@ -206,6 +206,13 @@ const translations = {
         see_details: "See Details",
         back_to_locations_list: "Back to Locations List",
         animals_in_location: "Animals in this Location",
+        lots: "Lots",
+        male_count: "Male Count",
+        female_count: "Female Count",
+        back_to_lots_list: "Back to Lots List",
+        animals_in_lot: "Animals in Lot",
+        lot_summary: "Lot Summary",
+        click_lot_to_see_details: "Click on a lot to see its details.",
     },
     es: {
         // Navbar
@@ -414,6 +421,13 @@ const translations = {
         see_details: "Ver Detalles",
         back_to_locations_list: "Regresar a la lista de ubicaciones",
         animals_in_location: "Animales en esta ubicación",
+        lots: "Lotes",
+        male_count: "Cantidad de Machos",
+        female_count: "Cantidad de Hembras",
+        back_to_lots_list: "Regresar a la lista de lotes",
+        animals_in_lot: "Animales en este lote",
+        lot_summary: "Resumen de Lote",
+        click_lot_to_see_details: "Haga clic en un lote para ver sus detalles.",
     },
     pt: {
         // Navbar
@@ -622,6 +636,13 @@ const translations = {
         see_details: "Ver Detalhes",
         back_to_locations_list: "Voltar à lista de locais",
         animals_in_location: "Animais nesta localização",
+        lots: "Lotes",
+        male_count: "Número de Machos",
+        female_count: "Número de Fêmeas",
+        back_to_lots_list: "Voltar à lista de lotes",
+        animals_in_lot: "Animais neste lote",
+        lot_summary: "Resumo do Lote",
+        click_lot_to_see_details: "Clique em um lote para ver seus detalhes.",
     }
 };
 

@@ -1159,6 +1159,68 @@ def get_animal_master_record(farm_id, purchase_id):
 
 # --- Business Intelligence (BI) and Summary Routes ---
 
+@api.route('/farm/<int:farm_id>/lots/summary', methods=['GET'])
+def get_lots_summary(farm_id):
+    """
+    Gets a summary of all active lots for a farm, with aggregated KPIs for each lot.
+    """
+    from collections import defaultdict
+    Farm.query.get_or_404(farm_id)
+
+    # 1. Get IDs of all animals that have exited (sold or died).
+    sold_animal_ids = db.session.query(Sale.animal_id).filter(Sale.farm_id == farm_id)
+    dead_animal_ids = db.session.query(Death.animal_id).filter(Death.farm_id == farm_id)
+    exited_animal_ids = sold_animal_ids.union(dead_animal_ids)
+
+    # 2. Fetch all active animals for the farm.
+    active_animals = Purchase.query.filter(
+        Purchase.farm_id == farm_id,
+        Purchase.id.notin_(exited_animal_ids)
+    ).all()
+
+    if not active_animals:
+        return jsonify([])
+
+    # 3. Group animals by lot and calculate KPIs for each animal.
+    lots_data = defaultdict(list)
+    for animal in active_animals:
+        kpis = animal.calculate_kpis()
+        animal_summary = {**animal.to_dict(), 'kpis': kpis}
+        lots_data[animal.lot].append(animal_summary)
+
+    # 4. Aggregate KPIs for each lot.
+    summary_results = []
+    for lot_number, animals_in_lot in lots_data.items():
+        total_animals = len(animals_in_lot)
+        if total_animals > 0:
+            num_males = sum(1 for a in animals_in_lot if a['sex'] == 'M')
+            num_females = total_animals - num_males
+            
+            avg_age = sum(a['kpis']['current_age_months'] for a in animals_in_lot) / total_animals
+            avg_gmd = sum(a['kpis']['average_daily_gain_kg'] for a in animals_in_lot) / total_animals
+            avg_weight = sum(a['kpis']['forecasted_current_weight_kg'] for a in animals_in_lot) / total_animals
+
+            lot_summary = {
+                "lot_number": lot_number,
+                "animal_count": total_animals,
+                "male_count": num_males,
+                "female_count": num_females,
+                "average_age_months": round(avg_age, 2),
+                "average_gmd_kg": round(avg_gmd, 3),
+                "average_weight_kg": round(avg_weight, 2)
+            }
+            summary_results.append(lot_summary)
+            
+    # Sort results by lot number (assuming lot is a string that can be cast to int for sorting)
+    try:
+        sorted_summary = sorted(summary_results, key=lambda x: int(x['lot_number']))
+    except ValueError:
+        # Fallback to string sort if lot numbers are not purely numeric
+        sorted_summary = sorted(summary_results, key=lambda x: x['lot_number'])
+
+
+    return jsonify(sorted_summary)
+
 @api.route('/farm/<int:farm_id>/lot/<lot_number>', methods=['GET'])
 def get_lot_summary(farm_id, lot_number):
     """
