@@ -41,11 +41,14 @@ function renderLocationsList(locations) {
             sublocationsHtml = `
                 <ul class="sublocation-list">
                     ${location.sublocations.map(sub => `
-                        <li>
+                        <li class="${sub.animal_count > 0 ? 'occupied' : ''}">
                             <div class="sublocation-info">
                                 <span>${sub.name}</span>
                                 <span class="sublocation-area">${sub.area_hectares ? sub.area_hectares.toFixed(2) + ' ha' : ''}</span>
                             </div>
+
+                            ${sub.animal_count > 0 ? `<span class="occupied-animal-count">${getTranslation('animal_occupation')}: ${sub.animal_count}</span>` : ''}
+
                             <div class="sublocation-actions">
                                 <button class="button-secondary assign-herd-btn" 
                                         data-location-id="${location.id}"

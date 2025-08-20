@@ -97,12 +97,20 @@ def calculate_location_kpis(locations, active_animals):
     """
     # Create a dictionary to easily find an animal's most recent location
     animal_locations = {}
+    animal_sublocations = {}
     for animal in active_animals:
         if animal.location_changes:
             # Sort changes by date to find the most recent one
             latest_change = sorted(animal.location_changes, key=lambda lc: lc.date, reverse=True)[0]
             animal_locations[animal.id] = latest_change.location_id
+            animal_sublocations[animal.id] = latest_change.sublocation_id
 
+    # Count animals per sublocation
+    sublocation_counts = {}
+    for sub_id in animal_sublocations.values():
+        if sub_id: # Only count if they are in a sublocation
+            sublocation_counts[sub_id] = sublocation_counts.get(sub_id, 0) + 1
+    
     # Create a dictionary to group animals by their current location_id
     location_occupants = {loc.id: [] for loc in locations}
     for animal_id, location_id in animal_locations.items():
@@ -118,6 +126,10 @@ def calculate_location_kpis(locations, active_animals):
         location_animals = [animal for animal in active_animals if animal.id in occupant_ids]
 
         location_dict = location.to_dict()
+
+        for sub_dict in location_dict.get('sublocations', []):
+            sub_id = sub_dict['id']
+            sub_dict['animal_count'] = sublocation_counts.get(sub_id, 0)
         
         if location.area_hectares and location.area_hectares > 0:
             # Calculate total weights for animals in this location

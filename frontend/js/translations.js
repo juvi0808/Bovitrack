@@ -202,6 +202,7 @@ const translations = {
         assign_herd: "Assign Herd",
         subdivisions: "Subdivisions",
         confirm_bulk_assign: "Confirm assign all animals from {parentName} to {subName}?",
+        animal_occupation: "Animals",
     },
     es: {
         // Navbar
@@ -406,6 +407,7 @@ const translations = {
         assign_herd: "Asignar Rebanho",
         subdivisions: "Sububicaciones",
         confirm_bulk_assign: "Confirmar asignar todos los animales de {parentName} a {subName}?",
+        animal_occupation: "Animales",
     },
     pt: {
         // Navbar
@@ -610,6 +612,7 @@ const translations = {
         assign_herd: "Atribuir Rebanho",
         subdivisions: "Subdivisões",
         confirm_bulk_assign: "Confirmar mover todos os animais de {parentName} para {subName}?",
+        animal_occupation: "Animais",
     }
 };
 

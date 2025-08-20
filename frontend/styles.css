@@ -673,13 +673,16 @@ tbody tr:hover {
     list-style: none;
     padding: 0;
     margin: 0;
+    
 }
 
 .sublocation-list li {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     padding: 10px;
     border-bottom: 1px solid #f0f0f0;
+
 }
 
 .sublocation-list li:last-child {
@@ -704,9 +707,11 @@ tbody tr:hover {
 
 .occupied-animal-count {
     color: #0056b3;
+    margin-left: auto;
     font-size: 0.9em;
-    margin-left: auto; /* Push it to the center, before the button */
     padding-right: 20px;
+    font-weight: bold;
+    text-align: center;
 }
 
 
