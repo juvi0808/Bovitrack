@@ -193,6 +193,15 @@ const translations = {
         history_locations:"Locations",
         capacity_rate_actual_ua_ha: "Capacity rate actual (UA/HA)",
         capacity_rate_forecasted_ua_ha: "Capacity rate forecasted (UA/HA)",
+        sublocation_name: "Subdivision",
+        select_one_placeholder: "Select one...",
+        select_one_placeholder_optional: "Select one (optional)...",
+        no_locations_found: "No locations found.",
+        no_sublocations_found: "No sublocations found.",
+        no_subdivisions_available: "No subdivisions available.",
+        assign_herd: "Assign Herd",
+        subdivisions: "Subdivisions",
+        confirm_bulk_assign: "Confirm assign all animals from {parentName} to {subName}?",
     },
     es: {
         // Navbar
@@ -388,6 +397,15 @@ const translations = {
         no_subdivisions_yet:"No hay subdivisones",
         capacity_rate_actual_ua_ha: "Taxa de Lotação Atual (UA/HA)",
         capacity_rate_forecasted_ua_ha: "Taxa de Lotação Projetada (UA/HA)",
+        sublocation_name: "Subdivisión",
+        select_one_placeholder: "Seleccione uno...",
+        select_one_placeholder_optional: "Seleccione uno (opcional)...",
+        no_locations_found: "No se encontraron ubicaciones.",
+        no_sublocations_found: "No se encontraron sububicaciones.",
+        no_subdivisions_available: "No hay sububicaciones disponibles.",
+        assign_herd: "Asignar Rebanho",
+        subdivisions: "Sububicaciones",
+        confirm_bulk_assign: "Confirmar asignar todos los animales de {parentName} a {subName}?",
     },
     pt: {
         // Navbar
@@ -583,6 +601,15 @@ const translations = {
         history_locations:"Locais",
         capacity_rate_actual_ua_ha: "Taxa de Lotação Atual (UA/HA)",
         capacity_rate_forecasted_ua_ha: "Taxa de Lotação Projetada (UA/HA)",
+        sublocation_name: "Subdivisão",
+        select_one_placeholder: "Selecione...",
+        select_one_placeholder_optional: "Selecione (opcional)...",
+        no_locations_found: "Nenhuma localização encontrada.",
+        no_sublocations_found: "Nenhuma sublocalização encontrada.",
+        no_subdivisions_available: "Nenhuma subdivisão disponível.",
+        assign_herd: "Atribuir Rebanho",
+        subdivisions: "Subdivisões",
+        confirm_bulk_assign: "Confirmar mover todos os animais de {parentName} para {subName}?",
     }
 };
 

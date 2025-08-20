@@ -42,15 +42,26 @@ function renderLocationsList(locations) {
                 <ul class="sublocation-list">
                     ${location.sublocations.map(sub => `
                         <li>
-                            <span>${sub.name}</span>
-                            <span>${sub.area_hectares ? sub.area_hectares.toFixed(2) + ' ha' : ''}</span>
+                            <div class="sublocation-info">
+                                <span>${sub.name}</span>
+                                <span class="sublocation-area">${sub.area_hectares ? sub.area_hectares.toFixed(2) + ' ha' : ''}</span>
+                            </div>
+                            <div class="sublocation-actions">
+                                <button class="button-secondary assign-herd-btn" 
+                                        data-location-id="${location.id}"
+                                        data-location-name="${location.name}"
+                                        data-sublocation-id="${sub.id}"
+                                        data-sublocation-name="${sub.name}"
+                                        title="Assign all unassigned animals in ${location.name} to this subdivision">
+                                    ${getTranslation('assign_herd')}
+                                </button>
+                            </div>
                         </li>
                     `).join('')}
                 </ul>
             `;
         }
 
-        // --- THE UPGRADE ---
         // Assemble the full card HTML, now including the new KPI section
         locationCard.innerHTML = `
             <div class="location-card-header">
@@ -64,7 +75,6 @@ function renderLocationsList(locations) {
                 </div>
             </div>
             
-            <!-- NEW KPI Section -->
             <div class="location-card-kpis">
                 <div class="kpi-item">
                     <span class="kpi-value">${location.kpis.animal_count}</span>
@@ -112,14 +122,12 @@ function initLocationsPage() {
     const parentLocationNameSpan = document.getElementById('parent-location-name');
     const locationsContainer = document.getElementById('locations-container');
 
-    // --- THE FIX: Guard Clause ---
     // Before we do anything else, we check if our core elements were found.
     // If not, it means the HTML didn't load correctly, and we stop execution.
     if (!showAddLocationModalBtn || !locationsContainer || !addSublocationModal) {
         console.error("Essential elements for Locations page are missing. Aborting initialization.");
         return; 
     }
-    // --- END OF FIX ---
 
     let currentParentLocationId = null; 
 
@@ -135,14 +143,19 @@ function initLocationsPage() {
     addSublocationForm.onsubmit = handleAddSublocationSubmit;
 
     locationsContainer.onclick = (event) => {
-        const target = event.target.closest('.add-subdivision-btn');
-        if (target) {
-            currentParentLocationId = target.dataset.locationId;
-            const locationName = target.dataset.locationName;
+        const addBtn = event.target.closest('.add-subdivision-btn');
+        const assignBtn = event.target.closest('.assign-herd-btn');
+
+        if (addBtn) {
+            currentParentLocationId = addBtn.dataset.locationId;
+            const locationName = addBtn.dataset.locationName;
             
             addSublocationForm.reset();
             parentLocationNameSpan.textContent = locationName;
             addSublocationModal.classList.remove('hidden');
+        } else if (assignBtn) {
+            // Call the new handler for the assign action
+            handleAssignAnimalsToSublocation(assignBtn.dataset);
         }
     };
     
@@ -179,6 +192,68 @@ function initLocationsPage() {
         } catch (error) {
             showToast(`${getTranslation('error_saving_subdivision')}: ${error.message}`, 'error');
         }
+    }
+
+    // --- Function to handle the Bulk Assign action (REVISED) ---
+    async function handleAssignAnimalsToSublocation(dataset) {
+        const { locationId, locationName, sublocationId, sublocationName } = dataset;
+
+        const confirmationMessage = getTranslation('confirm_bulk_assign', {
+            parentName: locationName,
+            subName: sublocationName
+        });
+
+        // Use a non-blocking, promise-based confirmation
+        const userConfirmed = await showCustomConfirm(confirmationMessage);
+
+        if (userConfirmed) {
+            const today = new Date().toISOString().split('T')[0];
+            const payload = {
+                date: today,
+                destination_sublocation_id: sublocationId
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationId}/bulk_assign_sublocation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error);
+                
+                showToast(result.message, 'success');
+                loadLocationsData(); // Refresh the page to update animal counts
+
+            } catch (error) {
+                showToast(`Error: ${error.message}`, 'error');
+            }
+        }
+        // If userConfirmed is false, do nothing.
+    }
+
+    // --- NEW Helper function for the custom confirmation modal ---
+    function showCustomConfirm(message) {
+        return new Promise(resolve => {
+            const confirmModal = document.getElementById('custom-confirm-modal');
+            const msgElement = document.getElementById('custom-confirm-msg');
+            const okBtn = document.getElementById('custom-confirm-ok-btn');
+            const cancelBtn = document.getElementById('custom-confirm-cancel-btn');
+
+            msgElement.textContent = message;
+            confirmModal.classList.remove('hidden');
+
+            // We use .onclick here to easily overwrite the listener each time
+            okBtn.onclick = () => {
+                confirmModal.classList.add('hidden');
+                resolve(true); // User confirmed
+            };
+
+            cancelBtn.onclick = () => {
+                confirmModal.classList.add('hidden');
+                resolve(false); // User canceled
+            };
+        });
     }
 
     // Initial data load for the page

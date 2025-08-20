@@ -391,11 +391,16 @@ class LocationChange(db.Model):
     location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
     sublocation_id = db.Column(db.Integer, db.ForeignKey('sublocation.id'), nullable=True)
 
+
+
     def to_dict(self):
         """
         Serializes the LocationChange object to a dictionary, including
         the name of the linked location for convenience.
         """
+        sub_name = self.sublocation.name if self.sublocation else None
+        sub_id = self.sublocation.id if self.sublocation else None
+
         return {
             "location_change_id": self.id,
             "date": self.date.isoformat(),
@@ -403,6 +408,8 @@ class LocationChange(db.Model):
             "lot": self.animal.lot,
             "location_name": self.location.name,
             "location_id": self.location.id,
+            "sublocation_name": sub_name,
+            "sublocation_id": sub_id,
             "animal_id": self.animal_id,
             'farm_id': self.farm_id
         }

@@ -237,6 +237,77 @@ def bulk_move_herd(farm_id):
         db.session.rollback()
         return jsonify({'error': f'An unexpected error occurred during the move: {str(e)}'}), 500
 
+@api.route('/farm/<int:farm_id>/location/<int:location_id>/bulk_assign_sublocation', methods=['POST'])
+def bulk_assign_sublocation(farm_id, location_id):
+    """
+    Finds all active animals in a parent location that are not yet in a sublocation,
+    and assigns them all to a specified destination sublocation.
+    """
+    data = request.get_json()
+    if not data or 'date' not in data or 'destination_sublocation_id' not in data:
+        return jsonify({'error': 'Missing required fields: date, destination_sublocation_id'}), 400
+
+    # 1. --- Data Validation and Security ---
+    try:
+        dest_id = int(data['destination_sublocation_id'])
+        move_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+
+        # Verify the parent location and destination sublocation are valid and linked
+        parent_location = Location.query.filter_by(id=location_id, farm_id=farm_id).first_or_404()
+        dest_sub = Sublocation.query.get_or_404(dest_id)
+        if dest_sub.location_id != parent_location.id:
+            return jsonify({'error': 'Destination sublocation does not belong to the specified parent location.'}), 400
+
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid ID format.'}), 400
+
+    # 2. --- Find the Animals to Assign (The Engine) ---
+    sold_animal_ids = db.session.query(Sale.animal_id).filter(Sale.farm_id == farm_id)
+    dead_animal_ids = db.session.query(Death.animal_id).filter(Death.farm_id == farm_id)
+    exited_animal_ids = sold_animal_ids.union(dead_animal_ids)
+    
+    lc_alias = aliased(LocationChange)
+    most_recent_changes_subquery = db.session.query(
+        func.max(lc_alias.date).label('max_date'),
+        lc_alias.animal_id
+    ).group_by(lc_alias.animal_id).subquery()
+    
+    # THE CRITICAL DIFFERENCE: Find animals whose latest move was to the PARENT location
+    # AND their sublocation_id IS NULL.
+    animals_to_assign = db.session.query(Purchase).join(
+        LocationChange, Purchase.id == LocationChange.animal_id
+    ).join(
+        most_recent_changes_subquery,
+        (LocationChange.animal_id == most_recent_changes_subquery.c.animal_id) &
+        (LocationChange.date == most_recent_changes_subquery.c.max_date)
+    ).filter(
+        Purchase.farm_id == farm_id,
+        Purchase.id.notin_(exited_animal_ids),
+        LocationChange.location_id == location_id,       # Must be in the parent location
+    ).all()
+    
+    if not animals_to_assign:
+        return jsonify({'message': 'No unassigned animals found in this location.'}), 200
+
+    # 3. --- Create New LocationChange Records ---
+    try:
+        for animal in animals_to_assign:
+            new_change = LocationChange(
+                date=move_date,
+                animal_id=animal.id,
+                location_id=location_id,
+                sublocation_id=dest_id, # Assign to the destination
+                farm_id=farm_id
+            )
+            db.session.add(new_change)
+        
+        db.session.commit()
+        return jsonify({'message': f'Successfully assigned {len(animals_to_assign)} animals to {dest_sub.name}.'}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'An unexpected error occurred during assignment: {str(e)}'}), 500
+
 @api.route('/farm/<int:farm_id>/purchase/add', methods=['POST'])
 def add_purchase(farm_id):
     """
@@ -998,6 +1069,24 @@ def get_all_deaths(farm_id):
     
     # Assemble the rich response.
     return jsonify([d.to_dict() for d in all_deaths])
+
+@api.route('/farm/<int:farm_id>/sublocations', methods=['GET'])
+def get_all_sublocations(farm_id):
+    """
+    Gets a list of all sublocations for a specific farm.
+    """
+    # Verify the farm exists.
+    Farm.query.get_or_404(farm_id)
+
+    # Start with the base query for all sublocations on this farm.
+    sublocations_query = Sublocation.query.filter_by(farm_id=farm_id)
+
+    # Execute the final, assembled query, ordered by name.
+    all_sublocations = sublocations_query.order_by(Sublocation.name.asc()).all()
+    
+    # Convert results to a simple list of dictionaries and return as JSON.
+    results = [subloc.to_dict() for subloc in all_sublocations]
+    return jsonify(results)
 
 # --- Search and Master Record Routes ---
 

@@ -299,6 +299,12 @@
                         <label for="new-location-select" data-translate="new_location">New Location</label>
                         <select id="new-location-select" required></select>
                     </div>
+                    <div class="form-group">
+                        <label for="new-sublocation-select" data-translate="subdivision">Subdivision (Optional)</label>
+                        <select id="new-sublocation-select">
+                            <!-- This will be populated dynamically -->
+                        </select>
+                    </div>
                     <div class="form-group form-group-full">
                         <label for="location-change-weight-kg" data-translate="optional_weight_kg">Weight (kg, Optional)</label>
                         <input type="number" step="0.01" id="location-change-weight-kg">
@@ -479,6 +485,16 @@
                     <button type="button" id="cancel-add-location" data-translate="cancel">Cancel</button>
                 </div>
             </form>
+        </div>
+    </div>
+    <!-- Custom Confirmation Modal -->
+    <div id="custom-confirm-modal" class="modal hidden">
+        <div class="modal-content">
+            <p id="custom-confirm-msg"></p>
+            <div class="modal-actions">
+                <button id="custom-confirm-ok-btn" class="button-primary">OK</button>
+                <button id="custom-confirm-cancel-btn" class="button-secondary">Cancel</button>
+            </div>
         </div>
     </div>
 

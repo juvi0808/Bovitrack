@@ -473,6 +473,21 @@ hr {
     border-top: 1px solid #eee;
 }
 
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+
+
 /* ==========================================================================
    7. Tables & AG-Grid
    ========================================================================== */
@@ -679,6 +694,22 @@ tbody tr:hover {
     color: #555;
     font-size: 0.9em;
 }
+
+/* --- Styles for Occupied Sublocations --- */
+.sublocation-list li.occupied {
+    background-color: #e7f5ff; /* A light blue background */
+    border-left: 4px solid #007bff; /* A prominent blue left border */
+    font-weight: 600; /* Make the text bold */
+}
+
+.occupied-animal-count {
+    color: #0056b3;
+    font-size: 0.9em;
+    margin-left: auto; /* Push it to the center, before the button */
+    padding-right: 20px;
+}
+
+
 
 .location-card-kpis {
     display: flex;
