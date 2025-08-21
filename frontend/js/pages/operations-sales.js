@@ -176,7 +176,13 @@ function createSalesHistoryGrid(data) {
     if (!gridDiv) return;
 
     const columnDefs = [
-        { headerName: getTranslation("ear_tag"), field: "ear_tag" },
+        { 
+            headerName: getTranslation("ear_tag"), 
+            field: "ear_tag", 
+            width: 120,
+            onCellClicked: (params) => window.navigateToConsultAnimal(params.data.animal_id,'page-operations-sales'),
+            cellClass: 'clickable-cell'
+        },
         { headerName: getTranslation("lot"), field: "lot" },
         { headerName: getTranslation("entry_date"), field: "entry_date" },
         { headerName: getTranslation("exit_date"), field: "exit_date" },

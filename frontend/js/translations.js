@@ -227,6 +227,10 @@ const translations = {
         gmd_period: "GMD (Period)",
         purchase_info: "Purchase Information",
         performance_kpis: "Performance KPIs",
+        back_to_list: "Back to List",
+        sale_details: "Sale Details",
+        death_details: "Death Details",
+        date_of_death: "Date of Death",
     },
     es: {
         // Navbar
@@ -456,6 +460,10 @@ const translations = {
         gmd_period: "GMD (Periodo)",
         purchase_info: "Información de Compra",
         performance_kpis: "Indicadores de Desempeño",
+        back_to_list: "Regresar a la lista",
+        sale_details: "Detalles de la Venda",
+        death_details: "Detalles de la Muerte",
+        date_of_death: "Data de la Muerte",
     },
     pt: {
         // Navbar
@@ -685,6 +693,10 @@ const translations = {
         gmd_period: "GMD (Periodo)",
         purchase_info: "Informações de Compra",
         performance_kpis: "Indicadores de Desempenho",
+        back_to_list: "Voltar à lista",
+        sale_details: "Detalhes da Venda",
+        death_details: "Detalhes da Morte",
+        date_of_death: "Data da Morte",
     }
 };
 

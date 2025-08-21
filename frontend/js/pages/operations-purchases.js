@@ -19,7 +19,13 @@ async function loadPurchaseHistoryData() {
         // We still need a helper function to create the grid, but it can live inside this function's scope.
         function createPurchaseHistoryGrid(data) {
             const columnDefs = [
-                { headerName: getTranslation("ear_tag"), field: "ear_tag" },
+                { 
+                    headerName: getTranslation("ear_tag"), 
+                    field: "ear_tag", 
+                    width: 120,
+                    onCellClicked: (params) => window.navigateToConsultAnimal(params.data.id,'page-operations-purchases'),
+                    cellClass: 'clickable-cell'
+                },
                 { headerName: getTranslation("lot"), field: "lot" },
                 { headerName: getTranslation("entry_date"), field: "entry_date" },
                 { headerName: getTranslation("entry_weight_kg"), field: "entry_weight", valueFormatter: p => p.value.toFixed(2) },

@@ -10,8 +10,35 @@ function initConsultAnimalPage() {
     const searchInput = document.getElementById('consult-animal-search-eartag');
     const searchBtn = document.getElementById('consult-search-animal-btn');
     const searchResultDiv = document.getElementById('consult-search-animal-result');
-    const backToSearchBtn = document.getElementById('back-to-search-btn');
+    const backBtn = document.getElementById('back-to-search-btn');
 
+    // Smart Back Button Logic
+    if (window.consultAnimalReturnPage) {
+        // Came from a grid click
+        backBtn.textContent = getTranslation('back_to_list');
+        backBtn.onclick = () => {
+            navigateToPage(window.consultAnimalReturnPage);
+            // Clean up global state after use
+            window.consultAnimalReturnPage = null;
+            window.animalIdToConsult = null;
+        };
+    } else {
+        // Normal search flow
+        backBtn.textContent = getTranslation('back_to_search');
+        backBtn.onclick = () => {
+            masterRecordView.classList.add('hidden');
+            searchView.classList.remove('hidden');
+            searchInput.value = '';
+            searchResultDiv.innerHTML = '';
+        };
+    }
+    
+    // Check if we navigated here with a specific animal ID
+    if (window.animalIdToConsult) {
+        fetchAndDisplayMasterRecord(window.animalIdToConsult);
+        window.animalIdToConsult = null; // Reset for next time
+    }
+    
     // --- Event Listeners ---
     searchBtn.addEventListener('click', handleAnimalSearch);
     searchInput.addEventListener('keyup', (event) => {
@@ -28,7 +55,7 @@ function initConsultAnimalPage() {
         }
     });
 
-    backToSearchBtn.addEventListener('click', () => {
+    backBtn.addEventListener('click', () => {
         masterRecordView.classList.add('hidden');
         searchView.classList.remove('hidden');
         searchInput.value = '';

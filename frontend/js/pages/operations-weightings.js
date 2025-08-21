@@ -162,7 +162,13 @@ function createWeightingHistoryGrid(data) {
 
     const columnDefs = [
         { headerName: getTranslation("date"), field: "date" },
-        { headerName: getTranslation("ear_tag"), field: "ear_tag" },
+        { 
+            headerName: getTranslation("ear_tag"), 
+            field: "ear_tag", 
+            width: 120,
+            onCellClicked: (params) => window.navigateToConsultAnimal(params.data.animal_id,'page-operations-weightings'),
+            cellClass: 'clickable-cell'
+        },
         { headerName: getTranslation("lot"), field: "lot" },
         { headerName: getTranslation("weightings"), field: "weight_kg", valueFormatter: p => p.value.toFixed(2) },
     ];

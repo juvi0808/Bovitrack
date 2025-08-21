@@ -46,8 +46,14 @@ function displaySummary(kpis) {
 function createAnimalGrid(animals) {
     const gridDiv = document.getElementById('animal-grid');
     if (gridDiv) {
-        const columnDefs = [
-       { headerName: getTranslation("ear_tag"), field: "ear_tag", width: 120 },
+        const columnDefs = [       
+        { 
+            headerName: getTranslation("ear_tag"), 
+            field: "ear_tag", 
+            width: 120,
+            onCellClicked: (params) => window.navigateToConsultAnimal(params.data.id,'page-active-stock'),
+            cellClass: 'clickable-cell'
+        },
         { headerName: getTranslation("lot"), field: "lot", width: 100, filter: 'agNumberColumnFilter' },
         { headerName: getTranslation("entry_date"), field: "entry_date", width: 150 },
         { headerName: getTranslation("sex"), field: "sex", width: 120 },

@@ -238,7 +238,13 @@ function createLocationChangeHistoryGrid(data) {
 
     const columnDefs = [
         { headerName: getTranslation("date"), field: "date" },
-        { headerName: getTranslation("ear_tag"), field: "ear_tag" },
+        { 
+            headerName: getTranslation("ear_tag"), 
+            field: "ear_tag", 
+            width: 120,
+            onCellClicked: (params) => window.navigateToConsultAnimal(params.data.animal_id,'page-operations-loc-change'),
+            cellClass: 'clickable-cell'
+        },
         { headerName: getTranslation("lot"), field: "lot" },
         { headerName: getTranslation("location_name"), field: "location_name" },
         { headerName: getTranslation("sublocation_name"), field: "sublocation_name" },

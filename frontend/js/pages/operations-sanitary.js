@@ -236,7 +236,13 @@ function createSanitaryProtocolHistoryGrid(data) {
 
     const columnDefs = [
         { headerName: getTranslation("date"), field: "date" },
-        { headerName: getTranslation("ear_tag"), field: "ear_tag" },
+        { 
+            headerName: getTranslation("ear_tag"), 
+            field: "ear_tag", 
+            width: 120,
+            onCellClicked: (params) => window.navigateToConsultAnimal(params.data.animal_id,'page-operations-sanitary'),
+            cellClass: 'clickable-cell'
+        },
         { headerName: getTranslation("lot"), field: "lot" },
         { headerName: getTranslation("protocol_type_placeholder"), field: "protocol_type" },
         { headerName: getTranslation("product_name_placeholder"), field: "product_name" },

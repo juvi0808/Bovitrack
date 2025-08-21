@@ -207,6 +207,7 @@ class Purchase(db.Model):
             kpis['current_age_months'] = round(self.entry_age + (days_on_farm / 30.44), 2)
             kpis['forecasted_current_weight_kg'] = None
             kpis['status'] = 'Dead'
+            kpis['days_on_farm'] = days_on_farm
 
         else:
             # For an active animal, calculate age and forecasted weight for today.

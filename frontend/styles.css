@@ -545,6 +545,16 @@ tbody tr:hover {
     flex-grow: 1;
 }
 
+.clickable-cell {
+    cursor: pointer;
+    color: #0056b3;
+    font-weight: bold;
+}
+
+.clickable-cell:hover {
+    text-decoration: underline;
+}
+
 /* ==========================================================================
    8. Page-Specific Styles
    ========================================================================== */

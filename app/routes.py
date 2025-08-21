@@ -1154,6 +1154,7 @@ def get_animal_master_record(farm_id, purchase_id):
     elif animal.is_dead:
         exit_details_data = animal.death.to_dict()
 
+
     # Assemble the final master record. The JSON structure is now always the same.
     master_record = {
         'purchase_details': animal.to_dict(),

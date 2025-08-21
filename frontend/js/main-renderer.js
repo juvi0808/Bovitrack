@@ -22,6 +22,9 @@ let selectedFarmId = null;
 let allFarms = [];
 let currentLanguage = 'en';
 
+window.animalIdToConsult = null; // Global variable to hold the ID
+window.consultAnimalReturnPage = null; // Global variable for the back button logic
+
 // --- 3. ELEMENT REFERENCES ---
 // Main Page Elements
 const summaryDiv = document.getElementById('summary-kpis');
@@ -343,6 +346,15 @@ async function handleDeleteFarmSubmit(event) {
     }
 }
 
+// The global function called from the grids now accepts the return page ID.
+window.navigateToConsultAnimal = function(animalId, returnPageId) {
+    if (!animalId) return;
+    console.log(`Navigating to consult page for animal ID: ${animalId} from ${returnPageId}`);
+    window.animalIdToConsult = animalId;
+    window.consultAnimalReturnPage = returnPageId; // Store where to go back to
+    navigateToPage('page-lookup-consult-animal');
+}
+
 function handleDropdownToggle(dropdownLi) {
     const wasActive = dropdownLi.classList.contains('dropdown-is-active');
     closeAllDropdowns();
@@ -351,14 +363,39 @@ function handleDropdownToggle(dropdownLi) {
     }
 }
 
+// This is our central navigation controller.
+function navigateToPage(pageId) {
+    if (!pageId) return;
+
+    // 1. Fetch and display the new page's HTML content.
+    showPage(pageId);
+
+    // 2. Update the visual state of the navigation menu.
+    // Deactivate all links first to ensure a clean slate.
+    document.querySelectorAll('.main-nav a').forEach(link => link.classList.remove('active'));
+
+    // Find the specific link that corresponds to the page we are navigating to.
+    const targetLink = document.querySelector(`.nav-link[data-page="${pageId}"]`);
+    if (targetLink) {
+        // Activate the target link (e.g., "Search Animal").
+        targetLink.classList.add('active');
+
+        // If it's in a dropdown, activate its parent menu item too (e.g., "Lookup").
+        const parentDropdown = targetLink.closest('.has-dropdown');
+        if (parentDropdown) {
+            const parentMenuLink = parentDropdown.querySelector('a');
+            if (parentMenuLink) {
+                parentMenuLink.classList.add('active');
+            }
+        }
+    }
+    closeAllDropdowns();
+}
+
+// It just determines the pageId and calls our new central controller.
 function handlePageNavigation(navLink) {
     const pageId = navLink.dataset.page;
-    if (pageId) {
-        showPage(pageId);
-        document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-        navLink.classList.add('active');
-        closeAllDropdowns();
-    }
+    navigateToPage(pageId);
 }
 
 function closeAllDropdowns() {
