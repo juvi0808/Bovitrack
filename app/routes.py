@@ -1141,13 +1141,23 @@ def get_animal_master_record(farm_id, purchase_id):
     smart_weight_history = calculate_weight_history_with_gmd(animal)
     calculated_kpis = animal.calculate_kpis()
     
-    # Determine the sale details, defaulting to null if not sold.
-    sale_details_data = animal.sale.to_dict() if animal.is_sold else None
+    # Determine the exit details, defaulting to null if not sold or dead.
+    exit_details_data = None
+    if animal.is_sold:
+        sale_data = animal.sale.to_dict()
+        # Calculate profit/loss if purchase price is available
+        if animal.purchase_price:
+            sale_data['profit_loss'] = sale_data['exit_price'] - animal.purchase_price
+        else:
+            sale_data['profit_loss'] = None
+        exit_details_data = sale_data
+    elif animal.is_dead:
+        exit_details_data = animal.death.to_dict()
 
     # Assemble the final master record. The JSON structure is now always the same.
     master_record = {
         'purchase_details': animal.to_dict(),
-        'sale_details': sale_details_data, # This key will always exist.
+        'exit_details': exit_details_data, # This key will always exist.
         'calculated_kpis': calculated_kpis,
         'weight_history': smart_weight_history,
         'protocol_history': [protocol.to_dict() for protocol in animal.protocols],

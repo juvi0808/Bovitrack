@@ -254,7 +254,10 @@ async function handleFarmSelection() {
         await loadLocationsData();}      
     else if (pageId === 'page-farm-lots') { 
         await loadLotsData();
-    }      
+    }     
+    else if (pageId === 'page-lookup-consult-animal') { 
+        await loadConsultAnimalData();
+    }     
 }
 async function handleAddFarmSubmit(event) {
     event.preventDefault();
@@ -364,13 +367,6 @@ function closeAllDropdowns() {
     });
 }
 
-// This function is now only for switching the page content.
-function handleNavigation(event) {
-    // This function's logic is now inside handleNavClick.
-    // We can keep it here empty or remove it, but for now we'll leave it
-    // to avoid breaking anything else that might call it, just in case.
-}
-
 // --- Page Navigation Logic ---
 
 async function showPage(pageId) {
@@ -413,10 +409,12 @@ async function showPage(pageId) {
             initHistorySanitaryProtocolsPage();   
         } else if (pageId === 'page-operations-death') {
             initHistoryDeathsPage(); 
-        } else if (pageName === 'farm-locations') { // ADDED THIS
+        } else if (pageName === 'farm-locations') { 
             initLocationsPage();
-        } else if (pageName === 'farm-lots') { // ADDED THIS
+        } else if (pageName === 'farm-lots') { 
             initLotsPage();
+        } else if (pageName === 'lookup-consult-animal') {
+            initConsultAnimalPage();
         } else if (pageName === 'settings') {
             initSettingsPage();
         }
