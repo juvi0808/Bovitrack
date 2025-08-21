@@ -26,7 +26,14 @@ async function loadPurchaseHistoryData() {
                     onCellClicked: (params) => window.navigateToConsultAnimal(params.data.id,'page-operations-purchases'),
                     cellClass: 'clickable-cell'
                 },
-                { headerName: getTranslation("lot"), field: "lot" },
+                { 
+                    headerName: getTranslation("lot"), 
+                    field: "lot", 
+                    width: 100, 
+                    filter: 'agNumberColumnFilter',
+                    onCellClicked: (params) => window.navigateToConsultLot(params.value,'page-operations-purchases'),
+                    cellClass: 'clickable-cell'
+                },
                 { headerName: getTranslation("entry_date"), field: "entry_date" },
                 { headerName: getTranslation("entry_weight_kg"), field: "entry_weight", valueFormatter: p => p.value.toFixed(2) },
                 { headerName: getTranslation("sex"), field: "sex" },

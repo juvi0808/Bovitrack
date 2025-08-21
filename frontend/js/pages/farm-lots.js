@@ -80,13 +80,18 @@ function createLotAnimalsGrid(animals) {
     if (!gridDiv) return;
 
     const columnDefs = [
-        { headerName: getTranslation("ear_tag"), field: "ear_tag", width: 120 },
+        { headerName: getTranslation("ear_tag"), field: "ear_tag", width: 120, onCellClicked: (params) => window.navigateToConsultAnimal(params.data.id,'page-farm-lots'), cellClass: 'clickable-cell' },
         { headerName: getTranslation("sex"), field: "sex", width: 100 },
         { headerName: `${getTranslation('age')} (${getTranslation('months')})`, field: "kpis.current_age_months", valueFormatter: p => p.value.toFixed(2), width: 150 },
         { headerName: getTranslation("last_wt_kg"), field: "kpis.last_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 150 },
         { headerName: getTranslation("avg_daily_gain_kg"), field: "kpis.average_daily_gain_kg", valueFormatter: p => p.value.toFixed(3), width: 180 },
         { headerName: getTranslation("forecasted_weight"), field: "kpis.forecasted_current_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 180 },
-        { headerName: getTranslation("current_location"), field: "kpis.current_location_name" },
+        { 
+            headerName: getTranslation("current_location"), 
+            field: "kpis.current_location_name",
+            onCellClicked: (params) => window.navigateToConsultLocation(params.data.kpis.current_location_id, params.value,'page-farm-lots'),
+            cellClass: (params) => params.value ? 'clickable-cell' : ''
+        },
         { headerName: getTranslation("diet_type"), field: "kpis.current_diet_type" },
     ];
 
@@ -116,9 +121,53 @@ function initLotsPage() {
     const summaryContainer = document.getElementById('lot-summary-kpis');
     const gridContainer = document.getElementById('lot-animals-grid');
 
+    if (window.lotToConsult) {
+        // We were navigated here to see a specific lot.
+        // We need to fetch the summary data first to find the correct lot object.
+        const requestedLotNumber = window.lotToConsult;
+        window.lotToConsult = null; // Clear the flag
+
+        fetch(`${API_URL}/api/farm/${selectedFarmId}/lots/summary`)
+            .then(res => res.json())
+            .then(lots => {
+                const lotData = lots.find(l => l.lot_number == requestedLotNumber);
+                if (lotData) {
+                    showConsultView(lotData);
+                } else {
+                    // Lot not found, just show the list view
+                    showListView();
+                }
+            })
+            .catch(err => {
+                console.error("Could not pre-fetch lot summary for navigation", err);
+                showListView(); // Fallback to the list view on error
+            });
+
+    } else {
+        // Normal page load, show the list view.
+        loadLotsData();
+    }
+    
     if (!lotsListView || !lotConsultView || !backBtn) {
         console.error("Essential elements for Lots page are missing. Aborting initialization.");
         return; 
+    }
+
+    if (window.consultLotReturnPage) {
+        // Came from a grid click on another page
+        backBtn.textContent = getTranslation('back_to_list');
+        backBtn.onclick = () => {
+            navigateToPage(window.consultLotReturnPage);
+            window.consultLotReturnPage = null; // Clean up
+            window.lotToConsult = null;
+        };
+    } else {
+        // Normal flow within the lots page
+        backBtn.onclick = () => {
+            lotConsultView.classList.add('hidden');
+            lotsListView.classList.remove('hidden');
+            loadLotsData(); 
+        };
     }
 
     const showListView = () => {
@@ -152,8 +201,6 @@ function initLotsPage() {
             if (gridContainer) gridContainer.innerHTML = `<p style="color: red;">${getTranslation('could_not_load_animal_list')}</p>`;
         }
     };
-    
-    backBtn.onclick = showListView;
     
     loadLotsData();
 }

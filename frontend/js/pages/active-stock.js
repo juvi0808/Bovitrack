@@ -54,7 +54,14 @@ function createAnimalGrid(animals) {
             onCellClicked: (params) => window.navigateToConsultAnimal(params.data.id,'page-active-stock'),
             cellClass: 'clickable-cell'
         },
-        { headerName: getTranslation("lot"), field: "lot", width: 100, filter: 'agNumberColumnFilter' },
+        { 
+            headerName: getTranslation("lot"), 
+            field: "lot", 
+            width: 100, 
+            filter: 'agNumberColumnFilter',
+            onCellClicked: (params) => window.navigateToConsultLot(params.value,'page-active-stock'),
+            cellClass: 'clickable-cell'
+        },
         { headerName: getTranslation("entry_date"), field: "entry_date", width: 150 },
         { headerName: getTranslation("sex"), field: "sex", width: 120 },
         { headerName: `${getTranslation('age')} (${getTranslation('months')})`, field: "kpis.current_age_months", valueFormatter: p => p.value.toFixed(2), width: 150 },
@@ -62,7 +69,12 @@ function createAnimalGrid(animals) {
         { headerName: getTranslation("last_wt_date"), field: "kpis.last_weighting_date", width: 150 },
         { headerName: getTranslation("avg_daily_gain_kg"), field: "kpis.average_daily_gain_kg", valueFormatter: p => p.value.toFixed(3), width: 180 },
         { headerName: getTranslation("forecasted_weight"), field: "kpis.forecasted_current_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 180 },
-        { headerName: getTranslation("current_location"), field: "kpis.current_location_name" },
+        { 
+            headerName: getTranslation("current_location"), 
+            field: "kpis.current_location_name",
+            onCellClicked: (params) => window.navigateToConsultLocation(params.data.kpis.current_location_id, params.value,'page-active-stock'),
+            cellClass: (params) => params.value ? 'clickable-cell' : ''
+        },
         { headerName: getTranslation("diet_type"), field: "kpis.current_diet_type" },
         { headerName: `${getTranslation('diet_intake')} (%)`, field: "kpis.current_diet_intake", valueFormatter: p => p.value ? `${p.value}%` : 'N/A', width: 150 },
     ];const gridOptions = {

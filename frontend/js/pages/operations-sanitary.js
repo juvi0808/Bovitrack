@@ -243,7 +243,14 @@ function createSanitaryProtocolHistoryGrid(data) {
             onCellClicked: (params) => window.navigateToConsultAnimal(params.data.animal_id,'page-operations-sanitary'),
             cellClass: 'clickable-cell'
         },
-        { headerName: getTranslation("lot"), field: "lot" },
+        { 
+            headerName: getTranslation("lot"), 
+            field: "lot", 
+            width: 100, 
+            filter: 'agNumberColumnFilter',
+            onCellClicked: (params) => window.navigateToConsultLot(params.value,'page-operations-sanitary'),
+            cellClass: 'clickable-cell'
+        },
         { headerName: getTranslation("protocol_type_placeholder"), field: "protocol_type" },
         { headerName: getTranslation("product_name_placeholder"), field: "product_name" },
         { headerName: getTranslation("dosage_placeholder"), field: "dosage" },

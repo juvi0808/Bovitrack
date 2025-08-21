@@ -245,8 +245,20 @@ function createLocationChangeHistoryGrid(data) {
             onCellClicked: (params) => window.navigateToConsultAnimal(params.data.animal_id,'page-operations-loc-change'),
             cellClass: 'clickable-cell'
         },
-        { headerName: getTranslation("lot"), field: "lot" },
-        { headerName: getTranslation("location_name"), field: "location_name" },
+        { 
+            headerName: getTranslation("lot"), 
+            field: "lot", 
+            width: 100, 
+            filter: 'agNumberColumnFilter',
+            onCellClicked: (params) => window.navigateToConsultLot(params.value,'page-operations-loc-change'),
+            cellClass: 'clickable-cell'
+        },
+        { 
+            headerName: getTranslation("location_name"), 
+            field: "location_name",
+            onCellClicked: (params) => window.navigateToConsultLocation(params.data.location_id, params.value,'page-operations-loc-change'),
+            cellClass: 'clickable-cell'
+        },
         { headerName: getTranslation("sublocation_name"), field: "sublocation_name" },
     ];
 

@@ -148,8 +148,15 @@ function createLocationAnimalsGrid(animals) {
     if (!gridDiv) return;
 
     const columnDefs = [
-        { headerName: getTranslation("ear_tag"), field: "ear_tag", width: 120 },
-        { headerName: getTranslation("lot"), field: "lot", width: 100 },
+        { headerName: getTranslation("ear_tag"), field: "ear_tag", width: 120, onCellClicked: (params) => window.navigateToConsultAnimal(params.data.id,'page-farm-locations'), cellClass: 'clickable-cell' },
+        { 
+            headerName: getTranslation("lot"), 
+            field: "lot", 
+            width: 100, 
+            filter: 'agNumberColumnFilter',
+            onCellClicked: (params) => window.navigateToConsultLot(params.value, 'page-farm-locations'),
+            cellClass: 'clickable-cell'
+        },
         { headerName: getTranslation("sex"), field: "sex", width: 100 },
         { headerName: `${getTranslation('age')} (${getTranslation('months')})`, field: "kpis.current_age_months", valueFormatter: p => p.value.toFixed(2), width: 150 },
         { headerName: getTranslation("last_wt_kg"), field: "kpis.last_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 150 },
@@ -197,15 +204,6 @@ function initLocationsPage() {
     const summaryContainer = document.getElementById('location-summary-kpis');
     const gridContainer = document.getElementById('location-animals-grid');
 
-    // Before we do anything else, we check if our core elements were found.
-    // If not, it means the HTML didn't load correctly, and we stop execution.
-    if (!showAddLocationModalBtn || !locationsContainer || !addSublocationModal) {
-        console.error("Essential elements for Locations page are missing. Aborting initialization.");
-        return; 
-    }
-
-    let currentParentLocationId = null; 
-
     // --- View Switching Logic ---
     const showListView = () => {
         locationConsultView.classList.add('hidden');
@@ -236,6 +234,63 @@ function initLocationsPage() {
         }
     };
 
+    showAddLocationModalBtn.onclick = () => { /* ... */ };
+    cancelAddLocationBtn.onclick = () => { /* ... */ };
+    addLocationForm.onsubmit = handleAddLocationSubmit;
+    cancelAddSublocationBtn.onclick = () => { /* ... */ };
+    addSublocationForm.onsubmit = handleAddSublocationSubmit;
+    
+    locationsContainer.onclick = (event) => {
+        const detailsBtn = event.target.closest('.see-details-btn');
+        if (detailsBtn) {
+            // --- START OF FIX: When navigating internally, clear the return page flag ---
+            window.consultLocationReturnPage = null; 
+            // --- END OF FIX ---
+            const locationId = detailsBtn.dataset.locationId;
+            const locationName = detailsBtn.dataset.locationName;
+            showConsultView(locationId, locationName);
+        }
+        // ... (rest of the click handling logic for other buttons)
+    };
+
+    // --- Page Load & Back Button Logic (Corrected Structure) ---
+
+    // 1. Determine the back button's behavior FIRST.
+    if (window.consultLocationReturnPage) {
+        // Came from an external grid click
+        backBtn.textContent = getTranslation('back_to_list');
+        backBtn.onclick = () => {
+            navigateToPage(window.consultLocationReturnPage);
+            window.consultLocationReturnPage = null;
+            window.locationToConsult = null;
+        };
+    } else {
+        // Normal flow within the locations page
+        backBtn.textContent = getTranslation('back_to_locations_list'); // Use correct translation key
+        backBtn.onclick = showListView;
+    }
+
+    // 2. NOW, determine which view to show.
+    if (window.locationToConsult) {
+        // Came here to see a specific location
+        const { id, name } = window.locationToConsult;
+        window.locationToConsult = null; // Clear the flag
+        showConsultView(id, name);
+    } else {
+        // Standard page load
+        showListView();
+    }
+    // Before we do anything else, we check if our core elements were found.
+    // If not, it means the HTML didn't load correctly, and we stop execution.
+    if (!showAddLocationModalBtn || !locationsContainer || !addSublocationModal) {
+        console.error("Essential elements for Locations page are missing. Aborting initialization.");
+        return; 
+    }
+
+    let currentParentLocationId = null; 
+
+
+
     // --- Event Listeners ---
     showAddLocationModalBtn.onclick = () => {
         addLocationForm.reset();
@@ -246,8 +301,6 @@ function initLocationsPage() {
     
     cancelAddSublocationBtn.onclick = () => addSublocationModal.classList.add('hidden');
     addSublocationForm.onsubmit = handleAddSublocationSubmit;
-
-    backBtn.onclick = showListView;
 
     locationsContainer.onclick = (event) => {
         const addBtn = event.target.closest('.add-subdivision-btn');

@@ -24,6 +24,10 @@ let currentLanguage = 'en';
 
 window.animalIdToConsult = null; // Global variable to hold the ID
 window.consultAnimalReturnPage = null; // Global variable for the back button logic
+window.lotToConsult = null;
+window.consultLotReturnPage = null;
+window.locationToConsult = null;
+window.consultLocationReturnPage = null;
 
 // --- 3. ELEMENT REFERENCES ---
 // Main Page Elements
@@ -353,6 +357,23 @@ window.navigateToConsultAnimal = function(animalId, returnPageId) {
     window.animalIdToConsult = animalId;
     window.consultAnimalReturnPage = returnPageId; // Store where to go back to
     navigateToPage('page-lookup-consult-animal');
+}
+
+// ... after window.navigateToConsultAnimal function
+window.navigateToConsultLot = function(lotNumber, returnPageId) {
+    if (!lotNumber) return;
+    console.log(`Navigating to consult page for lot: ${lotNumber} from ${returnPageId}`);
+    window.lotToConsult = lotNumber;
+    window.consultLotReturnPage = returnPageId; // Store where to go back to
+    navigateToPage('page-farm-lots');
+}
+
+window.navigateToConsultLocation = function(locationId, locationName, returnPageId) {
+    if (!locationId || !locationName) return;
+    console.log(`Navigating to consult page for location ID: ${locationId} from ${returnPageId}`);
+    window.locationToConsult = { id: locationId, name: locationName };
+    window.consultLocationReturnPage = returnPageId; // Store where to go back to
+    navigateToPage('page-farm-locations');
 }
 
 function handleDropdownToggle(dropdownLi) {
