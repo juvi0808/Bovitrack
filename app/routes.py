@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, Response
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import aliased
 from sqlalchemy import func
@@ -7,6 +7,7 @@ from .models import Farm, Location, Purchase, Sale, Weighting, SanitaryProtocol,
 from . import db # Also import the db object
 from .utils import find_active_animal_by_eartag, calculate_weight_history_with_gmd, calculate_location_kpis
 import json
+import random
 
 # Create a Blueprint. 'api' is the name of the blueprint.
 api = Blueprint('api', __name__)
@@ -1403,3 +1404,195 @@ def get_active_stock_summary(farm_id):
     }
 
     return jsonify(final_response)
+
+@api.route('/dev/seed-test-farm', methods=['POST'])
+def seed_test_farm():
+    """
+    (For Developers) Creates a test farm with a large volume of simulated data over 10 years.
+    This is a destructive operation if the farm already exists.
+    """
+    params = request.get_json()
+    if not params:
+        return jsonify({'error': 'Missing JSON request body'}), 400
+
+    # --- 1. Parameter Extraction and Validation ---
+    try:
+        farm_name = params['farm_name']
+        purchases_per_year = int(params['total_animal_purchases_per_year'])
+        monthly_dist = params['monthly_concentration']
+        weighting_freq = int(params['weighting_frequency_days'])
+        sell_after_days = int(params['sell_after_days'])
+        assumed_gmd = float(params['assumed_gmd_kg'])
+        sanitary_protocols_config = params['sanitary_protocols']
+        initial_diet_config = params['initial_diet']
+        diet_change_config = params.get('diet_change') # Optional
+        num_locations = int(params['num_locations'])
+        num_sublocations = int(params['num_sublocations_per_location'])
+        total_farm_area_ha = float(params['total_farm_area_ha']) # New parameter
+    except (KeyError, ValueError) as e:
+        return jsonify({'error': f'Invalid or missing parameter: {str(e)}'}), 400
+
+    # --- 2. Clean Slate: Delete existing test farm to prevent duplicates ---
+    existing_farm = Farm.query.filter_by(name=farm_name).first()
+    if existing_farm:
+        db.session.delete(existing_farm)
+        db.session.commit()
+        print(f"Deleted existing farm: {farm_name}")
+
+    # --- 3. Create Core Farm Infrastructure ---
+    new_farm = Farm(name=farm_name)
+    db.session.add(new_farm)
+    db.session.flush() # Flush to get the new_farm.id
+    print(f"Created new farm with ID: {new_farm.id}")
+
+    location_ids = []
+    # Generate random proportions for location areas that sum to the total area
+    random_proportions = [random.random() for _ in range(num_locations)]
+    total_proportion = sum(random_proportions)
+    normalized_proportions = [p / total_proportion for p in random_proportions]
+
+    for i in range(num_locations):
+        # Calculate the area for this specific location
+        location_area = total_farm_area_ha * normalized_proportions[i]
+        
+        # Calculate the area for each sublocation within this location
+        sublocation_area = location_area / num_sublocations if num_sublocations > 0 else 0
+
+        loc = Location(
+            name=f'Pasture {i+1}', 
+            farm_id=new_farm.id, 
+            area_hectares=location_area
+        )
+        db.session.add(loc)
+        db.session.flush() # Get the location ID
+        location_ids.append(loc.id)
+
+        for j in range(num_sublocations):
+             subloc = Sublocation(
+                 name=f'Paddock {j+1}', 
+                 location_id=loc.id, 
+                 farm_id=new_farm.id,
+                 area_hectares=sublocation_area # Assign the calculated area
+            )
+             db.session.add(subloc)
+
+
+    # --- 4. Main Simulation Loop ---
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=365 * 10)
+    current_date = start_date
+    
+    animal_eartag_counter = 0
+    lot_counter = 0 
+    last_purchase_date = None
+
+    while current_date < end_date:
+        # Check if it's a new purchase date to increment the lot number and set lot properties
+        if last_purchase_date != current_date:
+            lot_counter += 1
+            last_purchase_date = current_date
+            
+            # ** NEW: Determine characteristics for the ENTIRE lot here **
+            lot_sex = random.choice(['M', 'F'])
+            lot_initial_location_id = random.choice(location_ids)
+
+        # Calculate how many animals to purchase in the current month
+        month_key = str(current_date.month)
+        if month_key not in monthly_dist:
+             return jsonify({'error': f'Month "{month_key}" not found in monthly_concentration dictionary.'}), 400
+        
+        num_purchases_this_month = int(purchases_per_year * monthly_dist[month_key])
+
+        for _ in range(num_purchases_this_month):
+            purchase_date = current_date
+            
+            # --- Create a new animal (Purchase) ---
+            initial_weight = random.uniform(180, 250)
+            new_animal = Purchase(
+                ear_tag=str(animal_eartag_counter),
+                lot=lot_counter,
+                entry_date=purchase_date,
+                entry_weight=initial_weight,
+                sex=lot_sex, # Use the pre-determined sex for the lot
+                entry_age=random.uniform(8, 12),
+                farm_id=new_farm.id
+            )
+            db.session.add(new_animal)
+            db.session.flush()
+
+            animal_eartag_counter = (animal_eartag_counter + 1) % 1001
+
+            # --- Create Initial Records ---
+            db.session.add(Weighting(date=purchase_date, weight_kg=initial_weight, animal_id=new_animal.id, farm_id=new_farm.id))
+            db.session.add(LocationChange(
+                date=purchase_date, 
+                location_id=lot_initial_location_id, # Use the pre-determined location for the lot
+                animal_id=new_animal.id, 
+                farm_id=new_farm.id
+            ))
+            db.session.add(DietLog(date=purchase_date, diet_type=initial_diet_config['diet_type'], animal_id=new_animal.id, farm_id=new_farm.id))
+
+            # --- Simulate Animal's Life Events ---
+            sale_date = purchase_date + timedelta(days=sell_after_days)
+            last_weight = initial_weight
+            last_weight_date = purchase_date
+            
+            # Simulate Weightings
+            next_event_date = purchase_date + timedelta(days=weighting_freq)
+            while next_event_date < sale_date and next_event_date < end_date:
+                days_diff = (next_event_date - last_weight_date).days
+                weight_gain = days_diff * (assumed_gmd * random.uniform(0.8, 1.2))
+                new_weight = last_weight + weight_gain
+                db.session.add(Weighting(date=next_event_date, weight_kg=new_weight, animal_id=new_animal.id, farm_id=new_farm.id))
+                last_weight = new_weight
+                last_weight_date = next_event_date
+                next_event_date += timedelta(days=weighting_freq)
+
+            # Simulate Sanitary Protocols
+            for protocol in sanitary_protocols_config:
+                next_protocol_date = purchase_date + timedelta(days=protocol['frequency_days'])
+                while next_protocol_date < sale_date and next_protocol_date < end_date:
+                    db.session.add(SanitaryProtocol(
+                        date=next_protocol_date,
+                        protocol_type=protocol['protocol_type'],
+                        product_name=protocol['product_name'],
+                        animal_id=new_animal.id,
+                        farm_id=new_farm.id
+                    ))
+                    next_protocol_date += timedelta(days=protocol['frequency_days'])
+            
+            # Simulate Diet Change
+            if diet_change_config:
+                diet_change_date = purchase_date + timedelta(days=diet_change_config['days_after_purchase'])
+                if diet_change_date < sale_date and diet_change_date < end_date:
+                    db.session.add(DietLog(
+                        date=diet_change_date,
+                        diet_type=diet_change_config['new_diet']['diet_type'],
+                        daily_intake_percentage=diet_change_config['new_diet']['daily_intake_percentage'],
+                        animal_id=new_animal.id,
+                        farm_id=new_farm.id
+                    ))
+            
+            # Simulate Sale
+            if sale_date < end_date:
+                days_diff_final = (sale_date - last_weight_date).days
+                final_gain = days_diff_final * assumed_gmd
+                exit_weight = last_weight + final_gain
+                db.session.add(Sale(date=sale_date, sale_price=exit_weight * 2.5, animal_id=new_animal.id, farm_id=new_farm.id))
+                db.session.add(Weighting(date=sale_date, weight_kg=exit_weight, animal_id=new_animal.id, farm_id=new_farm.id))
+
+        # Move to the next month for the next batch of purchases
+        next_month = current_date.month + 1
+        next_year = current_date.year
+        if next_month > 12:
+            next_month = 1
+            next_year += 1
+        current_date = date(next_year, next_month, 1)
+
+    # --- 5. Final Commit ---
+    try:
+        db.session.commit()
+        return jsonify({'message': f"Successfully seeded farm '{farm_name}' with thousands of records."}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'An error occurred during final commit: {str(e)}'}), 500
