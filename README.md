@@ -1,44 +1,52 @@
 
 
+Of course. The current `README` is good, but it significantly undersells what your application can actually do. Many of the features listed under "Future Development" are already complete.
+
+Here is a revised, more professional, and accurate description of your application's features, formatted in Markdown. This version is ready to be copied and pasted directly into your `README.md` file on GitHub.
+
+---
+
 # BoviTrack - Livestock Management Application
 
-BoviTrack is a robust, desktop-based application designed for efficient and detailed management of livestock operations. Built with a powerful **Python/Flask backend** and a dynamic **JavaScript/HTML/CSS frontend**, it provides farmers and managers with the tools to track individual animal performance, manage resources, and gain key insights into their herd's productivity.
+BoviTrack is a robust, desktop-based application for efficient and detailed management of livestock operations. Built with a powerful **Python/Flask backend** and a dynamic **JavaScript/HTML/CSS frontend**, and packaged with **Electron**, it provides a true native desktop experience for farmers and managers.
 
-The application leverages an **AG-Grid** interface for powerful data visualization and interaction, ensuring a smooth and responsive user experience.
-
-
+The application leverages a high-performance **AG-Grid** interface for powerful data visualization, sorting, and filtering, ensuring a smooth and responsive user experience even with thousands of records.
 
 ## Core Features
 
-BoviTrack is centered around the complete lifecycle of livestock, from acquisition to sale, providing detailed tracking at every stage.
+BoviTrack is centered around the complete lifecycle of livestock, from acquisition to sale or loss, providing detailed tracking and analytics at every stage.
 
-### 1. Multi-Farm Management
-*   **Create, Rename, and Delete Farms:** The system is designed to handle multiple distinct farm properties, keeping all data completely separate and organized.
+### 1. Multi-Farm Operations & Data Portability
+*   **Multi-Farm Support:** Create, rename, and manage multiple distinct farm properties, keeping all data completely separate and organized.
 *   **Persistent Selection:** The application intelligently remembers the last farm you were working on, providing a seamless experience across sessions.
+*   **Full Import/Export:** Backup data from one or more farms to a JSON file, or use it to migrate your entire operation to a new computer.
 
-### 2. Comprehensive Animal Records
-*   **Detailed Purchase Entry:** Record new animals with extensive details, including ear tag, lot number, entry date, weight, age, sex, race, and purchase price.
-*   **Initial Location & Health Protocols:** Assign an initial pasture or module and log all sanitary protocols administered at the time of purchase in a single, streamlined workflow.
-*   **Full Historical View:** Access a complete history for every animal, including every weighting, location change, health treatment, and diet log.
+### 2. Complete Animal Lifecycle Tracking
+*   **Comprehensive Animal Records:** Log new animals with extensive details, including ear tag, lot, entry date, weight, age, sex, race, and purchase price.
+*   **Integrated Event Logging:** Record every key event in an animal's life, including weight checks, health protocols, diet changes, and location moves.
+*   **Sale and Death Management:** Fully implemented workflows for recording sales and deaths, which automatically removes animals from active stock and preserves their data for historical analysis.
+*   **Master Record View:** A centralized "single source of truth" for any animal, showing its complete history, performance KPIs, and a weight gain chart at a glance.
 
-### 3. Key Performance Indicator (KPI) Tracking
-The backend automatically calculates critical performance metrics in real-time:
-*   **Average Daily Gain (GMD):** Both overall (since entry) and period-specific (between weightings).
-*   **Current & Forecasted Weight:** Get an up-to-the-minute estimated weight for any animal based on its historical GMD.
-*   **Days on Farm & Current Age:** Instantly know how long an animal has been on the property and its current age in months.
+### 3. Advanced Analytics & KPIs
+*   **Real-Time Performance Metrics:** The backend automatically calculates critical KPIs for every active animal:
+    *   **Average Daily Gain (GMD):** Both accumulated (since entry) and period-specific (between weightings).
+    *   **Forecasted Weight:** An up-to-the-minute estimated weight based on historical performance.
+    *   **Days on Farm** and **Current Age**.
+*   **Location & Pasture KPIs:** The "Locations" view provides an operational dashboard showing animal count, area, and calculated **Capacity Rates (UA/ha)** for effective pasture management.
+*   **Lot Summaries:** Group animals by lot and instantly view aggregated KPIs for the entire group, including average age, average GMD, and total animal count.
 
-### 4. Resource & Stock Management
-*   **Active Stock Dashboard:** A centralized view of all active animals on the farm, complete with their individual KPIs and a herd-level summary (total animals, average age, average GMD).
-*   **Location Management:** Define and manage distinct locations (e.g., pastures, modules) and view location-specific KPIs like animal count and capacity rates.
-*   **Efficient Data Entry:** The "Add Purchase" form is optimized for power users, remembering sanitary protocols from the previous entry and keeping the form open to allow for rapid recording of entire lots.
+### 4. User Experience & Tools
+*   **Active Stock Dashboard:** A powerful and sortable main screen showing a complete summary of all active animals and their current performance.
+*   **Multi-Language Support:** The interface is fully translated to support English, Spanish, and Portuguese.
+*   **Interactive Demo Farm:** New users can load a pre-populated demo farm with thousands of records to immediately explore the application's features without needing to input data first.
 
 ## Technology Stack
 
-*   **Backend:** Python 3, Flask, SQLAlchemy (for ORM), Flask-CORS
+*   **Backend:** Python 3, Flask, SQLAlchemy
 *   **Frontend:** Vanilla JavaScript (ES6+), HTML5, CSS3
-*   **Database:** SQLite (for ease of setup and portability)
-*   **Core UI Library:** AG-Grid Community for powerful and feature-rich data tables.
-*   **Desktop App Framework:** Electron (as implied by the file structure)
+*   **Database:** SQLite
+*   **Core UI Library:** AG-Grid Community
+*   **Desktop App Framework:** Electron
 
 ## Future Development & Planned Features
 
@@ -46,19 +54,16 @@ BoviTrack is an evolving platform. The following features are on the development
 
 *   **[ ] Financial Module:**
     *   Track costs associated with feed, medicine, and labor.
-    *   Calculate profitability per animal and per lot.
-    *   Generate financial summary reports.
-*   **[ ] Diet & Feed Management:**
-    *   Create and manage different diet formulations.
-    *   Track feed inventory and consumption rates.
-*   **[ ] Location KPIs & History:**
-    *   Detailed historical view of a location's occupancy over time.
-    *   Calculate total weight and animal units (UA) per pasture.
+    *   Calculate profitability per animal and per lot, including a final profit/loss calculation upon sale.
 *   **[ ] Advanced Reporting & Analytics:**
     *   Generate and export PDF/CSV reports for sales, stock summaries, and animal histories.
-    *   Visual dashboards with charts and graphs for herd performance over time.
-*   **[ ] Death & Sale Records:**
-    *   Fully implement forms and history pages for recording animal sales and deaths, which will automatically move them from the "Active Stock" view.
+    *   Visual dashboards with charts for herd performance over time.
+*   **[ ] Diet & Feed Management:**
+    *   Create and manage different diet formulations.
+    *   Track feed inventory and consumption rates to better manage costs.
+*   **[ ] Advanced Location Analysis:**
+    *   Provide a historical view of a location's occupancy over time to analyze pasture rotation and rest periods.
+    *   Provide satelite mapping of locations, allowing users to view the location of their animals in real-time.
 
 ---
 
