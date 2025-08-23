@@ -243,12 +243,13 @@ const translations = {
         select_farms_to_export: "Select Farms to Export",
         export_selected_farms: "Export Selected Farms",
         no_farms_selected_for_export: "Error: No farms were selected for export.",
-        export_successful: "Export initiated. Your download will begin shortly.",
+        export_initiated: "Export initiated. Your download will begin shortly.",
         export_failed: "Export failed",
         import_successful: "Import successful! Reloading farms...",
         import_failed: "Import failed",
         confirm_import: "Confirm Import",
         confirm_import_message: "Are you sure you want to import data from the file '{fileName}'? This will add new farms and all their associated data to your database. Existing farms with the same name will be skipped.",
+        exporting: "Exporting...",
     },
     es: {
         // Navbar
@@ -494,12 +495,13 @@ const translations = {
         select_farms_to_export: "Seleccionar Fincas para Exportar",
         export_selected_farms: "Exportar Fincas Seleccionadas",
         no_farms_selected_for_export: "Error: No se seleccionaron fincas para exportar.",
-        export_successful: "Exportación iniciada. Su descarga comenzará en breve.",
+        export_initiated: "Exportación iniciada. Su descarga comenzará en breve.",
         export_failed: "La exportación falló",
         import_successful: "¡Importación exitosa! Recargando fincas...",
         import_failed: "La importación falló",
         confirm_import: "Confirmar Importación",
         confirm_import_message: "¿Estás seguro de que quieres importar datos del archivo '{fileName}'? Esto añadirá nuevas fincas y todos sus datos asociados a tu base de datos. Las fincas existentes con el mismo nombre serán omitidas.",
+        exporting: "Exportando...",
     },
     pt: {
         // Navbar
@@ -745,12 +747,13 @@ const translations = {
         select_farms_to_export: "Selecionar Fazendas para Exportar",
         export_selected_farms: "Exportar Fazendas Selecionadas",
         no_farms_selected_for_export: "Erro: Nenhuma fazenda foi selecionada para exportação.",
-        export_successful: "Exportação iniciada. O seu download começará em breve.",
+        export_initiated: "Exportação iniciada. O seu download começará em breve.",
         export_failed: "A exportação falhou",
         import_successful: "Importação bem-sucedida! Recarregando fazendas...",
         import_failed: "A importação falhou",
         confirm_import: "Confirmar Importação",
         confirm_import_message: "Tem certeza de que deseja importar os dados do arquivo '{fileName}'? Isso adicionará novas fazendas e todos os seus dados associados ao seu banco de dados. Fazendas existentes com o mesmo nome serão ignoradas.",
+        exporting: "Exportando...",
     }
 };
 

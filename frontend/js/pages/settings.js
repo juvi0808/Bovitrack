@@ -65,6 +65,7 @@ function initSettingsPage() {
     
     async function handleExportSubmit(event) {
         event.preventDefault();
+        const submitButton = event.submitter;
         
         const selectedFarmIds = Array.from(exportForm.querySelectorAll('input[name="farm_ids"]:checked'))
                                      .map(checkbox => parseInt(checkbox.value, 10));
@@ -73,6 +74,13 @@ function initSettingsPage() {
             showToast(getTranslation('no_farms_selected_for_export'), 'error');
             return;
         }
+
+        // --- Immediate UI Feedback ---
+        const originalButtonText = submitButton.textContent;
+        submitButton.disabled = true;
+        submitButton.textContent = getTranslation('exporting');
+        exportModal.classList.add('hidden'); // Hide modal immediately
+        showToast(getTranslation('export_initiated'), 'success'); // Show initial toast
     
         try {
             const response = await fetch(`${API_URL}/api/export/farms`, {
@@ -108,13 +116,14 @@ function initSettingsPage() {
             a.click();
             window.URL.revokeObjectURL(downloadUrl);
             a.remove();
-            
-            showToast(getTranslation('export_successful'), 'success');
-            exportModal.classList.add('hidden');
     
         } catch (error) {
             console.error('Export failed:', error);
             showToast(`${getTranslation('export_failed')}: ${error.message}`, 'error');
+        } finally {
+            // --- Restore Button State ---
+            submitButton.disabled = false;
+            submitButton.textContent = originalButtonText;
         }
     }
     

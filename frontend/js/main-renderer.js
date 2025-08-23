@@ -341,18 +341,30 @@ async function handleDeleteFarmSubmit(event) {
     event.preventDefault();
     if (!selectedFarmId) return;
     
+    const submitButton = event.submitter; // Get the button that was clicked
+    if (!selectedFarmId || !submitButton) return;
+
+    const originalButtonText = submitButton.textContent;
+    submitButton.disabled = true;
+    submitButton.textContent = getTranslation('deleting'); // Show loading state
+
     try {
         const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/delete`, {
             method: 'DELETE'
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error);
-
+        showToast(result.message, 'success');
         deleteFarmModal.classList.add('hidden');
-        await loadFarms(); // Reload farm list, which will either select the next farm or show the "add" modal
+        await loadFarms();
+        await handleFarmSelection(); // Refresh the data for the newly selected farm
     } catch (error) {
         console.error("Error deleting farm:", error);
-        alert(`Error: ${error.message}`);
+        showToast(`Error: ${error.message}`, 'error');
+    } finally {
+        // This block will run regardless of success or failure
+        submitButton.disabled = false;
+        submitButton.textContent = originalButtonText; // Restore original text
     }
 }
 

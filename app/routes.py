@@ -75,13 +75,33 @@ def rename_farm(farm_id):
 @api.route('/farm/<int:farm_id>/delete', methods=['DELETE'])
 def delete_farm(farm_id):
     """Deletes a farm and all its associated data (animals, sales, etc.)."""
-    farm = Farm.query.get_or_404(farm_id)
+    farm_to_delete = Farm.query.get_or_404(farm_id)
     try:
-        # Thanks to 'cascade="all, delete-orphan"' in models.py,
-        # deleting the farm will automatically delete all its children records.
-        db.session.delete(farm)
+        # --- Optimized Bulk Deletion ---
+        # Execute deletes in order to respect foreign key constraints.
+        # This is significantly faster than relying on ORM cascades for large datasets.
+
+        # 1. Delete records that depend on 'Purchase'
+        db.session.execute(delete(Weighting).where(Weighting.farm_id == farm_id))
+        db.session.execute(delete(Sale).where(Sale.farm_id == farm_id))
+        db.session.execute(delete(Death).where(Death.farm_id == farm_id))
+        db.session.execute(delete(SanitaryProtocol).where(SanitaryProtocol.farm_id == farm_id))
+        db.session.execute(delete(LocationChange).where(LocationChange.farm_id == farm_id))
+        db.session.execute(delete(DietLog).where(DietLog.farm_id == farm_id))
+
+        # 2. Delete 'Purchase' records
+        db.session.execute(delete(Purchase).where(Purchase.farm_id == farm_id))
+
+        # 3. Delete records that depend on 'Location'
+        db.session.execute(delete(Sublocation).where(Sublocation.farm_id == farm_id))
+
+        # 4. Delete 'Location' records
+        db.session.execute(delete(Location).where(Location.farm_id == farm_id))
+        # 5. Finally, delete the farm itself
+        db.session.delete(farm_to_delete)
+
         db.session.commit()
-        return jsonify({'message': f"Farm '{farm.name}' and all its data have been deleted."})
+        return jsonify({'message': f"Farm '{farm_to_delete.name}' and all its data have been deleted."})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
@@ -1418,6 +1438,8 @@ def get_location_summary(farm_id, location_id):
 
     # Aliases and expressions
     W_last = aliased(Weighting)
+    LC_last = aliased(LocationChange) # Alias for the final join
+    S_subloc = aliased(Sublocation)   # Alias for Sublocation
     DL_last = aliased(DietLog)
     days_on_farm = func.julianday('now') - func.julianday(Purchase.entry_date)
     total_days_for_gmd = func.julianday(W_last.date) - func.julianday(Purchase.entry_date)
@@ -1432,11 +1454,15 @@ def get_location_summary(farm_id, location_id):
         W_last.weight_kg.label('last_weight_kg'),
         gmd.label('average_daily_gain_kg'),
         forecasted_weight.label('forecasted_current_weight_kg'),
-        DL_last.diet_type.label('current_diet_type')
+        DL_last.diet_type.label('current_diet_type'),
+        S_subloc.name.label('current_sublocation_name') # Select the sublocation name
     ).join(last_weight_subquery, Purchase.id == last_weight_subquery.c.animal_id) \
      .join(W_last, (Purchase.id == W_last.animal_id) & (last_weight_subquery.c.max_date == W_last.date)) \
      .outerjoin(last_diet_subquery, Purchase.id == last_diet_subquery.c.animal_id) \
      .outerjoin(DL_last, (Purchase.id == DL_last.animal_id) & (last_diet_subquery.c.max_date == DL_last.date)) \
+     .outerjoin(last_loc_subquery, Purchase.id == last_loc_subquery.c.animal_id) \
+     .outerjoin(LC_last, (Purchase.id == LC_last.animal_id) & (last_loc_subquery.c.max_date == LC_last.date)) \
+     .outerjoin(S_subloc, LC_last.sublocation_id == S_subloc.id) \
      .filter(Purchase.id.in_(animal_ids_in_location_query)) # The crucial performance filter
     
     animal_details_list = []
@@ -1447,7 +1473,8 @@ def get_location_summary(farm_id, location_id):
             'last_weight_kg': row.last_weight_kg,
             'average_daily_gain_kg': row.average_daily_gain_kg,
             'forecasted_current_weight_kg': row.forecasted_current_weight_kg,
-            'current_diet_type': row.current_diet_type
+            'current_diet_type': row.current_diet_type,
+            'current_sublocation_name': row.current_sublocation_name
         }
         animal_summary = {**purchase_details, 'kpis': kpis}
         animal_details_list.append(animal_summary)

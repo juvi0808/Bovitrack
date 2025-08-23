@@ -11,15 +11,15 @@ class Farm(db.Model):
     # --- Relationships ---
     # Defines the one-to-many link from a Farm to its associated records.
     # 'cascade="all, delete-orphan"' ensures that if a farm is deleted, all its related data is also deleted.
-    locations = db.relationship('Location', backref='farm', lazy=True, cascade="all, delete-orphan")
-    purchases = db.relationship('Purchase', backref='farm', lazy=True, cascade="all, delete-orphan")
-    weightings = db.relationship('Weighting', backref='farm', lazy=True, cascade="all, delete-orphan")
-    sales = db.relationship('Sale', backref='farm', lazy=True, cascade="all, delete-orphan")
-    protocols = db.relationship('SanitaryProtocol', backref='farm', lazy=True, cascade="all, delete-orphan")
-    location_changes = db.relationship('LocationChange', backref='farm', lazy=True, cascade="all, delete-orphan")
-    diet_logs = db.relationship('DietLog', backref='farm', lazy=True, cascade="all, delete-orphan")
-    deaths = db.relationship('Death', backref='farm', lazy=True, cascade="all, delete-orphan")
-    sublocations = db.relationship('Sublocation', backref='farm', lazy=True, cascade="all, delete-orphan")
+    locations = db.relationship('Location', backref='farm', lazy=True, cascade="all, delete")
+    purchases = db.relationship('Purchase', backref='farm', lazy=True, cascade="all, delete")
+    weightings = db.relationship('Weighting', backref='farm', lazy=True, cascade="all, delete")
+    sales = db.relationship('Sale', backref='farm', lazy=True, cascade="all, delete")
+    protocols = db.relationship('SanitaryProtocol', backref='farm', lazy=True, cascade="all, delete")
+    location_changes = db.relationship('LocationChange', backref='farm', lazy=True, cascade="all, delete")
+    diet_logs = db.relationship('DietLog', backref='farm', lazy=True, cascade="all, delete")
+    deaths = db.relationship('Death', backref='farm', lazy=True, cascade="all, delete")
+    sublocations = db.relationship('Sublocation', backref='farm', lazy=True, cascade="all, delete")
 
     def to_dict(self):
         """Serializes the Farm object to a dictionary."""
