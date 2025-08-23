@@ -9,5 +9,42 @@
                 <option value="pt">Português</option>
             </select>
         </div>
+        <!-- Import/Export Section -->
+        <div class="setting-section">
+            <h2 data-translate="import_export_data">Import / Export Data</h2>
+            
+            <!-- Export -->
+            <div class="setting-item-column">
+                <h3 data-translate="export_data">Export Data</h3>
+                <p class="setting-description" data-translate="export_description">Export data from one or more farms to a JSON file. This file can be used as a backup or to import into another instance of BoviTrack.</p>
+                <button id="export-data-btn" class="button-primary" data-translate="export_button">Export...</button>
+            </div>
+
+            <!-- Import -->
+            <div class="setting-item-column">
+                <h3 data-translate="import_data">Import Data</h3>
+                <p class="setting-description" data-translate="import_description">Import farm data from a previously exported JSON file. Farms in the file that have the same name as existing farms will be skipped.</p>
+                <!-- This input is hidden; we trigger it with the button -->
+                <input type="file" id="import-file-input" class="hidden" accept=".json">
+                <button id="import-data-btn" class="button-secondary" data-translate="import_button">Import File...</button>
+            </div>
+        </div>
     </div>
-</div> 
+</div>
+<!-- Export Farms Modal -->
+<div id="export-farms-modal" class="modal-backdrop hidden">
+    <div class="modal-content">
+        <h3 data-translate="select_farms_to_export">Select Farms to Export</h3>
+        <form id="export-farms-form">
+            <div id="export-farm-list" class="export-farm-list-container">
+                <!-- Farm checkboxes will be populated by JavaScript -->
+            </div>
+            <div class="modal-actions">
+                <button type="submit" class="button-primary" data-translate="export_selected_farms">Export Selected Farms</button>
+                <button type="button" id="cancel-export-farms" class="button-secondary" data-translate="cancel">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+        
+

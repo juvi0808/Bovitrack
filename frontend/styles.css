@@ -486,6 +486,38 @@ hr {
     z-index: 1000;
 }
 
+/* --- Export Modal Specific Styles --- */
+.export-farm-list-container {
+    max-height: 40vh;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.farm-checkbox-item {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.farm-checkbox-item:hover {
+    background-color: #f8f9fa;
+}
+
+.farm-checkbox-item input[type="checkbox"] {
+    margin-right: 10px;
+    width: 18px;
+    height: 18px;
+}
+
+.farm-checkbox-item label {
+    font-size: 1.1em;
+    cursor: pointer;
+}
+
+
 
 
 /* ==========================================================================
@@ -934,4 +966,36 @@ tbody tr:hover {
     color: #555;
     margin-top: 5px; /* Pull it a bit closer to the header */
     margin-bottom: 30px;
+}
+
+
+/* ==========================================================================
+   14. Settings page styles
+   ========================================================================== */
+
+.setting-section {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.setting-section h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.setting-item-column {
+    margin-bottom: 25px;
+}
+
+.setting-item-column h3 {
+    margin-bottom: 5px;
+}
+
+.setting-description {
+    font-size: 0.9em;
+    color: #6c757d;
+    margin-top: 0;
+    margin-bottom: 15px;
+    max-width: 90%;
 }

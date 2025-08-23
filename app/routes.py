@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify, Response, send_file
 from datetime import date, datetime, timedelta
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import aliased
@@ -8,6 +8,8 @@ from . import db # Also import the db object
 from .utils import find_active_animal_by_eartag, calculate_weight_history_with_gmd, calculate_location_kpis, load_historical_prices, get_closest_price
 import json
 import random
+import io
+
 
 # Create a Blueprint. 'api' is the name of the blueprint.
 api = Blueprint('api', __name__)
@@ -1835,3 +1837,194 @@ def seed_test_farm():
         db.session.rollback()
         return jsonify({'error': f'An error occurred during final commit: {str(e)}'}), 500
 
+# --- Import / Export Routes ---
+
+@api.route('/export/farms', methods=['POST'])
+def export_farms():
+    """
+    Exports all data for a given list of farm IDs into a single JSON file.
+    Expects a JSON body with a 'farm_ids' key, which is a list of integers.
+    """
+    data = request.get_json()
+    if not data or 'farm_ids' not in data:
+        return jsonify({'error': "Request body must contain a 'farm_ids' list."}), 400
+
+    farm_ids = data['farm_ids']
+    if not isinstance(farm_ids, list):
+        return jsonify({'error': "'farm_ids' must be a list."}), 400
+
+    try:
+        # Eagerly load relationships for performance to avoid N+1 query problems
+        farms_to_export = Farm.query.filter(Farm.id.in_(farm_ids)).options(
+            db.selectinload(Farm.locations).selectinload(Location.sublocations),
+            db.selectinload(Farm.purchases).selectinload(Purchase.weightings),
+            db.selectinload(Farm.purchases).selectinload(Purchase.protocols),
+            db.selectinload(Farm.purchases).selectinload(Purchase.location_changes),
+            db.selectinload(Farm.purchases).selectinload(Purchase.diet_logs),
+            db.selectinload(Farm.purchases).selectinload(Purchase.sale),
+            db.selectinload(Farm.purchases).selectinload(Purchase.death),
+        ).all()
+
+        if not farms_to_export:
+            return jsonify({'error': 'No farms found for the provided IDs.'}), 404
+
+        export_data = {
+            'export_format_version': '1.0',
+            'export_date': datetime.now().isoformat(),
+            'farms': []
+        }
+
+        for farm in farms_to_export:
+            farm_data = farm.to_dict()
+            farm_data['locations'] = []
+            farm_data['purchases'] = []
+
+            # Locations and Sublocations
+            for loc in farm.locations:
+                loc_data = loc.to_dict()
+                # `to_dict` already includes sublocations, but this ensures it
+                loc_data['sublocations'] = [sub.to_dict() for sub in loc.sublocations]
+                farm_data['locations'].append(loc_data)
+            
+            # Animals and all their related events
+            for p in farm.purchases:
+                p_data = p.to_dict()
+                p_data['weightings'] = [w.to_dict() for w in p.weightings]
+                p_data['protocols'] = [sp.to_dict() for sp in p.protocols]
+                p_data['location_changes'] = [lc.to_dict() for lc in p.location_changes]
+                p_data['diet_logs'] = [dl.to_dict() for dl in p.diet_logs]
+                p_data['sale'] = p.sale.to_dict() if p.sale else None
+                p_data['death'] = p.death.to_dict() if p.death else None
+                farm_data['purchases'].append(p_data)
+
+            export_data['farms'].append(farm_data)
+        
+        # Use default=str to handle date/datetime objects that aren't already strings
+        json_string = json.dumps(export_data, indent=4, default=str)
+
+        # Create an in-memory file-like object to avoid writing to disk
+        mem_file = io.BytesIO()
+        mem_file.write(json_string.encode('utf-8'))
+        mem_file.seek(0) # Rewind to the beginning of the stream
+
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+        filename = f"bovitrack_export_{timestamp}.json"
+
+        return send_file(
+            mem_file,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/json'
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'An unexpected error occurred during export: {str(e)}'}), 500
+
+@api.route('/import/farms', methods=['POST'])
+def import_farms():
+    """
+    Imports farm data from an uploaded JSON file. This is a transactional operation.
+    """
+    if 'import_file' not in request.files:
+        return jsonify({'error': 'No file part in the request.'}), 400
+    
+    file = request.files['import_file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected.'}), 400
+
+    if not file or not file.filename.endswith('.json'):
+        return jsonify({'error': 'Invalid file type. Please upload a .json file.'}), 400
+
+    try:
+        content = file.read().decode('utf-8')
+        import_data = json.loads(content)
+    except Exception as e:
+        return jsonify({'error': f'Failed to parse JSON file: {str(e)}'}), 400
+
+    # --- Data Processing and Import within a transaction ---
+    try:
+        farm_id_map = {}
+        location_id_map = {}
+        sublocation_id_map = {}
+        purchase_id_map = {}
+        imported_farm_names = []
+
+        for farm_json in import_data.get('farms', []):
+            original_farm_name = farm_json['name']
+            
+            # Conflict Resolution: Skip farms that already exist by name
+            if Farm.query.filter_by(name=original_farm_name).first():
+                continue
+
+            # 1. Create Farm
+            new_farm = Farm(name=original_farm_name)
+            db.session.add(new_farm)
+            db.session.flush() # Assigns an ID to new_farm
+            farm_id_map[farm_json['id']] = new_farm.id
+            imported_farm_names.append(new_farm.name)
+
+            # 2. Create Locations & Sublocations
+            for loc_json in farm_json.get('locations', []):
+                new_loc = Location(
+                    name=loc_json['name'], area_hectares=loc_json.get('area_hectares'),
+                    grass_type=loc_json.get('grass_type'), location_type=loc_json.get('location_type'),
+                    farm_id=new_farm.id
+                )
+                db.session.add(new_loc)
+                db.session.flush()
+                location_id_map[loc_json['id']] = new_loc.id
+
+                for sub_json in loc_json.get('sublocations', []):
+                    new_sub = Sublocation(
+                        name=sub_json['name'], area_hectares=sub_json.get('area_hectares'),
+                        location_id=new_loc.id, farm_id=new_farm.id
+                    )
+                    db.session.add(new_sub)
+                    db.session.flush()
+                    sublocation_id_map[sub_json['id']] = new_sub.id
+
+            # 3. Create Purchases and all related events
+            for p_json in farm_json.get('purchases', []):
+                new_purchase = Purchase(
+                    ear_tag=p_json['ear_tag'], lot=p_json['lot'],
+                    entry_date=datetime.fromisoformat(p_json['entry_date']).date(),
+                    entry_weight=p_json['entry_weight'], sex=p_json['sex'],
+                    entry_age=p_json['entry_age'], purchase_price=p_json.get('purchase_price'),
+                    race=p_json.get('race'), farm_id=new_farm.id
+                )
+                db.session.add(new_purchase)
+                db.session.flush()
+                purchase_id_map[p_json['id']] = new_purchase.id
+
+                for w_json in p_json.get('weightings', []):
+                    db.session.add(Weighting(date=datetime.fromisoformat(w_json['date']).date(), weight_kg=w_json['weight_kg'], animal_id=new_purchase.id, farm_id=new_farm.id))
+                for sp_json in p_json.get('protocols', []):
+                     db.session.add(SanitaryProtocol(date=datetime.fromisoformat(sp_json['date']).date(), protocol_type=sp_json['protocol_type'], product_name=sp_json.get('product_name'), dosage=sp_json.get('dosage'), invoice_number=sp_json.get('invoice_number'), animal_id=new_purchase.id, farm_id=new_farm.id))
+                for lc_json in p_json.get('location_changes', []):
+                    new_loc_id = location_id_map.get(lc_json['location_id'])
+                    new_subloc_id = sublocation_id_map.get(lc_json['sublocation_id'])
+                    if new_loc_id:
+                        db.session.add(LocationChange(date=datetime.fromisoformat(lc_json['date']).date(), location_id=new_loc_id, sublocation_id=new_subloc_id, animal_id=new_purchase.id, farm_id=new_farm.id))
+                for dl_json in p_json.get('diet_logs', []):
+                    db.session.add(DietLog(date=datetime.fromisoformat(dl_json['date']).date(), diet_type=dl_json['diet_type'], daily_intake_percentage=dl_json.get('daily_intake_percentage'), animal_id=new_purchase.id, farm_id=new_farm.id))
+                if p_json.get('sale'):
+                    sale_json = p_json['sale']
+                    db.session.add(Sale(date=datetime.fromisoformat(sale_json['exit_date']).date(), sale_price=sale_json['exit_price'], animal_id=new_purchase.id, farm_id=new_farm.id))
+                if p_json.get('death'):
+                    death_json = p_json['death']
+                    db.session.add(Death(date=datetime.fromisoformat(death_json['date']).date(), cause=death_json.get('cause'), animal_id=new_purchase.id, farm_id=new_farm.id))
+        
+        db.session.commit()
+        
+        if not imported_farm_names:
+            return jsonify({'message': 'Import complete. No new farms were added as farms with the same names already exist.'}), 200
+
+        return jsonify({'message': f'Successfully imported data for farms: {", ".join(imported_farm_names)}'}), 201
+
+    except IntegrityError as e:
+        db.session.rollback()
+        return jsonify({'error': f'Database integrity error. This can happen if an animal ear tag/lot combination in the file already exists in the target farm. Import cancelled. Error: {str(e)}'}), 409
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'An unexpected error occurred during import, and all changes have been rolled back. Error: {str(e)}'}), 500

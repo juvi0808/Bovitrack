@@ -544,4 +544,33 @@ function renderPaginationControls(paginationData, container, callback) {
     container.appendChild(nextButton);
 }
 
+function showCustomConfirm(message) {
+    return new Promise(resolve => {
+        const confirmModal = document.getElementById('custom-confirm-modal');
+        const msgElement = document.getElementById('custom-confirm-msg');
+        const okBtn = document.getElementById('custom-confirm-ok-btn');
+        const cancelBtn = document.getElementById('custom-confirm-cancel-btn');
+
+        if (!confirmModal || !msgElement || !okBtn || !cancelBtn) {
+            console.error("Custom confirmation modal elements not found in index.html!");
+            resolve(false); // Resolve as false if the modal isn't set up
+            return;
+        }
+
+        msgElement.textContent = message;
+        confirmModal.classList.remove('hidden');
+
+        // We use .onclick here to easily overwrite the listener each time
+        okBtn.onclick = () => {
+            confirmModal.classList.add('hidden');
+            resolve(true); // User confirmed
+        };
+
+        cancelBtn.onclick = () => {
+            confirmModal.classList.add('hidden');
+            resolve(false); // User canceled
+        };
+    });
+}
+
 
