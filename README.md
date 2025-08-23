@@ -62,65 +62,107 @@ BoviTrack is an evolving platform. The following features are on the development
 
 ---
 
-## Developer Instructions
+## Development Setup
 
-Follow these instructions to set up and run the BoviTrack application in a development environment.
+Follow these instructions to set up the project for local development and testing.
 
-### 1. Initial Project Setup
+### Prerequisites
 
-These steps only need to be performed once.
+Before you begin, ensure you have the following installed on your system:
+*   **Python** (version 3.10 or higher)
+*   **Node.js** (version 18.x or higher) and **npm**
+*   **Git**
 
-1.  **Create a Virtual Environment:**
-    From the project's root directory (`BoviTrack/`), run:
+### Installation
+
+**1. Clone the Repository**
+```bash
+git clone https://github.com/your-username/live_stock_manager.git
+cd live_stock_manager
+```
+
+**2. Configure the Python Backend**
+Follow these steps from the project's root directory (`/live_stock_manager`).
+
+*   **Create and activate a virtual environment:**
     ```bash
+    # Create the virtual environment
     python -m venv venv
+
+    # Activate on Windows (PowerShell)
+    .\venv\Scripts\Activate.ps1
+
+    # Activate on macOS/Linux
+    source venv/bin/activate
     ```
 
-2.  **Activate the Virtual Environment:**
-    *   On Windows (PowerShell):
-        ```bash
-        .\venv\Scripts\Activate.ps1
-        ```
-    *   On macOS/Linux:
-        ```bash
-        source venv/bin/activate
-        ```
-
-3.  **Install Dependencies:**
+*   **Install Python dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
 
-### 2. Database Management
+**3. Configure the Electron Frontend**
 
-1.  **First-Time Database Creation:** To create the initial `database.db` file and all its tables, open a terminal with the virtual environment activated and run:
+*   **Navigate to the frontend directory:**
+    ```bash
+    cd frontend
+    ```
+*   **Install Node.js dependencies:**
+    ```bash
+    npm install
+    ```
+
+**4. Initialize the Database**
+This is a one-time setup step to create the initial database file.
+
+*   **Navigate back to the project's root directory.**
+*   **Ensure your virtual environment (`venv`) is active.**
+*   **Run the Flask shell:**
     ```bash
     flask shell
     ```
-    Inside the shell, run these commands:
+*   **Inside the shell, execute the following Python commands:**
     ```python
-    >>> from app import db
-    >>> db.create_all()
-    >>> exit()
+    from app import db
+    db.create_all()
+    exit()
     ```
 
-2.  **Seeding with Test Data:** To populate the database with sample data, run the seed scripts from the root directory:
+### Running the Application for Development
+
+To launch the application in development mode:
+
+1.  Navigate to the `/frontend` directory.
+2.  Run the start command:
     ```bash
-    python Seed/Seed_Location.py
-    python Seed/Seed_Purchases.py
-    python Seed/Seed_Weightings.py
-    # ... and other seed scripts
+    npm start
     ```
-
-### 3. Running the Application
-
-1.  Ensure your virtual environment is active.
-2.  Start the Flask backend server:
-    ```bash
-    python run.py
-    ```
-    The API will now be running at `http://127.0.0.1:5000`.
-
-3.  To launch the frontend, you will need to run the Electron application (details depend on the `package.json` setup, but typically involves `npm start`).
+This will launch the Electron application window and automatically start the Python/Flask backend server in the background. The Flask server will auto-reload upon changes to the backend code.
 
 ---
+
+## Building for Production
+
+Follow these steps to package the application into a distributable Windows installer (`.exe`).
+
+**1. Package the Python Backend**
+*   Ensure your virtual environment is active.
+*   From the **root directory**, run PyInstaller:
+    ```bash
+    pyinstaller bovitrack_backend.spec
+    ```
+
+**2. Copy the Backend Artifacts**
+*   Delete the old contents of the `frontend/backend` directory.
+*   Copy the newly created folder from `dist/bovitrack_backend` into the `frontend/backend/` directory.
+
+**3. Build the Electron Installer**
+*   **Important:** Open your terminal (PowerShell or Command Prompt) **as an Administrator**.
+*   Navigate to the `frontend` directory.
+*   Run the build command:
+    ```bash
+    npm run build
+    ```
+
+**4. Locate the Installer**
+*   The final, shareable installer (e.g., `BoviTrack Setup 1.0.0.exe`) will be located in the `frontend/dist` folder.
