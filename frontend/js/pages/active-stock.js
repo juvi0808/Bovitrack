@@ -1,9 +1,8 @@
 // This function is now at the top level, so main-renderer.js can call it.
-async function loadDashboardData() {
-    // Find elements just-in-time. This is the safest way.
+async function loadDashboardData(page = 1) {
     const summaryDiv = document.getElementById('summary-kpis');
     const gridDiv = document.getElementById('animal-grid');
-
+    
     if (!summaryDiv || !gridDiv) {
         console.error("Dashboard elements not found on the page!");
         return;
@@ -14,6 +13,7 @@ async function loadDashboardData() {
         gridDiv.innerHTML = '';
         return;
     }
+
     summaryDiv.innerHTML = getTranslation('loading_summary');
     gridDiv.innerHTML = getTranslation('loading_animals');
 
@@ -24,6 +24,7 @@ async function loadDashboardData() {
         
         displaySummary(data.summary_kpis);
         createAnimalGrid(data.animals);
+
     } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
         summaryDiv.innerHTML = `Error: ${getTranslation('could_not_load_summary_data')}`;
@@ -97,5 +98,16 @@ function createAnimalGrid(animals) {
 // The init function is now very simple. It just calls the main data loader.
 function initActiveStockPage() {
     console.log("Initializing Active Stock Page...");
+
+    // Add the pagination controls container dynamically below the grid
+    // const gridContainer = document.getElementById('animal-grid');
+    // if (gridContainer && !document.getElementById('active-stock-pagination-controls')) {
+    //     const paginationDiv = document.createElement('div');
+    //     paginationDiv.id = 'active-stock-pagination-controls';
+    //     paginationDiv.style.cssText = 'display: flex; justify-content: center; align-items: center; padding: 10px;';
+    //     // Insert after the grid container
+    //     gridContainer.parentNode.insertBefore(paginationDiv, gridContainer.nextSibling);
+    // }
+
     loadDashboardData();
 }

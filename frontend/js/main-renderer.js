@@ -84,14 +84,20 @@ async function initializeApp() {
         farmSelect.value = lastSelectedId;
     }
 
-    // Manually trigger the 'change' event to ensure the page loads the correct data.
-    // This will update the selectedFarmId global variable and load the dashboard.
-    farmSelect.dispatchEvent(new Event('change'));
-
-    // Go to the default page.
+    // 3. Manually set our global state variable from the dropdown's current value.
+    //    This is the key step that avoids firing an unnecessary event.
+    selectedFarmId = farmSelect.value;
+    
+    // 4. If there is a selected farm, ensure it's saved back to storage.
+    if (selectedFarmId) {
+        localStorage.setItem(LAST_FARM_ID_KEY, selectedFarmId);
+    }
+    
+    // 5. Now, load the default page. This will call its own data-loading function,
+    //    which will correctly use the 'selectedFarmId' we just set.
     await showPage('page-active-stock');
 
-    // FIX: Find the correct link now and handle the case where it might not exist.
+    // 6. Set the active class on the navigation link.
     const activeLink = document.querySelector('.nav-link[data-page="page-active-stock"]');
     if (activeLink) {
         activeLink.classList.add('active');
@@ -504,6 +510,38 @@ function showToast(message, type = 'success') {
     toastTimer = setTimeout(() => {
         notification.className = notification.className.replace('show', '');
     }, 3000);
+}
+
+function renderPaginationControls(paginationData, container, callback) {
+    if (!container) return;
+
+    // Clear previous controls
+    container.innerHTML = '';
+
+    if (paginationData.total_pages <= 1) return; // Don't show controls if there's only one page
+
+    const { current_page, total_pages, has_prev, has_next } = paginationData;
+
+    const prevButton = document.createElement('button');
+    prevButton.textContent = '<< Previous';
+    prevButton.disabled = !has_prev;
+    prevButton.className = 'button-secondary';
+    prevButton.onclick = () => callback(current_page - 1);
+
+    const pageIndicator = document.createElement('span');
+    pageIndicator.textContent = `Page ${current_page} of ${total_pages}`;
+    pageIndicator.style.margin = '0 15px';
+    pageIndicator.style.fontWeight = 'bold';
+
+    const nextButton = document.createElement('button');
+    nextButton.textContent = 'Next >>';
+    nextButton.disabled = !has_next;
+    nextButton.className = 'button-secondary';
+    nextButton.onclick = () => callback(current_page + 1);
+
+    container.appendChild(prevButton);
+    container.appendChild(pageIndicator);
+    container.appendChild(nextButton);
 }
 
 

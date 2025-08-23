@@ -1,6 +1,9 @@
 from . import db
 from .models import Purchase, Sale, Death
 from datetime import datetime, date # Import the date object
+import os
+import csv
+import bisect
 
 def find_active_animal_by_eartag(farm_id, eartag):
     """
@@ -166,3 +169,134 @@ def calculate_location_kpis(locations, active_animals):
     print("--------------------------------------------------------------------")
 
     return location_results
+
+# A simple in-memory cache to avoid reading the file on every request
+_historical_prices_cache = None
+_sorted_dates_cache = None
+
+def load_historical_prices():
+    """
+    Loads and caches historical price data from the app/data/historical_prices.csv file.
+    This version is highly resilient and correctly handles rows with partial data.
+    """
+    global _historical_prices_cache, _sorted_dates_cache
+    if _historical_prices_cache is not None:
+        return _historical_prices_cache, _sorted_dates_cache
+
+    prices = {}
+    base_dir = os.path.dirname(__file__)
+    file_path = os.path.join(base_dir, 'data', 'historical_prices.csv')
+
+    try:
+        with open(file_path, mode='r', encoding='utf-8') as infile:
+            reader = csv.DictReader(infile)
+            headers = [h.lower() for h in reader.fieldnames or []]
+            
+            # Find the actual names of the columns, case-insensitively
+            date_header = next((h for h in headers if 'date' in h), None)
+            purchase_header = next((h for h in headers if 'purchase' in h), None)
+            sale_header = next((h for h in headers if 'sale' in h), None)
+
+            if not all([date_header, purchase_header, sale_header]):
+                print("CRITICAL WARNING: The CSV file is missing one of the required headers: 'date', 'purchase_price', 'sale_price'.")
+                _historical_prices_cache, _sorted_dates_cache = {}, []
+                return {}, []
+
+            for row_num, row in enumerate(reader, 1):
+                date_str = row.get(date_header)
+                purchase_str = row.get(purchase_header)
+                sale_str = row.get(sale_header)
+
+                if not date_str:
+                    print(f"Warning: Skipping row {row_num} due to missing date.")
+                    continue
+
+                purchase_val = None
+                sale_val = None
+                
+                try:
+                    # Attempt to convert both values if they exist
+                    if purchase_str and purchase_str.strip():
+                        purchase_val = float(purchase_str)
+                    if sale_str and sale_str.strip():
+                        sale_val = float(sale_str)
+
+                    # Now, decide what to do based on what we found
+                    if purchase_val is not None and sale_val is not None:
+                        # Scenario A: Both exist. Use them.
+                        prices[date_str] = {'purchase': purchase_val, 'sale': sale_val}
+                    elif sale_val is not None:
+                        # Scenario B: Only sale price exists. Calculate purchase price.
+                        prices[date_str] = {'purchase': sale_val, 'sale': sale_val}
+                    elif purchase_val is not None:
+                        # Scenario C: Only purchase price exists. Calculate sale price.
+                        prices[date_str] = {'purchase': purchase_val, 'sale': purchase_val}
+                    else:
+                        # Scenario D: Neither exists. Skip the row.
+                        print(f"Warning: Skipping row {row_num} for date {date_str} due to missing price values.")
+                        continue
+
+                except (ValueError, TypeError):
+                    print(f"Warning: Skipping row {row_num} for date {date_str} due to invalid number format.")
+                    continue
+        
+        _historical_prices_cache = prices
+        _sorted_dates_cache = sorted(prices.keys())
+        
+        if not prices:
+             print("CRITICAL WARNING: The historical price file was loaded, but NO valid price records were found. Check CSV for data issues.")
+        else:
+            print(f"Successfully loaded and cached {len(prices)} historical price records.")
+        
+        return _historical_prices_cache, _sorted_dates_cache
+        
+    except FileNotFoundError:
+        print(f"WARNING: Historical price file not found at {file_path}. Market prices will not be available.")
+        _historical_prices_cache, _sorted_dates_cache = {}, []
+        return {}, []
+    except Exception as e:
+        print(f"ERROR: Failed to load historical prices: {e}")
+        _historical_prices_cache, _sorted_dates_cache = {}, []
+        return {}, []
+
+def get_closest_price(target_date, price_data, sorted_dates):
+    """
+    Finds the price data for the date closest to the target_date.
+    Uses binary search for efficiency.
+    
+    Args:
+        target_date (datetime.date): The date to find the closest match for.
+        price_data (dict): The dictionary of prices from load_historical_prices.
+        sorted_dates (list): The sorted list of date strings.
+
+    Returns:
+        dict: The price dictionary for the closest date.
+    """
+    if not sorted_dates:
+        return None # No data to search in
+
+    target_date_str = target_date.isoformat()
+    
+    # bisect_left finds the insertion point, which helps us find the neighbors
+    pos = bisect.bisect_left(sorted_dates, target_date_str)
+
+    # --- Handle edge cases ---
+    if pos == 0:
+        # Target date is before the first recorded date
+        return price_data[sorted_dates[0]]
+    if pos == len(sorted_dates):
+        # Target date is after the last recorded date
+        return price_data[sorted_dates[-1]]
+
+    # --- Find the two nearest neighbors ---
+    date_before_str = sorted_dates[pos - 1]
+    date_after_str = sorted_dates[pos]
+
+    date_before = datetime.strptime(date_before_str, '%Y-%m-%d').date()
+    date_after = datetime.strptime(date_after_str, '%Y-%m-%d').date()
+
+    # --- Compare which neighbor is closer ---
+    if (target_date - date_before) < (date_after - target_date):
+        return price_data[date_before_str]
+    else:
+        return price_data[date_after_str]

@@ -231,6 +231,8 @@ const translations = {
         sale_details: "Sale Details",
         death_details: "Death Details",
         date_of_death: "Date of Death",
+        subdivision: "Sublocation",
+        loading_sublocations: "Loading Sublocations",   
     },
     es: {
         // Navbar
@@ -464,6 +466,8 @@ const translations = {
         sale_details: "Detalles de la Venda",
         death_details: "Detalles de la Muerte",
         date_of_death: "Data de la Muerte",
+        subdivision: "Subdivisión",
+        loading_sublocations: "Cargando Subdivisión",
     },
     pt: {
         // Navbar
@@ -697,6 +701,8 @@ const translations = {
         sale_details: "Detalhes da Venda",
         death_details: "Detalhes da Morte",
         date_of_death: "Data da Morte",
+        subdivision: "Subdivisão",
+        loading_sublocations: "Carregando Subdivisões",
     }
 };
 

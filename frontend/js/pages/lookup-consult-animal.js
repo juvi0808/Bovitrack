@@ -191,7 +191,7 @@ function initConsultAnimalPage() {
                      <span>${getTranslation('sex')}:</span><strong>${pd.sex}</strong>
                      <span>${getTranslation('race')}:</span><strong>${pd.race || 'N/A'}</strong>
                      <span>${getTranslation('entry_date')}:</span><strong>${pd.entry_date}</strong>
-                     <span>${getTranslation('entry_age_months')}:</span><strong>${pd.entry_age}</strong>
+                     <span>${getTranslation('entry_age_months')}:</span><strong>${pd.entry_age.toFixed(1)}</strong>
                      <span>${getTranslation('entry_weight_kg')}:</span><strong>${pd.entry_weight.toFixed(2)} kg</strong>
                      <span>${getTranslation('purchase_price')}:</span><strong>${pd.purchase_price ? `$${pd.purchase_price.toFixed(2)}` : 'N/A'}</strong>
                  </div>
