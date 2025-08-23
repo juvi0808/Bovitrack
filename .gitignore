@@ -17,3 +17,9 @@ __pycache__/
 /Support/*.csv
 /frontend/node_modules
 /frontend/package-lock.json
+/frontend/backend
+/frontend/icon
+/frontend/dist
+
+/build/
+/dist

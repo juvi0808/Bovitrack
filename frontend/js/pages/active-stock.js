@@ -51,6 +51,8 @@ function displaySummary(kpis) {
 function createAnimalGrid(animals) {
     const gridDiv = document.getElementById('animal-grid');
     if (gridDiv) {
+
+        gridDiv.className = 'ag-theme-quartz full-height-grid';
         const columnDefs = [       
         { 
             headerName: getTranslation("ear_tag"), 

@@ -7,6 +7,7 @@
 <head>  <!-- The 'head' contains meta-information about the page. -->
     <meta charset="UTF-8">
     <title>BoviTrack - Livestock Management</title> <!-- The text that appears in the window's title bar. -->
+    <link rel="stylesheet" href="./node_modules/ag-grid-community/styles/ag-grid.css">
     <link rel="stylesheet" href="./node_modules/ag-grid-community/styles/ag-theme-quartz.css"> <!-- The first one loads the styles for our data grid theme. -->
     <link rel="stylesheet" href="styles.css"> <!-- The second one loads our own custom styles. -->
 </head>
@@ -513,7 +514,7 @@
     <!-- It is placed at the end of the <body> so that the JavaScript code runs -->
     <!-- AFTER all the HTML elements above it have been created. This ensures -->
     <!-- that getElementById() can find the elements it's looking for. -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="./node_modules/chart.js/dist/chart.umd.js"></script>
     <script src="./js/translations.js"></script>
     <script src="./js/main-renderer.js"></script>
     <script src="./js/pages/active-stock.js"></script>
