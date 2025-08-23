@@ -176,8 +176,21 @@ function createSalesHistoryGrid(data) {
     if (!gridDiv) return;
 
     const columnDefs = [
-        { headerName: getTranslation("ear_tag"), field: "ear_tag" },
-        { headerName: getTranslation("lot"), field: "lot" },
+        { 
+            headerName: getTranslation("ear_tag"), 
+            field: "ear_tag", 
+            width: 120,
+            onCellClicked: (params) => window.navigateToConsultAnimal(params.data.animal_id,'page-operations-sales'),
+            cellClass: 'clickable-cell'
+        },
+        { 
+            headerName: getTranslation("lot"), 
+            field: "lot", 
+            width: 100, 
+            filter: 'agNumberColumnFilter',
+            onCellClicked: (params) => window.navigateToConsultLot(params.value,'page-operations-sales'),
+            cellClass: 'clickable-cell'
+        },
         { headerName: getTranslation("entry_date"), field: "entry_date" },
         { headerName: getTranslation("exit_date"), field: "exit_date" },
         { headerName: getTranslation("days_on_farm"), field: "days_on_farm" },

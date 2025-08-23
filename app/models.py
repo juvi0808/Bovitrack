@@ -11,15 +11,15 @@ class Farm(db.Model):
     # --- Relationships ---
     # Defines the one-to-many link from a Farm to its associated records.
     # 'cascade="all, delete-orphan"' ensures that if a farm is deleted, all its related data is also deleted.
-    locations = db.relationship('Location', backref='farm', lazy=True, cascade="all, delete-orphan")
-    purchases = db.relationship('Purchase', backref='farm', lazy=True, cascade="all, delete-orphan")
-    weightings = db.relationship('Weighting', backref='farm', lazy=True, cascade="all, delete-orphan")
-    sales = db.relationship('Sale', backref='farm', lazy=True, cascade="all, delete-orphan")
-    protocols = db.relationship('SanitaryProtocol', backref='farm', lazy=True, cascade="all, delete-orphan")
-    location_changes = db.relationship('LocationChange', backref='farm', lazy=True, cascade="all, delete-orphan")
-    diet_logs = db.relationship('DietLog', backref='farm', lazy=True, cascade="all, delete-orphan")
-    deaths = db.relationship('Death', backref='farm', lazy=True, cascade="all, delete-orphan")
-    sublocations = db.relationship('Sublocation', backref='farm', lazy=True, cascade="all, delete-orphan")
+    locations = db.relationship('Location', backref='farm', lazy=True, cascade="all, delete")
+    purchases = db.relationship('Purchase', backref='farm', lazy=True, cascade="all, delete")
+    weightings = db.relationship('Weighting', backref='farm', lazy=True, cascade="all, delete")
+    sales = db.relationship('Sale', backref='farm', lazy=True, cascade="all, delete")
+    protocols = db.relationship('SanitaryProtocol', backref='farm', lazy=True, cascade="all, delete")
+    location_changes = db.relationship('LocationChange', backref='farm', lazy=True, cascade="all, delete")
+    diet_logs = db.relationship('DietLog', backref='farm', lazy=True, cascade="all, delete")
+    deaths = db.relationship('Death', backref='farm', lazy=True, cascade="all, delete")
+    sublocations = db.relationship('Sublocation', backref='farm', lazy=True, cascade="all, delete")
 
     def to_dict(self):
         """Serializes the Farm object to a dictionary."""
@@ -207,6 +207,7 @@ class Purchase(db.Model):
             kpis['current_age_months'] = round(self.entry_age + (days_on_farm / 30.44), 2)
             kpis['forecasted_current_weight_kg'] = None
             kpis['status'] = 'Dead'
+            kpis['days_on_farm'] = days_on_farm
 
         else:
             # For an active animal, calculate age and forecasted weight for today.
@@ -391,11 +392,16 @@ class LocationChange(db.Model):
     location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
     sublocation_id = db.Column(db.Integer, db.ForeignKey('sublocation.id'), nullable=True)
 
+
+
     def to_dict(self):
         """
         Serializes the LocationChange object to a dictionary, including
         the name of the linked location for convenience.
         """
+        sub_name = self.sublocation.name if self.sublocation else None
+        sub_id = self.sublocation.id if self.sublocation else None
+
         return {
             "location_change_id": self.id,
             "date": self.date.isoformat(),
@@ -403,6 +409,8 @@ class LocationChange(db.Model):
             "lot": self.animal.lot,
             "location_name": self.location.name,
             "location_id": self.location.id,
+            "sublocation_name": sub_name,
+            "sublocation_id": sub_id,
             "animal_id": self.animal_id,
             'farm_id': self.farm_id
         }

@@ -160,8 +160,21 @@ function createDeathHistoryGrid(data) {
 
     const columnDefs = [
         { headerName: getTranslation("date"), field: "date" },
-        { headerName: getTranslation("ear_tag"), field: "ear_tag" },
-        { headerName: getTranslation("lot"), field: "lot" },
+        { 
+            headerName: getTranslation("ear_tag"), 
+            field: "ear_tag", 
+            width: 120,
+            onCellClicked: (params) => window.navigateToConsultAnimal(params.data.animal_id,'page-operations-death'),
+            cellClass: 'clickable-cell'
+        },
+        { 
+            headerName: getTranslation("lot"), 
+            field: "lot", 
+            width: 100, 
+            filter: 'agNumberColumnFilter',
+            onCellClicked: (params) => window.navigateToConsultLot(params.value,'page-operations-death'),
+            cellClass: 'clickable-cell'
+        },
         { headerName: getTranslation("cause_of_death"), field: "cause" },
     ];
 

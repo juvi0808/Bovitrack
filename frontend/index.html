@@ -47,15 +47,15 @@
                 <li class="has-dropdown dropdown-align-center">
                     <a href="#" data-translate="farm">Farm</a>
                     <ul class="dropdown">
-                        <li><a href="#" class="nav-link" data-page="page-locations" data-translate="locations">Locations</a></li>
-                        <li><a href="#" class="nav-link" data-page="page-lots" data-translate="lots">Lots</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-farm-locations" data-translate="locations">Locations</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-farm-lots" data-translate="lots">Lots</a></li>
                     </ul>
                 </li>
                 <!-- Lookup Menu -->
                 <li class="has-dropdown dropdown-align-right">
                     <a href="#" data-translate="lookup">Lookup</a>
                     <ul class="dropdown">
-                        <li><a href="#" class="nav-link" data-page="page-consult-animal" data-translate="search_animal">Search Animal</a></li>
+                        <li><a href="#" class="nav-link" data-page="page-lookup-consult-animal" data-translate="search_animal">Search Animal</a></li>
                     </ul>
                 </li>
                 <li><a href="#" class="nav-link" data-page="page-settings">⚙️</a></li>
@@ -98,7 +98,7 @@
         </div>
     </div>
 
-        <!-- NEW: Delete Farm Confirmation Modal -->
+    <!-- Delete Farm Confirmation Modal -->
     <div id="delete-farm-modal" class="modal-backdrop hidden">
         <div class="modal-content">
             <h3 data-translate="confirm_deletion">Confirm Deletion</h3>
@@ -169,7 +169,7 @@
                         <label for="purchase-diet-intake" data-translate="initial_diet_intake_percentage">Initial Diet Intake (%)</label>
                         <input type="number" step="0.1" id="purchase-diet-intake">
                     </div>
-                    <!-- NEW: Sanitary Protocols Section -->
+                    <!-- Sanitary Protocols Section -->
                     <div class="sub-form-section">
                         <h4 data-translate="add_sanitary_protocols_optional">Add Sanitary Protocols (Optional)</h4>
                         
@@ -187,7 +187,7 @@
                             <input type="text" id="protocol-invoice" data-translate-placeholder="invoice_number_placeholder">
                         </div>
 
-                        <!-- **** NEW **** Container for ONLY the action buttons -->
+                        <!-- Container for ONLY the action buttons -->
                         <div class="sub-form-actions">
                             <button type="button" id="add-protocol-btn" class="button-primary" data-translate="add_protocol">Add Protocol</button>
                             <button type="button" id="clear-protocols-btn" class="button-secondary btn-danger" data-translate="clear_all">Clear All</button>
@@ -298,6 +298,12 @@
                     <div class="form-group">
                         <label for="new-location-select" data-translate="new_location">New Location</label>
                         <select id="new-location-select" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-sublocation-select" data-translate="subdivision">Subdivision (Optional)</label>
+                        <select id="new-sublocation-select">
+                            <!-- This will be populated dynamically -->
+                        </select>
                     </div>
                     <div class="form-group form-group-full">
                         <label for="location-change-weight-kg" data-translate="optional_weight_kg">Weight (kg, Optional)</label>
@@ -481,12 +487,33 @@
             </form>
         </div>
     </div>
+    <!-- Custom Confirmation Modal -->
+    <div id="custom-confirm-modal" class="modal hidden">
+        <div class="modal-content">
+            <p id="custom-confirm-msg"></p>
+            <div class="modal-actions">
+                <button id="custom-confirm-ok-btn" class="button-primary">OK</button>
+                <button id="custom-confirm-cancel-btn" class="button-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <div id="no-farms-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 data-translate="welcome_to_bovitrack">Welcome to BoviTrack!</h3>
+            <p data-translate="no_farms_setup_message">It looks like you don't have any farms set up yet. Get started by creating your first farm or loading our interactive demo farm to explore the features.</p>
+            <div class="modal-actions" style="justify-content: center; gap: 20px;">
+                <button type="button" id="no-farms-create-new-btn" class="button-primary" data-translate="create_new_farm">Create New Farm</button>
+                <button type="button" id="no-farms-load-demo-btn" class="button-secondary" data-translate="load_demo_farm">Load Demo Farm</button>
+            </div>
+        </div>
+    </div>
 
     <div id="toast-notification"></div>
     <!-- CRITICAL: This line loads and executes our JavaScript files. -->
     <!-- It is placed at the end of the <body> so that the JavaScript code runs -->
     <!-- AFTER all the HTML elements above it have been created. This ensures -->
     <!-- that getElementById() can find the elements it's looking for. -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="./js/translations.js"></script>
     <script src="./js/main-renderer.js"></script>
     <script src="./js/pages/active-stock.js"></script>
@@ -497,7 +524,9 @@
     <script src="./js/pages/operations-diet-log.js"></script>
     <script src="./js/pages/operations-sanitary.js"></script>
     <script src="./js/pages/operations-death.js"></script>
-    <script src="./js/pages/locations.js"></script>
+    <script src="./js/pages/farm-locations.js"></script>
+    <script src="./js/pages/farm-lots.js"></script>
+    <script src="./js/pages/lookup-consult-animal.js"></script>
     <script src="./js/pages/settings.js"></script>
 </body>
 </html>

@@ -1,10 +1,20 @@
-<div class="page" id="page-active-stock">
-    <div class="page-header">
-        <h2 data-translate="active_stock_summary">Active Stock Summary</h2>
+<div class="page">
+    <!-- This is the missing wrapper div that caused the error -->
+    <div id="active-stock-content">
+        <div class="page-header">
+            <h1 data-translate="active_stock_summary">Active Stock Summary</h1>
+        </div>
+        
+        <div id="summary-kpis" class="summary-kpis-bar">
+            <!-- Summary KPIs will be loaded here by JavaScript -->
+        </div>
+
+        <div class="page-header" style="margin-top: 20px;">
+            <h2 data-translate="active_animals">Active Animals</h2>
+        </div>
+
+        <div id="animal-grid" class="ag-theme-quartz full-height-grid">
+            <!-- The AG Grid for animals will be created here by JavaScript -->
+        </div>
     </div>
-    <div id="summary-kpis">
-        <!-- Summary KPIs will be rendered here by JavaScript -->
-    </div>
-    <h2 data-translate="active_animals">Active Animals</h2>
-    <div id="animal-grid" class="ag-theme-quartz full-height-grid"></div>
 </div>

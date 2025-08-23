@@ -22,6 +22,13 @@ let selectedFarmId = null;
 let allFarms = [];
 let currentLanguage = 'en';
 
+window.animalIdToConsult = null; // Global variable to hold the ID
+window.consultAnimalReturnPage = null; // Global variable for the back button logic
+window.lotToConsult = null;
+window.consultLotReturnPage = null;
+window.locationToConsult = null;
+window.consultLocationReturnPage = null;
+
 // --- 3. ELEMENT REFERENCES ---
 // Main Page Elements
 const summaryDiv = document.getElementById('summary-kpis');
@@ -77,14 +84,20 @@ async function initializeApp() {
         farmSelect.value = lastSelectedId;
     }
 
-    // Manually trigger the 'change' event to ensure the page loads the correct data.
-    // This will update the selectedFarmId global variable and load the dashboard.
-    farmSelect.dispatchEvent(new Event('change'));
-
-    // Go to the default page.
+    // 3. Manually set our global state variable from the dropdown's current value.
+    //    This is the key step that avoids firing an unnecessary event.
+    selectedFarmId = farmSelect.value;
+    
+    // 4. If there is a selected farm, ensure it's saved back to storage.
+    if (selectedFarmId) {
+        localStorage.setItem(LAST_FARM_ID_KEY, selectedFarmId);
+    }
+    
+    // 5. Now, load the default page. This will call its own data-loading function,
+    //    which will correctly use the 'selectedFarmId' we just set.
     await showPage('page-active-stock');
 
-    // FIX: Find the correct link now and handle the case where it might not exist.
+    // 6. Set the active class on the navigation link.
     const activeLink = document.querySelector('.nav-link[data-page="page-active-stock"]');
     if (activeLink) {
         activeLink.classList.add('active');
@@ -186,7 +199,6 @@ async function loadFarms() {
         if (allFarms.length === 0) {
             farmSelect.innerHTML = '<option>No farms found</option>';
             selectedFarmId = null;
-            addFarmModal.classList.remove('hidden');
             renameFarmBtn.disabled = true;
             deleteFarmBtn.disabled = true;
         } else {
@@ -250,9 +262,14 @@ async function handleFarmSelection() {
         await loadSanitaryProtocolHistoryData();}
     else if (pageId === 'page-operations-death') {
         await loadDeathHistoryData();}  
-    else if (pageId === 'page-locations') { 
-        await loadLocationsData();
-    }      
+    else if (pageId === 'page-farm-locations') { 
+        await loadLocationsData();}      
+    else if (pageId === 'page-farm-lots') { 
+        await loadLotsData();
+    }     
+    else if (pageId === 'page-lookup-consult-animal') { 
+        await loadConsultAnimalData();
+    }     
 }
 async function handleAddFarmSubmit(event) {
     event.preventDefault();
@@ -323,19 +340,75 @@ async function handleDeleteFarmSubmit(event) {
     event.preventDefault();
     if (!selectedFarmId) return;
     
+    const submitButton = event.submitter; // Get the button that was clicked
+    if (!selectedFarmId || !submitButton) return;
+
+    const originalButtonText = submitButton.textContent;
+    submitButton.disabled = true;
+    submitButton.textContent = getTranslation('deleting'); // Show loading state
+
     try {
         const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/delete`, {
             method: 'DELETE'
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error);
-
+        
+        showToast(result.message, 'success');
         deleteFarmModal.classList.add('hidden');
-        await loadFarms(); // Reload farm list, which will either select the next farm or show the "add" modal
+        
+        await loadFarms(); // Reloads the farm list and updates the global 'allFarms' array
+
+        const activeLink = document.querySelector('.nav-link.active');
+        const currentPageId = activeLink ? activeLink.dataset.page : null;
+
+        // If the last farm was deleted AND we are on the active stock page,
+        // re-run the init function for that page to show the welcome modal.
+        if (allFarms.length === 0 && currentPageId === 'page-active-stock') {
+            initActiveStockPage();
+        } else {
+            // Otherwise, just refresh the data for the current page.
+            // This will select the next available farm or show the "Select a farm" message.
+            await handleFarmSelection();
+        }
+
+
     } catch (error) {
         console.error("Error deleting farm:", error);
-        alert(`Error: ${error.message}`);
+        showToast(`Error: ${error.message}`, 'error');
+    } finally {
+        // This block will run regardless of success or failure
+        submitButton.disabled = false;
+        submitButton.textContent = originalButtonText; // Restore original text
     }
+
+
+}
+
+// The global function called from the grids now accepts the return page ID.
+window.navigateToConsultAnimal = function(animalId, returnPageId) {
+    if (!animalId) return;
+    console.log(`Navigating to consult page for animal ID: ${animalId} from ${returnPageId}`);
+    window.animalIdToConsult = animalId;
+    window.consultAnimalReturnPage = returnPageId; // Store where to go back to
+    navigateToPage('page-lookup-consult-animal');
+}
+
+// ... after window.navigateToConsultAnimal function
+window.navigateToConsultLot = function(lotNumber, returnPageId) {
+    if (!lotNumber) return;
+    console.log(`Navigating to consult page for lot: ${lotNumber} from ${returnPageId}`);
+    window.lotToConsult = lotNumber;
+    window.consultLotReturnPage = returnPageId; // Store where to go back to
+    navigateToPage('page-farm-lots');
+}
+
+window.navigateToConsultLocation = function(locationId, locationName, returnPageId) {
+    if (!locationId || !locationName) return;
+    console.log(`Navigating to consult page for location ID: ${locationId} from ${returnPageId}`);
+    window.locationToConsult = { id: locationId, name: locationName };
+    window.consultLocationReturnPage = returnPageId; // Store where to go back to
+    navigateToPage('page-farm-locations');
 }
 
 function handleDropdownToggle(dropdownLi) {
@@ -346,27 +419,45 @@ function handleDropdownToggle(dropdownLi) {
     }
 }
 
+// This is our central navigation controller.
+function navigateToPage(pageId) {
+    if (!pageId) return;
+
+    // 1. Fetch and display the new page's HTML content.
+    showPage(pageId);
+
+    // 2. Update the visual state of the navigation menu.
+    // Deactivate all links first to ensure a clean slate.
+    document.querySelectorAll('.main-nav a').forEach(link => link.classList.remove('active'));
+
+    // Find the specific link that corresponds to the page we are navigating to.
+    const targetLink = document.querySelector(`.nav-link[data-page="${pageId}"]`);
+    if (targetLink) {
+        // Activate the target link (e.g., "Search Animal").
+        targetLink.classList.add('active');
+
+        // If it's in a dropdown, activate its parent menu item too (e.g., "Lookup").
+        const parentDropdown = targetLink.closest('.has-dropdown');
+        if (parentDropdown) {
+            const parentMenuLink = parentDropdown.querySelector('a');
+            if (parentMenuLink) {
+                parentMenuLink.classList.add('active');
+            }
+        }
+    }
+    closeAllDropdowns();
+}
+
+// It just determines the pageId and calls our new central controller.
 function handlePageNavigation(navLink) {
     const pageId = navLink.dataset.page;
-    if (pageId) {
-        showPage(pageId);
-        document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-        navLink.classList.add('active');
-        closeAllDropdowns();
-    }
+    navigateToPage(pageId);
 }
 
 function closeAllDropdowns() {
     document.querySelectorAll('.has-dropdown.dropdown-is-active').forEach(item => {
         item.classList.remove('dropdown-is-active');
     });
-}
-
-// This function is now only for switching the page content.
-function handleNavigation(event) {
-    // This function's logic is now inside handleNavClick.
-    // We can keep it here empty or remove it, but for now we'll leave it
-    // to avoid breaking anything else that might call it, just in case.
 }
 
 // --- Page Navigation Logic ---
@@ -411,8 +502,12 @@ async function showPage(pageId) {
             initHistorySanitaryProtocolsPage();   
         } else if (pageId === 'page-operations-death') {
             initHistoryDeathsPage(); 
-        } else if (pageName === 'locations') { // ADDED THIS
+        } else if (pageName === 'farm-locations') { 
             initLocationsPage();
+        } else if (pageName === 'farm-lots') { 
+            initLotsPage();
+        } else if (pageName === 'lookup-consult-animal') {
+            initConsultAnimalPage();
         } else if (pageName === 'settings') {
             initSettingsPage();
         }
@@ -444,6 +539,67 @@ function showToast(message, type = 'success') {
     toastTimer = setTimeout(() => {
         notification.className = notification.className.replace('show', '');
     }, 3000);
+}
+
+function renderPaginationControls(paginationData, container, callback) {
+    if (!container) return;
+
+    // Clear previous controls
+    container.innerHTML = '';
+
+    if (paginationData.total_pages <= 1) return; // Don't show controls if there's only one page
+
+    const { current_page, total_pages, has_prev, has_next } = paginationData;
+
+    const prevButton = document.createElement('button');
+    prevButton.textContent = '<< Previous';
+    prevButton.disabled = !has_prev;
+    prevButton.className = 'button-secondary';
+    prevButton.onclick = () => callback(current_page - 1);
+
+    const pageIndicator = document.createElement('span');
+    pageIndicator.textContent = `Page ${current_page} of ${total_pages}`;
+    pageIndicator.style.margin = '0 15px';
+    pageIndicator.style.fontWeight = 'bold';
+
+    const nextButton = document.createElement('button');
+    nextButton.textContent = 'Next >>';
+    nextButton.disabled = !has_next;
+    nextButton.className = 'button-secondary';
+    nextButton.onclick = () => callback(current_page + 1);
+
+    container.appendChild(prevButton);
+    container.appendChild(pageIndicator);
+    container.appendChild(nextButton);
+}
+
+function showCustomConfirm(message) {
+    return new Promise(resolve => {
+        const confirmModal = document.getElementById('custom-confirm-modal');
+        const msgElement = document.getElementById('custom-confirm-msg');
+        const okBtn = document.getElementById('custom-confirm-ok-btn');
+        const cancelBtn = document.getElementById('custom-confirm-cancel-btn');
+
+        if (!confirmModal || !msgElement || !okBtn || !cancelBtn) {
+            console.error("Custom confirmation modal elements not found in index.html!");
+            resolve(false); // Resolve as false if the modal isn't set up
+            return;
+        }
+
+        msgElement.textContent = message;
+        confirmModal.classList.remove('hidden');
+
+        // We use .onclick here to easily overwrite the listener each time
+        okBtn.onclick = () => {
+            confirmModal.classList.add('hidden');
+            resolve(true); // User confirmed
+        };
+
+        cancelBtn.onclick = () => {
+            confirmModal.classList.add('hidden');
+            resolve(false); // User canceled
+        };
+    });
 }
 
 
