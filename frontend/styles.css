@@ -635,6 +635,20 @@ tbody tr:hover {
     min-width: 200px; /* Ensure select is wide enough */
 }
 
+/* --- Active Stock Page --- */
+/* This is the new rule that fixes the grid height issue */
+#active-stock-content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Make this container grow to fill its parent (.page) */
+}
+
+/* --- Dashboard / Summary --- */
+
+#summary-kpis, #animal-list {
+    background-color: #ffffff;
+}
+
 /* ==========================================================================
    9. Notifications
    ========================================================================== */

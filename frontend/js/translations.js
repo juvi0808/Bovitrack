@@ -250,6 +250,15 @@ const translations = {
         confirm_import: "Confirm Import",
         confirm_import_message: "Are you sure you want to import data from the file '{fileName}'? This will add new farms and all their associated data to your database. Existing farms with the same name will be skipped.",
         exporting: "Exporting...",
+        confirm_import_message: "Are you sure you want to import data from the file '{fileName}'? This will add new farms and all their associated data to your database. Existing farms with the same name will be skipped.",
+        exporting: "Exporting...",
+        welcome_to_bovitrack: "Welcome to BoviTrack!",
+        no_farms_setup_message: "It looks like you don't have any farms set up yet. Get started by creating your first farm or loading our interactive demo farm to explore the features.",
+        create_new_farm: "Create New Farm",
+        load_demo_farm: "Load Demo Farm",
+        loading_demo_farm: "Loading Demo Farm...",
+        no_farms_found: "No farms found",
+        demo_farm_loaded_successfully: "Demo Farm loaded successfully! Refreshing data..."
     },
     es: {
         // Navbar
@@ -502,6 +511,15 @@ const translations = {
         confirm_import: "Confirmar Importación",
         confirm_import_message: "¿Estás seguro de que quieres importar datos del archivo '{fileName}'? Esto añadirá nuevas fincas y todos sus datos asociados a tu base de datos. Las fincas existentes con el mismo nombre serán omitidas.",
         exporting: "Exportando...",
+        confirm_import_message: "¿Estás seguro de que quieres importar datos del archivo '{fileName}'? Esto añadirá nuevas fincas y todos sus datos asociados a tu base de datos. Las fincas existentes con el mismo nombre serán omitidas.",
+        exporting: "Exportando...",
+        welcome_to_bovitrack: "¡Bienvenido a BoviTrack!",
+        no_farms_setup_message: "Parece que aún no tienes ninguna finca configurada. Empieza creando tu primera finca o carga nuestra finca de demostración interactiva para explorar las funcionalidades.",
+        create_new_farm: "Crear Nueva Finca",
+        load_demo_farm: "Cargar Finca de Demostración",
+        loading_demo_farm: "Cargando Finca de Demostración...",
+        no_farms_found: "No se encontraron fincas",
+        demo_farm_loaded_successfully: "Finca de demostración cargada exitosamente! Recargando datos..."
     },
     pt: {
         // Navbar
@@ -754,6 +772,15 @@ const translations = {
         confirm_import: "Confirmar Importação",
         confirm_import_message: "Tem certeza de que deseja importar os dados do arquivo '{fileName}'? Isso adicionará novas fazendas e todos os seus dados associados ao seu banco de dados. Fazendas existentes com o mesmo nome serão ignoradas.",
         exporting: "Exportando...",
+        confirm_import_message: "Tem certeza de que deseja importar os dados do arquivo '{fileName}'? Isso adicionará novas fazendas e todos os seus dados associados ao seu banco de dados. Fazendas existentes com o mesmo nome serão ignoradas.",
+        exporting: "Exportando...",
+        welcome_to_bovitrack: "Bem-vindo ao BoviTrack!",
+        no_farms_setup_message: "Parece que você ainda não tem nenhuma fazenda configurada. Comece criando sua primeira fazenda ou carregue nossa fazenda de demonstração interativa para explorar os recursos.",
+        create_new_farm: "Criar Nova Fazenda",
+        load_demo_farm: "Carregar Fazenda Demo",
+        loading_demo_farm: "Carregando Fazenda Demo...",
+        no_farms_found: "Nenhuma fazenda encontrada",
+        demo_farm_loaded_successfully: "Fazenda Demo carregada com sucesso! Atualizando dados..."
     }
 };
 

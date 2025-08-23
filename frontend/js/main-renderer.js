@@ -199,7 +199,6 @@ async function loadFarms() {
         if (allFarms.length === 0) {
             farmSelect.innerHTML = '<option>No farms found</option>';
             selectedFarmId = null;
-            addFarmModal.classList.remove('hidden');
             renameFarmBtn.disabled = true;
             deleteFarmBtn.disabled = true;
         } else {
@@ -354,10 +353,26 @@ async function handleDeleteFarmSubmit(event) {
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error);
+        
         showToast(result.message, 'success');
         deleteFarmModal.classList.add('hidden');
-        await loadFarms();
-        await handleFarmSelection(); // Refresh the data for the newly selected farm
+        
+        await loadFarms(); // Reloads the farm list and updates the global 'allFarms' array
+
+        const activeLink = document.querySelector('.nav-link.active');
+        const currentPageId = activeLink ? activeLink.dataset.page : null;
+
+        // If the last farm was deleted AND we are on the active stock page,
+        // re-run the init function for that page to show the welcome modal.
+        if (allFarms.length === 0 && currentPageId === 'page-active-stock') {
+            initActiveStockPage();
+        } else {
+            // Otherwise, just refresh the data for the current page.
+            // This will select the next available farm or show the "Select a farm" message.
+            await handleFarmSelection();
+        }
+
+
     } catch (error) {
         console.error("Error deleting farm:", error);
         showToast(`Error: ${error.message}`, 'error');
@@ -366,6 +381,8 @@ async function handleDeleteFarmSubmit(event) {
         submitButton.disabled = false;
         submitButton.textContent = originalButtonText; // Restore original text
     }
+
+
 }
 
 // The global function called from the grids now accepts the return page ID.
