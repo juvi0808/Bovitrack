@@ -221,7 +221,7 @@ function initLocationsPage() {
         if (gridContainer) gridContainer.innerHTML = `<p>${getTranslation('loading_animals')}...</p>`;
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationId}/summary`);
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationId}/summary`); // New URL will be /api/farm/${selectedFarmId}/location/${locationId}/
             if (!response.ok) throw new Error('Failed to fetch location summary');
             const data = await response.json();
             
@@ -330,7 +330,11 @@ function initLocationsPage() {
         event.preventDefault();
         const locationData = { name: document.getElementById('location-name-input').value.trim(), area_hectares: document.getElementById('location-area-input').value, location_type: document.getElementById('location-type-input').value.trim(), grass_type: document.getElementById('location-grass-input').value.trim(), };
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/add`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(locationData) });
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/add`, { // New url will be /api/farm/${selectedFarmId}/location
+                method: 'POST',  
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(locationData) 
+            });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error);
             showToast(getTranslation('location_saved_successfully', { name: locationData.name }), 'success');
@@ -349,7 +353,11 @@ function initLocationsPage() {
         }
         const sublocationData = { name: document.getElementById('sublocation-name-input').value.trim(), area_hectares: document.getElementById('sublocation-area-input').value };
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${currentParentLocationId}/sublocation/add`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sublocationData) });
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${currentParentLocationId}/sublocation/add`, { //New URL will be /api/farm/${selectedFarmId}/location/${currentParentLocationId}/sublocations/
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(sublocationData) 
+            });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error);
             showToast(getTranslation('subdivision_saved_successfully', { name: sublocationData.name }), 'success');

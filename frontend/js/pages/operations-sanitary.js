@@ -177,7 +177,7 @@ function initHistorySanitaryProtocolsPage() {
         };
         
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForProtocol.id}/sanitary/add_batch`, {
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForProtocol.id}/sanitary/add_batch`, { // Will become ${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForProtocol.id}/sanitary/add 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)

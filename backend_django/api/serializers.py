@@ -64,28 +64,252 @@ class LocationSerializer(serializers.ModelSerializer):
         
         return kpis
 
+class LocationCreateUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for CREATING and UPDATING locations.
+    Contains only the fields that are directly writeable by the user.
+    """
+    class Meta:
+        model = Location
+        fields = [
+            'name', 'area_hectares', 'grass_type', 'location_type', 'geo_json_data'
+        ]
+
+    def validate_name(self, value):
+        """
+        Check that a location with this name does not already exist on this farm.
+        """
+        farm_id = self.context.get('farm_id')
+        # On update, self.instance will be the location being updated.
+        # We exclude it from the queryset to allow a user to save without changing the name.
+        queryset = Location.objects.filter(farm_id=farm_id, name__iexact=value)
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise serializers.ValidationError(f"A location with the name '{value}' already exists on this farm.")
+        return value
+
+class AnimalSummarySerializer(serializers.ModelSerializer):
+    """
+    Serializer for the detailed animal list within the location summary.
+    Calculates and includes individual animal KPIs.
+    """
+    kpis = serializers.SerializerMethodField()
+    id = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Purchase
+        # Add farm_id to the top-level fields to match Flask output
+        fields = [
+            'id', 'farm_id', 'ear_tag', 'lot', 'entry_date', 'entry_weight', 'sex', 'entry_age',
+            'purchase_price', 'race', 'kpis'
+        ]
+
+    def get_kpis(self, obj):
+        # The view now annotates all required values onto the queryset object.
+        last_w_date = getattr(obj, 'last_weighting_date', None)
+
+        return {
+            'average_daily_gain_kg': getattr(obj, 'average_daily_gain_kg', None),
+            'current_age_months': getattr(obj, 'current_age_months', None),
+            'current_diet_intake': getattr(obj, 'current_diet_intake', None),
+            'current_diet_type': getattr(obj, 'current_diet_type', None),
+            'current_location_id': getattr(obj, 'current_location_id', None),
+            'current_location_name': getattr(obj, 'current_location_name', None),
+            'current_sublocation_id': getattr(obj, 'current_sublocation_id', None),
+            'current_sublocation_name': getattr(obj, 'current_sublocation_name', None),
+            'days_on_farm': getattr(obj, 'days_on_farm_int', None),
+            'forecasted_current_weight_kg': getattr(obj, 'forecasted_current_weight_kg', None),
+            'last_weight_kg': getattr(obj, 'last_weight_kg', None),
+            'last_weighting_date': last_w_date.isoformat() if last_w_date else None,
+            'status': "Active" # Since this search only returns active animals
+        }
+
+class LocationSummarySerializer(serializers.Serializer):
+    """
+    Top-level serializer for the location summary response.
+    Defines the final JSON structure: {'location_details': {...}, 'animals': [...]}.
+    """
+    location_details = LocationSerializer()
+    animals = AnimalSummarySerializer(many=True)
+
+class SublocationSerializer(serializers.ModelSerializer):
+    """
+    Simple serializer for LISTING or RETRIEVING a sublocation.
+    Matches the basic structure of the old Flask API's to_dict().
+    """
+    # Renaming 'parent_location_id' to match the old API's 'location_id'
+    location_id = serializers.IntegerField(source='parent_location_id', read_only=True)
+    
+    class Meta:
+        model = Sublocation
+        fields = ['id', 'name', 'area_hectares', 'geo_json_data', 'location_id']
+
+
+class SublocationCreateUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for CREATING and UPDATING a sublocation.
+    """
+    class Meta:
+        model = Sublocation
+        fields = ['name', 'area_hectares', 'geo_json_data']
+
+    def validate_name(self, value):
+        """
+        Check that a sublocation with this name does not already exist
+        within the same parent location.
+        """
+        location_id = self.context.get('location_id')
+        queryset = Sublocation.objects.filter(parent_location_id=location_id, name__iexact=value)
+
+        # On update, exclude the current instance from the check
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        
+        if queryset.exists():
+            raise serializers.ValidationError(f"A sublocation with the name '{value}' already exists in this location.")
+        return value
+
 
 class WeightingSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the Weighting model, designed for read operations.
+    It fetches related animal data (ear_tag, lot) for a rich, flat JSON response,
+    matching the original Flask API structure.
+    """
+    # Use 'source' to access attributes on the related 'animal' model.
+    # This relies on the view pre-fetching this data with select_related() for performance.
+    ear_tag = serializers.CharField(source='animal.ear_tag', read_only=True)
+    lot = serializers.CharField(source='animal.lot', read_only=True)
+
     class Meta:
         model = Weighting
-        # We only need fields for creation, not the reverse relationships.
-        fields = ['id', 'date', 'weight_kg']
+        fields = [
+            'id', 'date', 'weight_kg', 'animal_id', 'farm_id',
+            'ear_tag', 'lot'
+        ]
+
+class WeightingCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer specifically for CREATING a new Weighting record.
+    """
+    class Meta:
+        model = Weighting
+        # Only the fields required from the user's POST request.
+        # 'animal' and 'farm' will be assigned in the view.
+        fields = ['date', 'weight_kg']
 
 class LocationChangeSerializer(serializers.ModelSerializer):
+    """
+    Serializer for LISTING location changes.
+    """
+    location_change_id = serializers.IntegerField(source='id', read_only=True)
+    ear_tag = serializers.CharField(source='animal.ear_tag', read_only=True)
+    lot = serializers.CharField(source='animal.lot', read_only=True)
+    location_name = serializers.CharField(source='location.name', read_only=True)
+    sublocation_name = serializers.CharField(source='sublocation.name', read_only=True, allow_null=True)
+
     class Meta:
         model = LocationChange
-        fields = ['id', 'date', 'location', 'sublocation']
+        fields = [
+            'location_change_id', 'date', 'ear_tag', 'lot',
+            'location_name', 'location_id', 'sublocation_name',
+            'sublocation_id', 'animal_id', 'farm_id'
+        ]
+
+class LocationChangeCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for CREATING a new location change.
+    Includes validation for optional weight and sublocation.
+    """
+    weight_kg = serializers.FloatField(required=False, write_only=True)
+    # location_id and sublocation_id are already on the model,
+    # so we just need to ensure they are writeable.
+    location_id = serializers.IntegerField()
+    sublocation_id = serializers.IntegerField(required=False, allow_null=True)
+
+    class Meta:
+        model = LocationChange
+        fields = ['date', 'location_id', 'sublocation_id', 'weight_kg']
+
+    def validate(self, data):
+        """
+        Custom multi-field validation.
+        """
+        farm_id = self.context.get('farm_id')
+        location_id = data.get('location_id')
+        sublocation_id = data.get('sublocation_id')
+
+        # 1. Validate that the parent location exists on this farm.
+        try:
+            location = Location.objects.get(pk=location_id, farm_id=farm_id)
+        except Location.DoesNotExist:
+            raise serializers.ValidationError({"location_id": f"Location with id {location_id} not found on this farm."})
+
+        # 2. If a sublocation is provided, validate it.
+        if sublocation_id:
+            try:
+                sublocation = Sublocation.objects.get(pk=sublocation_id, farm_id=farm_id)
+                # 3. Ensure the sublocation belongs to the specified parent location.
+                if sublocation.parent_location_id != location.id:
+                    raise serializers.ValidationError({"sublocation_id": "Sublocation does not belong to the specified parent location."})
+            except Sublocation.DoesNotExist:
+                raise serializers.ValidationError({"sublocation_id": f"Sublocation with id {sublocation_id} not found on this farm."})
+        
+        return data
+
 
 class DietLogSerializer(serializers.ModelSerializer):
+    """
+    Serializer for LISTING diet logs.
+    """
+    diet_log_id = serializers.IntegerField(source='id', read_only=True)
+    ear_tag = serializers.CharField(source='animal.ear_tag', read_only=True)
+    lot = serializers.CharField(source='animal.lot', read_only=True)
+
     class Meta:
         model = DietLog
-        fields = ['id', 'date', 'diet_type', 'daily_intake_percentage']
+        fields = [
+            'diet_log_id', 'date', 'ear_tag', 'lot', 'diet_type',
+            'daily_intake_percentage', 'animal_id', 'farm_id'
+        ]
+
+class DietLogCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for CREATING a new diet log.
+    Includes the optional weight field.
+    """
+    weight_kg = serializers.FloatField(required=False, write_only=True)
+
+    class Meta:
+        model = DietLog
+        fields = ['date', 'diet_type', 'daily_intake_percentage', 'weight_kg']
 
 class SanitaryProtocolSerializer(serializers.ModelSerializer):
+    """
+    Serializer for LISTING sanitary protocols.
+    Includes read-only fields from the related animal for a rich response.
+    """
+    ear_tag = serializers.CharField(source='animal.ear_tag', read_only=True)
+    lot = serializers.CharField(source='animal.lot', read_only=True)
+    protocol_id = serializers.IntegerField(source='id', read_only=True)
+
     class Meta:
         model = SanitaryProtocol
         fields = [
-            'id', 'date', 'protocol_type', 'product_name', 'dosage', 'invoice_number'
+            'protocol_id', 'date', 'ear_tag', 'lot', 'protocol_type',
+            'product_name', 'invoice_number', 'dosage', 'animal_id', 'farm_id'
+        ]
+
+class SanitaryProtocolCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for CREATING sanitary protocols within a batch.
+    """
+    class Meta:
+        model = SanitaryProtocol
+        # Fields required for each protocol object in the POST request's list.
+        fields = [
+            'date', 'protocol_type', 'product_name', 'dosage', 'invoice_number'
         ]
 
 # --- Serializers for the Purchase Endpoint ---
@@ -142,7 +366,6 @@ class SaleSerializer(serializers.ModelSerializer):
     """
     Serializer for the Sale model, enriched with calculated KPIs.
     """
-    # --- Renamed and Added Fields ---
     sale_id = serializers.IntegerField(source='id', read_only=True)
     animal_id = serializers.IntegerField(source='animal.id', read_only=True)
     farm_id = serializers.IntegerField(source='animal.farm_id', read_only=True)
@@ -204,3 +427,26 @@ class SaleCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sale
         fields = ['date', 'sale_price', 'exit_weight']
+
+class DeathSerializer(serializers.ModelSerializer):
+    """
+    Serializer for LISTING death records.
+    """
+    death_id = serializers.IntegerField(source='id', read_only=True)
+    ear_tag = serializers.CharField(source='animal.ear_tag', read_only=True)
+    lot = serializers.CharField(source='animal.lot', read_only=True)
+
+    class Meta:
+        model = Death
+        fields = [
+            'death_id', 'date', 'ear_tag', 'lot', 'cause',
+            'animal_id', 'farm_id'
+        ]
+
+class DeathCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for CREATING a new death record.
+    """
+    class Meta:
+        model = Death
+        fields = ['date', 'cause']

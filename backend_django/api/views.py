@@ -4,15 +4,18 @@ from rest_framework.response import Response
 from rest_framework import status
 # Make sure Q is imported here
 from django.db import transaction
-from django.db.models import Count, Subquery, OuterRef, Q, F, FloatField, Case, When, Sum
-from django.db.models.functions import Coalesce
+from django.db.models import Count, Subquery, OuterRef, Q, F, FloatField, Case, When, Sum, IntegerField
+from django.db.models.functions import Coalesce, Cast, Now, NullIf
+
 from .models import Farm, Location, Purchase, LocationChange, Sublocation, Weighting, DietLog, Sale, Death, SanitaryProtocol
 from .serializers import (FarmSerializer, LocationSerializer, SublocationSerializer, 
-                    PurchaseCreateSerializer, PurchaseListSerializer, WeightingSerializer, 
-                    LocationChangeSerializer, DietLogSerializer, SanitaryProtocolSerializer, 
-                    SaleCreateSerializer, SaleSerializer)   # We will add more serializers here later
+                        PurchaseCreateSerializer, PurchaseListSerializer, WeightingSerializer, 
+                        WeightingCreateSerializer, LocationChangeSerializer, DietLogSerializer, SanitaryProtocolSerializer, 
+                        SanitaryProtocolCreateSerializer, SaleCreateSerializer, SaleSerializer, LocationChangeCreateSerializer, 
+                        DietLogCreateSerializer, DeathSerializer, DeathCreateSerializer, LocationCreateUpdateSerializer, 
+                        LocationSummarySerializer, AnimalSummarySerializer, SublocationCreateUpdateSerializer)   # We will add more serializers here later
+
 from datetime import date
-# Create your views here.
 
 @api_view(['GET', 'POST'])
 def farm_list(request):
@@ -79,52 +82,63 @@ def farm_detail(request, farm_id):
         # Return a success message with a 204 NO CONTENT status.
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 def location_list(request, farm_id):
     """
-    API view to retrieve a list of locations for a farm, enriched with
-    database-calculated KPIs for both locations and sublocations.
-    This version uses separate, optimized queries for clarity and robustness.
+    API view to retrieve a list of all locations for a farm or create a new one.
+    - Handles GET /api/farm/<farm_id>/locations/
+    - Handles POST /api/farm/<farm_id>/locations/
     """
-    # --- Step 1: Get data for all active animals on the farm ---
-    # We fetch the essential components needed for all our calculations.
+    if not Farm.objects.filter(pk=farm_id).exists():
+        return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        location_kpis_data = location_list.get_kpis_for_locations(farm_id)
+        locations = Location.objects.filter(farm_id=farm_id).prefetch_related('sublocations').order_by('name')
+        
+        context = {
+            'location_kpis': location_kpis_data.get('location_kpis', {}),
+            'sublocation_counts': location_kpis_data.get('sublocation_kpis', {}),
+        }
+        
+        serializer = LocationSerializer(locations, many=True, context=context)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        context = {'farm_id': farm_id}
+        serializer = LocationCreateUpdateSerializer(data=request.data, context=context)
+        if serializer.is_valid():
+            new_location = serializer.save(farm_id=farm_id)
+            response_serializer = LocationSerializer(new_location) # Use rich serializer for response
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# Helper method attached to the view function for organization
+def get_kpis_for_locations(farm_id):
     active_animals_qs = Purchase.objects.filter(
         farm_id=farm_id, sale__isnull=True, death__isnull=True
     ).annotate(
-        # Get the ID of the animal's latest location
         current_location_id=Subquery(
             LocationChange.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id').values('location_id')[:1]
         ),
-        # Get the ID of the animal's latest sublocation
         current_sublocation_id=Subquery(
             LocationChange.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id').values('sublocation_id')[:1]
         ),
-        # Get the animal's latest weight
         last_weight=Subquery(
             Weighting.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id').values('weight_kg')[:1]
         ),
-        # Get the date of the animal's latest weight
         last_weight_date=Subquery(
             Weighting.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id').values('date')[:1]
         )
     )
-
-    # --- Step 2: Process the data in Python ---
     today = date.today()
-    location_kpis = {}
-    sublocation_kpis = {}
-
+    location_kpis, sublocation_kpis = {}, {}
     for animal in active_animals_qs:
-        loc_id = animal.current_location_id
-        subloc_id = animal.current_sublocation_id
-
-        # Initialize dictionaries if needed
+        loc_id, subloc_id = animal.current_location_id, animal.current_sublocation_id
         if loc_id and loc_id not in location_kpis:
             location_kpis[loc_id] = {'animal_count': 0, 'total_actual': 0.0, 'total_forecasted': 0.0}
         if subloc_id and subloc_id not in sublocation_kpis:
             sublocation_kpis[subloc_id] = {'animal_count': 0}
-
-        # Calculate GMD and Forecasted Weight
         last_w = animal.last_weight or animal.entry_weight
         last_w_date = animal.last_weight_date or animal.entry_date
         days_for_gmd = (last_w_date - animal.entry_date).days
@@ -132,25 +146,168 @@ def location_list(request, farm_id):
         gmd = (gain / days_for_gmd) if days_for_gmd > 0 else 0.0
         days_since_weigh = (today - last_w_date).days
         forecasted_w = last_w + (gmd * days_since_weigh)
-
-        # Aggregate data
         if loc_id:
             location_kpis[loc_id]['animal_count'] += 1
             location_kpis[loc_id]['total_actual'] += last_w
             location_kpis[loc_id]['total_forecasted'] += forecasted_w
         if subloc_id:
             sublocation_kpis[subloc_id]['animal_count'] += 1
+    return {'location_kpis': location_kpis, 'sublocation_kpis': sublocation_kpis}
 
-    # --- Step 3: Get Location Objects and Serialize ---
-    locations = Location.objects.filter(farm_id=farm_id).prefetch_related('sublocations').order_by('name')
+location_list.get_kpis_for_locations = get_kpis_for_locations
 
-    context = {
-        'location_kpis': location_kpis,
-        'sublocation_counts': sublocation_kpis,
-    }
-    
-    serializer = LocationSerializer(locations, many=True, context=context)
-    return Response(serializer.data)
+@api_view(['GET', 'PUT', 'DELETE'])
+def location_detail(request, farm_id, location_id):
+    """
+    API view to retrieve a detailed summary, update, or delete a single location.
+    - Handles GET /api/farm/<farm_id>/location/<location_id>/ (Summary)
+    - Handles PUT /api/farm/<farm_id>/location/<location_id>/ (Update)
+    - Handles DELETE /api/farm/<farm_id>/location/<location_id>/ (Delete)
+    """
+    try:
+        location = Location.objects.get(pk=location_id, farm_id=farm_id)
+    except Location.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        # --- Step 1: Find the primary keys of active animals whose LATEST location is this one. ---
+        # This is the most performance-critical step.
+        latest_locations = LocationChange.objects.filter(
+            animal=OuterRef('pk')
+        ).order_by('-date', '-id')
+
+        animal_ids_in_location = Purchase.objects.filter(
+            farm_id=farm_id,
+            sale__isnull=True,
+            death__isnull=True
+        ).annotate(
+            current_location_id=Subquery(latest_locations.values('location_id')[:1])
+        ).filter(
+            current_location_id=location_id
+        ).values_list('pk', flat=True)
+
+        # --- Step 2: Now, run the complex KPI query ONLY on those specific animal IDs. ---
+        latest_weightings = Weighting.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
+        latest_diets = DietLog.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
+
+        # Django's equivalent of julianday is a bit more complex, using timedelta.
+        # We calculate durations in days.
+        days_on_farm_expr = (Now() - F('entry_date'))
+        days_for_gmd_expr = (Subquery(latest_weightings.values('date')[:1]) - F('entry_date'))
+        
+        # Cast timedelta fields to FloatField representing days for arithmetic
+        days_on_farm = Cast(days_on_farm_expr, FloatField()) / (24 * 60 * 60)
+        days_for_gmd = Cast(days_for_gmd_expr, FloatField()) / (24 * 60 * 60)
+        
+        last_weight_kg = Subquery(latest_weightings.values('weight_kg')[:1])
+        total_gain = last_weight_kg - F('entry_weight')
+        # Use NullIf to prevent division by zero. If days_for_gmd is 0,
+        # NullIf will return NULL, and any division by NULL results in NULL.
+        # This is the correct and efficient way to handle this in SQL.
+        gmd = total_gain / NullIf(days_for_gmd, 0.0)
+
+        animals_qs = Purchase.objects.filter(
+            pk__in=list(animal_ids_in_location)
+        ).annotate(
+            current_age_months=F('entry_age') + (days_on_farm / 30.44),
+            last_weight_kg=last_weight_kg,
+            average_daily_gain_kg=gmd,
+            forecasted_current_weight_kg=last_weight_kg + (gmd * days_on_farm),
+            current_diet_type=Subquery(latest_diets.values('diet_type')[:1]),
+            current_sublocation_name=Subquery(
+                Sublocation.objects.filter(
+                    pk=Subquery(latest_locations.values('sublocation_id')[:1])
+                ).values('name')[:1]
+            )
+        )
+
+        # --- Step 3: Assemble the final response object ---
+        # The 'location' object is already our 'location_details'.
+        # The 'animals_qs' is our 'animals' list.
+        summary_data = {
+            'location_details': location,
+            'animals': animals_qs
+        }
+
+        # Use the new top-level serializer to structure the response correctly.
+        # We pass the calculated location KPIs via context to the nested LocationSerializer.
+        kpi_data = location_list.get_kpis_for_locations(farm_id)
+        kpi_context = {
+            'location_kpis': kpi_data.get('location_kpis', {}),
+            'sublocation_counts': kpi_data.get('sublocation_kpis', {}),
+        }   
+        serializer = LocationSummarySerializer(summary_data, context=kpi_context)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        context = {'farm_id': farm_id}
+        serializer = LocationCreateUpdateSerializer(location, data=request.data, context=context)
+        if serializer.is_valid():
+            updated_location = serializer.save()
+            response_serializer = LocationSerializer(updated_location)
+            return Response(response_serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        location.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET', 'POST'])
+def sublocation_list(request, farm_id, location_id):
+    """
+    API view to list sublocations for a specific location or create a new one.
+    - Handles GET /api/farm/<farm_id>/location/<location_id>/sublocations/
+    - Handles POST /api/farm/<farm_id>/location/<location_id>/sublocations/
+    """
+    # Security: Ensure parent location exists and belongs to the farm for both methods.
+    if not Location.objects.filter(pk=location_id, farm_id=farm_id).exists():
+        return Response({"error": "Parent location not found on this farm."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        # List all sublocations belonging to the specific parent location
+        sublocations = Sublocation.objects.filter(
+            parent_location_id=location_id
+        ).order_by('name')
+        serializer = SublocationSerializer(sublocations, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        # Create a new sublocation within the specific parent location
+        context = {'location_id': location_id}
+        serializer = SublocationCreateUpdateSerializer(data=request.data, context=context)
+        if serializer.is_valid():
+            new_sublocation = serializer.save(farm_id=farm_id, parent_location_id=location_id)
+            response_serializer = SublocationSerializer(new_sublocation)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def sublocation_detail(request, farm_id, sublocation_id):
+    """
+    API view to retrieve, update, or delete a single sublocation.
+    """
+    # Security: Ensure the sublocation exists and belongs to the specified farm.
+    try:
+        sublocation = Sublocation.objects.get(pk=sublocation_id, farm_id=farm_id)
+    except Sublocation.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = SublocationSerializer(sublocation)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        context = {'location_id': sublocation.parent_location_id}
+        serializer = SublocationCreateUpdateSerializer(sublocation, data=request.data, context=context)
+        if serializer.is_valid():
+            updated_sublocation = serializer.save()
+            response_serializer = SublocationSerializer(updated_sublocation)
+            return Response(response_serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        sublocation.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 @api_view(['GET', 'POST'])
 def purchase_list(request, farm_id):
@@ -307,3 +464,370 @@ def sale_create(request, farm_id, purchase_id):
     
     # If the serializer is not valid, return the validation errors.
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+def weighting_list(request, farm_id):
+    """
+    API view to list all weighting records for a specific farm.
+    Handles GET /api/farm/<farm_id>/weightings/
+    """
+    # Ensure the farm exists to provide a clean 404 if the ID is invalid.
+    if not Farm.objects.filter(pk=farm_id).exists():
+        return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # The core queryset for this view.
+    # 1. Filter by the farm_id from the URL.
+    # 2. Use select_related('animal') to perform a SQL JOIN and fetch the related
+    #    Purchase data in a single, efficient query. This prevents the N+1 problem
+    #    where the serializer would otherwise make a new DB query for each weighting.
+    # 3. Order the results by date, descending, to show the most recent first.
+    weightings = Weighting.objects.filter(farm_id=farm_id).select_related('animal').order_by('-date')
+
+    # Serialize the queryset. The WeightingSerializer will now have efficient access
+    # to the 'animal' object for each weighting record.
+    serializer = WeightingSerializer(weightings, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+def weighting_create(request, farm_id, purchase_id):
+    """
+    API view to add a new weight record to a specific, existing animal.
+    Handles POST /api/farm/<farm_id>/purchase/<purchase_id>/weighting/add/
+    """
+    # --- Validation and Security ---
+    try:
+        # Ensure the animal exists and belongs to the correct farm.
+        animal = Purchase.objects.get(pk=purchase_id, farm_id=farm_id)
+    except Purchase.DoesNotExist:
+        return Response({"error": "Animal not found on this farm."}, status=status.HTTP_404_NOT_FOUND)
+
+    # --- Data Processing ---
+    serializer = WeightingCreateSerializer(data=request.data)
+    if serializer.is_valid():
+        # If validation is successful, create the new Weighting instance.
+        # The 'animal' and 'farm' are associated here, not from the request body.
+        new_weighting = serializer.save(animal=animal, farm_id=farm_id)
+
+        # Use the detailed WeightingSerializer for the response to include
+        # the animal's ear_tag and lot, matching the Flask API pattern.
+        response_serializer = WeightingSerializer(new_weighting)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+    # If the serializer is not valid, return the validation errors.
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+def sanitary_protocol_list(request, farm_id):
+    """
+    API view to list all sanitary protocol events for a specific farm.
+    Handles GET /api/farm/<farm_id>/sanitary/
+    """
+    if not Farm.objects.filter(pk=farm_id).exists():
+        return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Use select_related('animal') for performance, just like in other list views.
+    protocols = SanitaryProtocol.objects.filter(
+        farm_id=farm_id
+    ).select_related('animal').order_by('-date')
+    
+    serializer = SanitaryProtocolSerializer(protocols, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+def sanitary_protocol_create(request, farm_id, purchase_id):
+    """
+    Adds a batch of new sanitary protocol records to a specific animal.
+    Also handles an optional, concurrent weight record.
+    Handles POST /api/farm/<farm_id>/purchase/<purchase_id>/sanitary/add
+    """
+    # --- Validation and Security ---
+    try:
+        animal = Purchase.objects.get(pk=purchase_id, farm_id=farm_id)
+    except Purchase.DoesNotExist:
+        return Response({"error": "Animal not found on this farm."}, status=status.HTTP_404_NOT_FOUND)
+
+    # --- Data Extraction and Validation ---
+    protocols_data = request.data.get('protocols')
+    optional_weight = request.data.get('weight_kg')
+
+    if not isinstance(protocols_data, list):
+        return Response({"error": "Request body must contain a 'protocols' list."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if not protocols_data:
+         return Response({'error': "Protocols list cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Validate every protocol object in the list
+    serializer = SanitaryProtocolCreateSerializer(data=protocols_data, many=True)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        with transaction.atomic():
+            # 1. Create the optional Weighting record if provided.
+            # Use the date from the first protocol as the reference date.
+            if optional_weight and float(optional_weight) > 0:
+                event_date = serializer.validated_data[0]['date']
+                Weighting.objects.create(
+                    animal=animal,
+                    farm_id=farm_id,
+                    date=event_date,
+                    weight_kg=float(optional_weight)
+                )
+
+            # 2. Loop through the validated data and create all protocols.
+            for protocol_data in serializer.validated_data:
+                SanitaryProtocol.objects.create(
+                    animal=animal,
+                    farm_id=farm_id,
+                    **protocol_data
+                )
+        
+        return Response(
+            {"message": f'{len(protocols_data)} protocols recorded successfully!'},
+            status=status.HTTP_201_CREATED
+        )
+
+    except (ValueError, TypeError):
+         return Response({"error": "Invalid 'weight_kg' format."}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({"error": f"An error occurred during save: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def location_change_list(request, farm_id):
+    """
+    API view to list all location change events for a specific farm.
+    Handles GET /api/farm/<farm_id>/location_log/
+    """
+    if not Farm.objects.filter(pk=farm_id).exists():
+        return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Optimization: Use select_related to pre-fetch all related models in one query.
+    changes = LocationChange.objects.filter(
+        farm_id=farm_id
+    ).select_related('animal', 'location', 'sublocation').order_by('-date')
+    
+    serializer = LocationChangeSerializer(changes, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+def location_change_create(request, farm_id, purchase_id):
+    """
+    Adds a new location change record to a specific animal,
+    with optional sublocation and optional concurrent weighting.
+    Handles POST /api/farm/<farm_id>/purchase/<purchase_id>/location/add/
+    """
+    # --- Validation and Security ---
+    try:
+        animal = Purchase.objects.get(pk=purchase_id, farm_id=farm_id)
+    except Purchase.DoesNotExist:
+        return Response({"error": "Animal not found on this farm."}, status=status.HTTP_404_NOT_FOUND)
+
+    # --- Data Processing ---
+    # Pass farm_id to the serializer's context for use in our custom validation.
+    context = {'farm_id': farm_id}
+    serializer = LocationChangeCreateSerializer(data=request.data, context=context)
+    if serializer.is_valid():
+        validated_data = serializer.validated_data
+        optional_weight = validated_data.pop('weight_kg', None)
+
+        try:
+            with transaction.atomic():
+                # 1. Create the LocationChange record.
+                # The validated_data now perfectly matches the model's needs.
+                new_change = LocationChange.objects.create(
+                    animal=animal,
+                    farm_id=farm_id,
+                    **validated_data
+                )
+
+                # 2. Create the optional Weighting record.
+                if optional_weight and float(optional_weight) > 0:
+                    Weighting.objects.create(
+                        animal=animal,
+                        farm_id=farm_id,
+                        date=new_change.date,
+                        weight_kg=optional_weight
+                    )
+            
+            # Use the "read" serializer for a rich response
+            response_serializer = LocationChangeSerializer(new_change)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        except (ValueError, TypeError):
+             return Response({"error": "Invalid 'weight_kg' format."}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": f"An error occurred during save: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+def diet_log_list(request, farm_id):
+    """
+    API view to list all diet log events for a specific farm.
+    Handles GET /api/farm/<farm_id>/diets/
+    """
+    if not Farm.objects.filter(pk=farm_id).exists():
+        return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Use select_related for optimized query
+    diets = DietLog.objects.filter(
+        farm_id=farm_id
+    ).select_related('animal').order_by('-date')
+    
+    serializer = DietLogSerializer(diets, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+def diet_log_create(request, farm_id, purchase_id):
+    """
+    Adds a new diet log record to a specific animal,
+    with an optional concurrent weighting.
+    Handles POST /api/farm/<farm_id>/purchase/<purchase_id>/diet/add/
+    """
+    # --- Validation and Security ---
+    try:
+        animal = Purchase.objects.get(pk=purchase_id, farm_id=farm_id)
+    except Purchase.DoesNotExist:
+        return Response({"error": "Animal not found on this farm."}, status=status.HTTP_404_NOT_FOUND)
+
+    # --- Data Processing ---
+    serializer = DietLogCreateSerializer(data=request.data)
+    if serializer.is_valid():
+        validated_data = serializer.validated_data
+        optional_weight = validated_data.pop('weight_kg', None)
+
+        try:
+            with transaction.atomic():
+                # 1. Create the DietLog record.
+                new_diet_log = DietLog.objects.create(
+                    animal=animal,
+                    farm_id=farm_id,
+                    **validated_data
+                )
+
+                # 2. Create the optional Weighting record.
+                if optional_weight and float(optional_weight) > 0:
+                    Weighting.objects.create(
+                        animal=animal,
+                        farm_id=farm_id,
+                        date=new_diet_log.date,
+                        weight_kg=optional_weight
+                    )
+            
+            # Use the "read" serializer for the response
+            response_serializer = DietLogSerializer(new_diet_log)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        except (ValueError, TypeError):
+             return Response({"error": "Invalid 'weight_kg' format."}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": f"An error occurred during save: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+def death_list(request, farm_id):
+    """
+    API view to list all death records for a specific farm.
+    Handles GET /api/farm/<farm_id>/deaths/
+    """
+    if not Farm.objects.filter(pk=farm_id).exists():
+        return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    deaths = Death.objects.filter(
+        farm_id=farm_id
+    ).select_related('animal').order_by('-date')
+    
+    serializer = DeathSerializer(deaths, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+def death_create(request, farm_id, purchase_id):
+    """
+    Creates a new death record for a specific animal.
+    Handles POST /api/farm/<farm_id>/purchase/<purchase_id>/death/add/
+    """
+    # --- Validation and Security ---
+    try:
+        animal = Purchase.objects.get(pk=purchase_id, farm_id=farm_id)
+    except Purchase.DoesNotExist:
+        return Response({"error": "Animal not found on this farm."}, status=status.HTTP_404_NOT_FOUND)
+
+    # --- Business Logic Checks ---
+    if hasattr(animal, 'sale'):
+        return Response({"error": "Cannot record death. This animal has already been sold."}, status=status.HTTP_409_CONFLICT)
+    if hasattr(animal, 'death'):
+        return Response({"error": "A death record for this animal already exists."}, status=status.HTTP_409_CONFLICT)
+
+    # --- Data Processing ---
+    serializer = DeathCreateSerializer(data=request.data)
+    if serializer.is_valid():
+        new_death = serializer.save(animal=animal, farm_id=farm_id)
+        
+        # Use the "read" serializer for the response
+        response_serializer = DeathSerializer(new_death)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)   
+
+@api_view(['GET'])
+def animal_search(request, farm_id):
+    """
+    Searches for active animals within a farm by their ear tag.
+    Handles GET /api/farm/<farm_id>/animal/search?eartag=<value>
+    """
+    tag_to_search_raw = request.query_params.get('eartag')
+    if not tag_to_search_raw:
+        return Response({'error': 'An eartag parameter is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    tag_to_search = tag_to_search_raw.strip().strip('\'"')
+
+    base_query = Purchase.objects.filter(
+        farm_id=farm_id,
+        ear_tag=tag_to_search,
+        sale__isnull=True,
+        death__isnull=True
+    )
+
+    # --- ENHANCED ANNOTATIONS ---
+    # We now add annotations for every KPI field needed by the serializer.
+    latest_weightings = Weighting.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
+    latest_diets = DietLog.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
+    latest_locations = LocationChange.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
+
+    days_on_farm_expr = (Now() - F('entry_date'))
+    days_for_gmd_expr = (Subquery(latest_weightings.values('date')[:1]) - F('entry_date'))
+    days_on_farm = Cast(days_on_farm_expr, FloatField()) / (24 * 60 * 60)
+    days_for_gmd = Cast(days_for_gmd_expr, FloatField()) / (24 * 60 * 60)
+    last_weight_kg = Subquery(latest_weightings.values('weight_kg')[:1])
+    total_gain = last_weight_kg - F('entry_weight')
+    gmd = total_gain / NullIf(days_for_gmd, 0.0)
+
+    annotated_query = base_query.annotate(
+        # Existing KPIs
+        current_age_months=F('entry_age') + (days_on_farm / 30.44),
+        last_weight_kg=last_weight_kg,
+        average_daily_gain_kg=gmd,
+        forecasted_current_weight_kg=last_weight_kg + (gmd * days_on_farm),
+        current_diet_type=Subquery(latest_diets.values('diet_type')[:1]),
+        
+        # <-- NEWLY ADDED ANNOTATIONS -->
+        days_on_farm_int=Cast(days_on_farm, IntegerField()),
+        last_weighting_date=Subquery(latest_weightings.values('date')[:1]),
+        current_diet_intake=Subquery(latest_diets.values('daily_intake_percentage')[:1]),
+        current_location_id=Subquery(latest_locations.values('location_id')[:1]),
+        current_location_name=Subquery(
+            Location.objects.filter(pk=Subquery(latest_locations.values('location_id')[:1])).values('name')[:1]
+        ),
+        current_sublocation_id=Subquery(latest_locations.values('sublocation_id')[:1]),
+        current_sublocation_name=Subquery(
+            Sublocation.objects.filter(pk=Subquery(latest_locations.values('sublocation_id')[:1])).values('name')[:1]
+        )
+    )
+
+    serializer = AnimalSummarySerializer(annotated_query, many=True)
+    return Response(serializer.data)
