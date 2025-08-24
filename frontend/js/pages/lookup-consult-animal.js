@@ -306,6 +306,7 @@ function initConsultAnimalPage() {
         const gridDiv = document.getElementById(gridId);
         if (!gridDiv) return;
         
+        gridDiv.className = 'ag-theme-quartz';
         const gridOptions = {
             columnDefs: columnDefs,
             rowData: rowData,

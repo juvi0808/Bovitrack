@@ -649,6 +649,13 @@ tbody tr:hover {
     background-color: #ffffff;
 }
 
+#animal-list {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* This is the key property that makes it grow */
+    margin-bottom: 0; /* Remove bottom margin to fill the whole space */
+}
+
 /* ==========================================================================
    9. Notifications
    ========================================================================== */

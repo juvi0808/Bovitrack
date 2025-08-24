@@ -147,6 +147,7 @@ function createLocationAnimalsGrid(animals) {
     const gridDiv = document.getElementById('location-animals-grid');
     if (!gridDiv) return;
 
+    gridDiv.className = 'ag-theme-quartz full-height-grid';
     const columnDefs = [
         { headerName: getTranslation("ear_tag"), field: "ear_tag", width: 120, onCellClicked: (params) => window.navigateToConsultAnimal(params.data.id,'page-farm-locations'), cellClass: 'clickable-cell' },
         { 

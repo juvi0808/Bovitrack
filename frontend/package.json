@@ -1,18 +1,52 @@
 {
-  "name": "frontend",
+  "name": "bovitrack",
   "version": "1.0.0",
+  "description": "Livestock Management Application",
   "main": "main.js",
+  "homepage": "./",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-builder"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
-  "devDependencies": {
-    "electron": "^37.2.4"
-  },
   "dependencies": {
-    "ag-grid-community": "^34.1.0"
+    "ag-grid-community": "^31.3.2",
+    "chart.js": "^4.4.3"
+  },
+  "devDependencies": {
+    "electron": "^31.0.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.yourname.bovitrack",
+    "productName": "BoviTrack",
+    "files": [
+      "**/*",
+      "!node_modules/*",
+      "node_modules/ag-grid-community/styles/ag-grid.css",
+      "node_modules/ag-grid-community/styles/ag-theme-quartz.css",
+      "node_modules/chart.js/dist/chart.umd.js"
+    ],
+    "extraResources": [
+      {
+        "from": "./backend/bovitrack_backend",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon/bovitrack_icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }

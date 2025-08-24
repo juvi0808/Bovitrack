@@ -1,44 +1,52 @@
 
 
+Of course. The current `README` is good, but it significantly undersells what your application can actually do. Many of the features listed under "Future Development" are already complete.
+
+Here is a revised, more professional, and accurate description of your application's features, formatted in Markdown. This version is ready to be copied and pasted directly into your `README.md` file on GitHub.
+
+---
+
 # BoviTrack - Livestock Management Application
 
-BoviTrack is a robust, desktop-based application designed for efficient and detailed management of livestock operations. Built with a powerful **Python/Flask backend** and a dynamic **JavaScript/HTML/CSS frontend**, it provides farmers and managers with the tools to track individual animal performance, manage resources, and gain key insights into their herd's productivity.
+BoviTrack is a robust, desktop-based application for efficient and detailed management of livestock operations. Built with a powerful **Python/Flask backend** and a dynamic **JavaScript/HTML/CSS frontend**, and packaged with **Electron**, it provides a true native desktop experience for farmers and managers.
 
-The application leverages an **AG-Grid** interface for powerful data visualization and interaction, ensuring a smooth and responsive user experience.
-
-
+The application leverages a high-performance **AG-Grid** interface for powerful data visualization, sorting, and filtering, ensuring a smooth and responsive user experience even with thousands of records.
 
 ## Core Features
 
-BoviTrack is centered around the complete lifecycle of livestock, from acquisition to sale, providing detailed tracking at every stage.
+BoviTrack is centered around the complete lifecycle of livestock, from acquisition to sale or loss, providing detailed tracking and analytics at every stage.
 
-### 1. Multi-Farm Management
-*   **Create, Rename, and Delete Farms:** The system is designed to handle multiple distinct farm properties, keeping all data completely separate and organized.
+### 1. Multi-Farm Operations & Data Portability
+*   **Multi-Farm Support:** Create, rename, and manage multiple distinct farm properties, keeping all data completely separate and organized.
 *   **Persistent Selection:** The application intelligently remembers the last farm you were working on, providing a seamless experience across sessions.
+*   **Full Import/Export:** Backup data from one or more farms to a JSON file, or use it to migrate your entire operation to a new computer.
 
-### 2. Comprehensive Animal Records
-*   **Detailed Purchase Entry:** Record new animals with extensive details, including ear tag, lot number, entry date, weight, age, sex, race, and purchase price.
-*   **Initial Location & Health Protocols:** Assign an initial pasture or module and log all sanitary protocols administered at the time of purchase in a single, streamlined workflow.
-*   **Full Historical View:** Access a complete history for every animal, including every weighting, location change, health treatment, and diet log.
+### 2. Complete Animal Lifecycle Tracking
+*   **Comprehensive Animal Records:** Log new animals with extensive details, including ear tag, lot, entry date, weight, age, sex, race, and purchase price.
+*   **Integrated Event Logging:** Record every key event in an animal's life, including weight checks, health protocols, diet changes, and location moves.
+*   **Sale and Death Management:** Fully implemented workflows for recording sales and deaths, which automatically removes animals from active stock and preserves their data for historical analysis.
+*   **Master Record View:** A centralized "single source of truth" for any animal, showing its complete history, performance KPIs, and a weight gain chart at a glance.
 
-### 3. Key Performance Indicator (KPI) Tracking
-The backend automatically calculates critical performance metrics in real-time:
-*   **Average Daily Gain (GMD):** Both overall (since entry) and period-specific (between weightings).
-*   **Current & Forecasted Weight:** Get an up-to-the-minute estimated weight for any animal based on its historical GMD.
-*   **Days on Farm & Current Age:** Instantly know how long an animal has been on the property and its current age in months.
+### 3. Advanced Analytics & KPIs
+*   **Real-Time Performance Metrics:** The backend automatically calculates critical KPIs for every active animal:
+    *   **Average Daily Gain (GMD):** Both accumulated (since entry) and period-specific (between weightings).
+    *   **Forecasted Weight:** An up-to-the-minute estimated weight based on historical performance.
+    *   **Days on Farm** and **Current Age**.
+*   **Location & Pasture KPIs:** The "Locations" view provides an operational dashboard showing animal count, area, and calculated **Capacity Rates (UA/ha)** for effective pasture management.
+*   **Lot Summaries:** Group animals by lot and instantly view aggregated KPIs for the entire group, including average age, average GMD, and total animal count.
 
-### 4. Resource & Stock Management
-*   **Active Stock Dashboard:** A centralized view of all active animals on the farm, complete with their individual KPIs and a herd-level summary (total animals, average age, average GMD).
-*   **Location Management:** Define and manage distinct locations (e.g., pastures, modules) and view location-specific KPIs like animal count and capacity rates.
-*   **Efficient Data Entry:** The "Add Purchase" form is optimized for power users, remembering sanitary protocols from the previous entry and keeping the form open to allow for rapid recording of entire lots.
+### 4. User Experience & Tools
+*   **Active Stock Dashboard:** A powerful and sortable main screen showing a complete summary of all active animals and their current performance.
+*   **Multi-Language Support:** The interface is fully translated to support English, Spanish, and Portuguese.
+*   **Interactive Demo Farm:** New users can load a pre-populated demo farm with thousands of records to immediately explore the application's features without needing to input data first.
 
 ## Technology Stack
 
-*   **Backend:** Python 3, Flask, SQLAlchemy (for ORM), Flask-CORS
+*   **Backend:** Python 3, Flask, SQLAlchemy
 *   **Frontend:** Vanilla JavaScript (ES6+), HTML5, CSS3
-*   **Database:** SQLite (for ease of setup and portability)
-*   **Core UI Library:** AG-Grid Community for powerful and feature-rich data tables.
-*   **Desktop App Framework:** Electron (as implied by the file structure)
+*   **Database:** SQLite
+*   **Core UI Library:** AG-Grid Community
+*   **Desktop App Framework:** Electron
 
 ## Future Development & Planned Features
 
@@ -46,81 +54,120 @@ BoviTrack is an evolving platform. The following features are on the development
 
 *   **[ ] Financial Module:**
     *   Track costs associated with feed, medicine, and labor.
-    *   Calculate profitability per animal and per lot.
-    *   Generate financial summary reports.
-*   **[ ] Diet & Feed Management:**
-    *   Create and manage different diet formulations.
-    *   Track feed inventory and consumption rates.
-*   **[ ] Location KPIs & History:**
-    *   Detailed historical view of a location's occupancy over time.
-    *   Calculate total weight and animal units (UA) per pasture.
+    *   Calculate profitability per animal and per lot, including a final profit/loss calculation upon sale.
 *   **[ ] Advanced Reporting & Analytics:**
     *   Generate and export PDF/CSV reports for sales, stock summaries, and animal histories.
-    *   Visual dashboards with charts and graphs for herd performance over time.
-*   **[ ] Death & Sale Records:**
-    *   Fully implement forms and history pages for recording animal sales and deaths, which will automatically move them from the "Active Stock" view.
+    *   Visual dashboards with charts for herd performance over time.
+*   **[ ] Diet & Feed Management:**
+    *   Create and manage different diet formulations.
+    *   Track feed inventory and consumption rates to better manage costs.
+*   **[ ] Advanced Location Analysis:**
+    *   Provide a historical view of a location's occupancy over time to analyze pasture rotation and rest periods.
+    *   Provide satelite mapping of locations, allowing users to view the location of their animals in real-time.
 
 ---
 
-## Developer Instructions
+## Development Setup
 
-Follow these instructions to set up and run the BoviTrack application in a development environment.
+Follow these instructions to set up the project for local development and testing.
 
-### 1. Initial Project Setup
+### Prerequisites
 
-These steps only need to be performed once.
+Before you begin, ensure you have the following installed on your system:
+*   **Python** (version 3.10 or higher)
+*   **Node.js** (version 18.x or higher) and **npm**
+*   **Git**
 
-1.  **Create a Virtual Environment:**
-    From the project's root directory (`BoviTrack/`), run:
+### Installation
+
+**1. Clone the Repository**
+```bash
+git clone https://github.com/juvi0808/Bovitrack.git
+cd live_stock_manager
+```
+
+**2. Configure the Python Backend**
+Follow these steps from the project's root directory (`/live_stock_manager`).
+
+*   **Create and activate a virtual environment:**
     ```bash
+    # Create the virtual environment
     python -m venv venv
+
+    # Activate on Windows (PowerShell)
+    .\venv\Scripts\Activate.ps1
+
+    # Activate on macOS/Linux
+    source venv/bin/activate
     ```
 
-2.  **Activate the Virtual Environment:**
-    *   On Windows (PowerShell):
-        ```bash
-        .\venv\Scripts\Activate.ps1
-        ```
-    *   On macOS/Linux:
-        ```bash
-        source venv/bin/activate
-        ```
-
-3.  **Install Dependencies:**
+*   **Install Python dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
 
-### 2. Database Management
+**3. Configure the Electron Frontend**
 
-1.  **First-Time Database Creation:** To create the initial `database.db` file and all its tables, open a terminal with the virtual environment activated and run:
+*   **Navigate to the frontend directory:**
+    ```bash
+    cd frontend
+    ```
+*   **Install Node.js dependencies:**
+    ```bash
+    npm install
+    ```
+
+**4. Initialize the Database**
+This is a one-time setup step to create the initial database file.
+
+*   **Navigate back to the project's root directory.**
+*   **Ensure your virtual environment (`venv`) is active.**
+*   **Run the Flask shell:**
     ```bash
     flask shell
     ```
-    Inside the shell, run these commands:
+*   **Inside the shell, execute the following Python commands:**
     ```python
-    >>> from app import db
-    >>> db.create_all()
-    >>> exit()
+    from app import db
+    db.create_all()
+    exit()
     ```
 
-2.  **Seeding with Test Data:** To populate the database with sample data, run the seed scripts from the root directory:
+### Running the Application for Development
+
+To launch the application in development mode:
+
+1.  Navigate to the `/frontend` directory.
+2.  Run the start command:
     ```bash
-    python Seed/Seed_Location.py
-    python Seed/Seed_Purchases.py
-    python Seed/Seed_Weightings.py
-    # ... and other seed scripts
+    npm start
     ```
-
-### 3. Running the Application
-
-1.  Ensure your virtual environment is active.
-2.  Start the Flask backend server:
-    ```bash
-    python run.py
-    ```
-    The API will now be running at `http://127.0.0.1:5000`.
-
-3.  To launch the frontend, you will need to run the Electron application (details depend on the `package.json` setup, but typically involves `npm start`).
+This will launch the Electron application window and automatically start the Python/Flask backend server in the background. The Flask server will auto-reload upon changes to the backend code.
 
 ---
+
+## Building for Production
+
+Follow these steps to package the application into a distributable Windows installer (`.exe`).
+
+**1. Package the Python Backend**
+*   Ensure your virtual environment is active.
+*   From the **root directory**, run PyInstaller:
+    ```bash
+    pyinstaller bovitrack_backend.spec
+    ```
+
+**2. Copy the Backend Artifacts**
+*   Delete the old contents of the `frontend/backend` directory.
+*   Copy the newly created folder from `dist/bovitrack_backend` into the `frontend/backend/` directory.
+
+**3. Build the Electron Installer**
+*   **Important:** Open your terminal (PowerShell or Command Prompt) **as an Administrator**.
+*   Navigate to the `frontend` directory.
+*   Run the build command:
+    ```bash
+    npm run build
+    ```
+
+**4. Locate the Installer**
+*   The final, shareable installer (e.g., `BoviTrack Setup 1.0.0.exe`) will be located in the `frontend/dist` folder.

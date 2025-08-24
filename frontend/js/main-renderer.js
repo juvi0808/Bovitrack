@@ -10,8 +10,9 @@
 console.log('Renderer.js script loaded!');
 
 // Set up AG Grid
-const { ModuleRegistry, AllCommunityModule, createGrid } = require('ag-grid-community');
-ModuleRegistry.registerModules([AllCommunityModule]);
+const { ModuleRegistry, AllCommunityModules, createGrid } = require('ag-grid-community');
+// 2. Pass AllCommunityModules directly (it's already an array)
+ModuleRegistry.registerModules(AllCommunityModules);
 
 // --- Global State & Constants ---
 const API_URL = 'http://127.0.0.1:5000';

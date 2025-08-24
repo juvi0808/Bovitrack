@@ -24,6 +24,8 @@ function createLotsListGrid(lots) {
     const gridDiv = document.getElementById('lots-list-grid');
     if (!gridDiv) return;
 
+    gridDiv.className = 'ag-theme-quartz full-height-grid';
+
     const columnDefs = [
         { headerName: getTranslation("lot"), field: "lot_number", width: 150, onCellClicked: (params) => showConsultView(params.data) },
         { headerName: getTranslation("animal_count"), field: "animal_count", width: 150, onCellClicked: (params) => showConsultView(params.data) },
@@ -79,6 +81,7 @@ function createLotAnimalsGrid(animals) {
     const gridDiv = document.getElementById('lot-animals-grid');
     if (!gridDiv) return;
 
+    gridDiv.className = 'ag-theme-quartz full-height-grid';
     const columnDefs = [
         { headerName: getTranslation("ear_tag"), field: "ear_tag", width: 120, onCellClicked: (params) => window.navigateToConsultAnimal(params.data.id,'page-farm-lots'), cellClass: 'clickable-cell' },
         { headerName: getTranslation("sex"), field: "sex", width: 100 },
