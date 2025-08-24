@@ -311,8 +311,8 @@ async function handleRenameFarmSubmit(event) {
     if (!newName || !selectedFarmId) return;
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/rename`, {
-            method: 'POST',
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/rename`, { // New url will be /api/farm/${selectedFarmId}/
+            method: 'POST', // Will have to change to PUT once we migrate to the django backend
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: newName })
         });
@@ -349,8 +349,8 @@ async function handleDeleteFarmSubmit(event) {
     submitButton.textContent = getTranslation('deleting'); // Show loading state
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/delete`, {
-            method: 'DELETE'
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/delete`, { // New url will be /api/farm/${selectedFarmId}/
+            method: 'DELETE' // Will still be DELETE once we migrate to the django backend
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error);

@@ -231,7 +231,7 @@ async function openAddPurchaseModal() {
         };
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/add`, {
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/add`, { // New url will be /api/farm/${selectedFarmId}/purchases
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
