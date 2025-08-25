@@ -12,7 +12,8 @@ BoviTrack is centered around the complete lifecycle of livestock, from acquisiti
 *   **Multi-Farm Support:** Create, rename, and manage multiple distinct farm properties, keeping all data completely separate and organized.
 *   **Persistent Selection:** The application intelligently remembers the last farm you were working on, providing a seamless experience across sessions.
 *   **Full Import/Export:** Backup data from one or more farms to a JSON file, or use it to migrate your entire operation to a new computer.
-      <img width="441" height="113" alt="image" src="https://github.com/user-attachments/assets/3e3200ee-eb01-46cd-a11a-26639fdb8eeb" />
+
+   <img width="441" height="113" alt="image" src="https://github.com/user-attachments/assets/3e3200ee-eb01-46cd-a11a-26639fdb8eeb" />
       <img width="1920" height="1032" alt="image" src="https://github.com/user-attachments/assets/762c4b87-666f-4341-88d4-8c84b9034e59" />
 
 ### 2. Complete Animal Lifecycle Tracking
