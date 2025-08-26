@@ -33,4 +33,12 @@ urlpatterns = [
     path('farm/<int:farm_id>/purchase/<int:purchase_id>/death/add/', views.death_create, name='death-create'),
 
     path('farm/<int:farm_id>/animal/search/', views.animal_search, name='animal-search'),
+    path('farm/<int:farm_id>/animal/<int:purchase_id>/', views.animal_master_record, name='animal-master-record'),
+
+    path('farm/<int:farm_id>/lots/summary/', views.lots_summary, name='lots-summary'),
+    path('farm/<int:farm_id>/lot/<str:lot_number>/', views.lot_detail_summary, name='lot-detail-summary'),
+
+    path('farm/<int:farm_id>/stock/active_summary/', views.active_stock_summary, name='active-stock-summary'),
+
+    path('farm/<int:farm_id>/location/<int:location_id>/bulk_assign_sublocation/', views.bulk_assign_sublocation, name='bulk-assign-sublocation'),
 ]

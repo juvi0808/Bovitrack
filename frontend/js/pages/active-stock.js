@@ -40,14 +40,25 @@ function displaySummary(kpis) {
     const summaryDiv = document.getElementById('summary-kpis');
     if (summaryDiv) {
         summaryDiv.innerHTML = `
-            <p><strong>${getTranslation('total_active_animals')}:</strong> ${kpis.total_active_animals}</p>
-            <p><strong>${getTranslation('males')}:</strong> ${kpis.number_of_males} | <strong>${getTranslation('females')}:</strong> ${kpis.number_of_females}</p>
-            <p><strong>${getTranslation('average_age')}:</strong> ${kpis.average_age_months.toFixed(2)} ${getTranslation('months')}</p>
-            <p><strong>${getTranslation('average_gmd')}:</strong> ${kpis.average_gmd_kg_day.toFixed(3)} kg/day</p>
+            <div class="kpi-card">
+                <span class="kpi-card-value">${kpis.total_active_animals}</span>
+                <span class="kpi-card-label">${getTranslation('total_active_animals')}</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-card-value">${kpis.number_of_males} / ${kpis.number_of_females}</span>
+                <span class="kpi-card-label">${getTranslation('males')} / ${getTranslation('females')}</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-card-value">${kpis.average_age_months.toFixed(2)}</span>
+                <span class="kpi-card-label">${getTranslation('average_age')} (${getTranslation('months')})</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-card-value">${kpis.average_gmd_kg_day.toFixed(3)} kg/day</span>
+                <span class="kpi-card-label">${getTranslation('average_gmd')}</span>
+            </div>
         `;
     }
 }
-
 function createAnimalGrid(animals) {
     const gridDiv = document.getElementById('animal-grid');
     if (gridDiv) {

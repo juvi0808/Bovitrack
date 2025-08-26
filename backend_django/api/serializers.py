@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Farm, Location, Purchase, Sublocation, Weighting, SanitaryProtocol, LocationChange, DietLog, Death, Sale # We will add more models here later
+from datetime import date
 
 class FarmSerializer(serializers.ModelSerializer):
     """
@@ -450,3 +451,251 @@ class DeathCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Death
         fields = ['date', 'cause']
+
+class WeightHistoryEntrySerializer(serializers.Serializer):
+    """
+    Serializes a single, pre-calculated entry in an animal's weight history.
+    This is not a ModelSerializer because the GMD fields are calculated in Python.
+    """
+    date = serializers.DateField()
+    weight_kg = serializers.FloatField()
+    gmd_accumulated_grams = serializers.FloatField()
+    gmd_period_grams = serializers.FloatField()
+
+
+class AnimalKpiSerializer(serializers.Serializer):
+    """
+    Serializes the calculated Key Performance Indicators (KPIs) for an animal.
+    This is not a ModelSerializer as all fields are computed.
+    """
+    average_daily_gain_kg = serializers.FloatField()
+    last_weight_kg = serializers.FloatField()
+    last_weighting_date = serializers.DateField()
+    current_age_months = serializers.FloatField()
+    forecasted_current_weight_kg = serializers.FloatField(allow_null=True)
+    status = serializers.CharField()
+    days_on_farm = serializers.IntegerField()
+    current_location_name = serializers.CharField(allow_null=True)
+    current_location_id = serializers.IntegerField(allow_null=True)
+    current_sublocation_name = serializers.CharField(allow_null=True)
+    current_sublocation_id = serializers.IntegerField(allow_null=True)
+    current_diet_type = serializers.CharField(allow_null=True)
+    current_diet_intake = serializers.FloatField(allow_null=True)
+
+
+class AnimalMasterRecordSerializer(serializers.ModelSerializer):
+    """
+    The main serializer for the animal master record endpoint.
+    It assembles the complete, nested JSON structure by using other serializers
+    and custom methods, implementing the "Smart Hydration" pattern.
+    """
+    purchase_details = PurchaseListSerializer(source='*')
+    exit_details = serializers.SerializerMethodField()
+    calculated_kpis = serializers.SerializerMethodField()
+    weight_history = serializers.SerializerMethodField()
+    protocol_history = SanitaryProtocolSerializer(source='protocols', many=True)
+    location_history = LocationChangeSerializer(source='location_changes', many=True)
+    diet_history = DietLogSerializer(source='diet_logs', many=True)
+
+    class Meta:
+        model = Purchase
+        fields = [
+            'purchase_details',
+            'exit_details',
+            'calculated_kpis',
+            'weight_history',
+            'protocol_history',
+            'location_history',
+            'diet_history',
+        ]
+
+    def get_exit_details(self, obj):
+        """
+        Checks if the animal was sold or has died and returns the
+        appropriate serialized data.
+        """
+        if hasattr(obj, 'sale') and obj.sale:
+            serializer = SaleSerializer(obj.sale)
+            # Add profit/loss calculation, matching the Flask logic
+            data = serializer.data
+            if obj.purchase_price:
+                data['profit_loss'] = data['exit_price'] - obj.purchase_price
+            else:
+                data['profit_loss'] = None
+            return data
+        if hasattr(obj, 'death') and obj.death:
+            return DeathSerializer(obj.death).data
+        return None
+
+    def get_weight_history(self, obj):
+        """
+        Ports the `calculate_weight_history_with_gmd` logic from Flask.
+        It takes the prefetched weighting records, calculates GMDs,
+        and returns the enriched history.
+        """
+        all_weight_events = [{'date': obj.entry_date, 'weight_kg': obj.entry_weight}]
+        all_weight_events.extend(
+            {'date': w.date, 'weight_kg': w.weight_kg} for w in obj.weightings.all()
+        )
+
+        unique_events = [dict(t) for t in {tuple(d.items()) for d in all_weight_events}]
+        sorted_events = sorted(unique_events, key=lambda w: w['date'])
+
+        enriched_history = []
+        if not sorted_events:
+            return []
+
+        first_event = sorted_events[0]
+        for i, current_event in enumerate(sorted_events):
+            days_since_start = (current_event['date'] - first_event['date']).days
+            gain_since_start = current_event['weight_kg'] - first_event['weight_kg']
+            gmd_accumulated = (gain_since_start / days_since_start) if days_since_start > 0 else 0.0
+
+            gmd_period = 0.0
+            if i > 0:
+                previous_event = sorted_events[i - 1]
+                days_between = (current_event['date'] - previous_event['date']).days
+                gain_between = current_event['weight_kg'] - previous_event['weight_kg']
+                gmd_period = (gain_between / days_between) if days_between > 0 else 0.0
+
+            enriched_history.append({
+                'date': current_event['date'],
+                'weight_kg': round(current_event['weight_kg'], 2),
+                'gmd_accumulated_grams': round(gmd_accumulated, 3),
+                'gmd_period_grams': round(gmd_period, 3),
+            })
+        
+        # We use the simple entry serializer here as the logic is already done
+        return WeightHistoryEntrySerializer(enriched_history, many=True).data
+
+    def get_calculated_kpis(self, obj):
+        """
+        Ports the `calculate_kpis` logic from the Flask Purchase model.
+        This performs all KPI calculations in Python after the data
+        has been efficiently fetched.
+        """
+        today = date.today()
+        kpis = {}
+
+        # --- Location & Diet ---
+        latest_change = obj.location_changes.order_by('-date', '-id').first()
+        latest_diet = obj.diet_logs.order_by('-date', '-id').first()
+        kpis['current_location_name'] = latest_change.location.name if latest_change else None
+        kpis['current_location_id'] = latest_change.location_id if latest_change else None
+        kpis['current_sublocation_name'] = latest_change.sublocation.name if latest_change and latest_change.sublocation else None
+        kpis['current_sublocation_id'] = latest_change.sublocation_id if latest_change and latest_change.sublocation else None
+        kpis['current_diet_type'] = latest_diet.diet_type if latest_diet else None
+        kpis['current_diet_intake'] = latest_diet.daily_intake_percentage if latest_diet else None
+
+        # --- GMD and Last Weight ---
+        sorted_weights = sorted(obj.weightings.all(), key=lambda w: w.date)
+        gmd = 0.0
+        last_weight = obj.entry_weight
+        last_weighting_date = obj.entry_date
+
+        if sorted_weights:
+            last_weighting_obj = sorted_weights[-1]
+            last_weight = last_weighting_obj.weight_kg
+            last_weighting_date = last_weighting_obj.date
+            
+            total_days = (last_weighting_date - obj.entry_date).days
+            total_gain = last_weight - obj.entry_weight
+            if total_days > 0:
+                gmd = total_gain / total_days
+
+        kpis['average_daily_gain_kg'] = round(gmd, 3)
+        kpis['last_weight_kg'] = round(last_weight, 2)
+        kpis['last_weighting_date'] = last_weighting_date
+
+        # --- Status-Aware Calculations ---
+        if hasattr(obj, 'sale') and obj.sale:
+            days_on_farm = (obj.sale.date - obj.entry_date).days
+            kpis['current_age_months'] = round(obj.entry_age + (days_on_farm / 30.44), 2)
+            kpis['forecasted_current_weight_kg'] = None
+            kpis['status'] = 'Sold'
+        elif hasattr(obj, 'death') and obj.death:
+            days_on_farm = (obj.death.date - obj.entry_date).days
+            kpis['current_age_months'] = round(obj.entry_age + (days_on_farm / 30.44), 2)
+            kpis['forecasted_current_weight_kg'] = None
+            kpis['status'] = 'Dead'
+        else:
+            days_on_farm = (today - obj.entry_date).days
+            kpis['current_age_months'] = round(obj.entry_age + (days_on_farm / 30.44), 2)
+            days_since_last_weight = (today - last_weighting_date).days
+            forecasted_gain = days_since_last_weight * gmd
+            kpis['forecasted_current_weight_kg'] = round(last_weight + forecasted_gain, 2)
+            kpis['status'] = 'Active'
+            
+        kpis['days_on_farm'] = days_on_farm
+        
+        # Use the dedicated KPI serializer to ensure structure
+        return AnimalKpiSerializer(kpis).data
+
+class LotSummarySerializer(serializers.Serializer):
+    """
+    Serializer for the aggregated lot summary data.
+    This is not a ModelSerializer as the data comes from an aggregate query.
+    """
+    lot_number = serializers.CharField(source='lot')
+    animal_count = serializers.IntegerField()
+    male_count = serializers.IntegerField()
+    female_count = serializers.IntegerField()
+    average_age_months = serializers.FloatField()
+    average_gmd_kg = serializers.FloatField()
+    average_weight_kg = serializers.FloatField()
+
+class ActiveStockSummaryKpiSerializer(serializers.Serializer):
+    """
+    Serializer for the aggregated KPIs of the entire active herd.
+    The field names are chosen to exactly match the Flask API output.
+    """
+    total_active_animals = serializers.IntegerField()
+    number_of_males = serializers.IntegerField()
+    number_of_females = serializers.IntegerField()
+    average_age_months = serializers.FloatField()
+    average_gmd_kg_day = serializers.FloatField(source='average_gmd_kg') # Map source field from annotation
+
+
+class ActiveStockResponseSerializer(serializers.Serializer):
+    """
+    Top-level serializer that defines the final JSON structure for the
+    active stock summary endpoint.
+    """
+    summary_kpis = ActiveStockSummaryKpiSerializer()
+    # We reuse the AnimalSummarySerializer for the list of animals, which is
+    # a perfect example of the DRY (Don't Repeat Yourself) principle.
+    animals = AnimalSummarySerializer(many=True)
+
+class BulkAssignSublocationSerializer(serializers.Serializer):
+    """
+    Serializer for validating the data for a bulk sublocation assignment.
+    It's not a ModelSerializer because it doesn't map directly to a model.
+    """
+    date = serializers.DateField()
+    destination_sublocation_id = serializers.IntegerField()
+
+    def validate(self, data):
+        """
+        Performs cross-field validation to ensure the destination sublocation
+        is valid and belongs to the parent location specified in the URL.
+        """
+        # The view passes these IDs from the URL into the serializer's context.
+        farm_id = self.context.get('farm_id')
+        location_id = self.context.get('location_id')
+        dest_sublocation_id = data.get('destination_sublocation_id')
+
+        # 1. Check that the destination sublocation exists and belongs to the farm.
+        try:
+            dest_sublocation = Sublocation.objects.get(pk=dest_sublocation_id, farm_id=farm_id)
+        except Sublocation.DoesNotExist:
+            raise serializers.ValidationError({
+                "destination_sublocation_id": f"Destination sublocation with id {dest_sublocation_id} not found on this farm."
+            })
+
+        # 2. Check that the destination sublocation belongs to the parent location from the URL.
+        if dest_sublocation.parent_location_id != location_id:
+            raise serializers.ValidationError({
+                "destination_sublocation_id": "Destination sublocation does not belong to the specified parent location."
+            })
+
+        return data

@@ -593,7 +593,7 @@ tbody tr:hover {
 
 /* --- Dashboard / Summary --- */
 
-#summary-kpis, #animal-list {
+#summary-kpis {
     background-color: #ffffff;
     padding: 15px;
     border-radius: 8px;
