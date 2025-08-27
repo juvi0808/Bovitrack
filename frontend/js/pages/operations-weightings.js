@@ -39,7 +39,7 @@ function initHistoryWeightingsPage() {
         searchResultDiv.innerHTML = `<p>${getTranslation('loading_animals')}...</p>`;
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search?eartag=${earTag}`);
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search/?eartag=${earTag}`);
             const animals = await response.json();
 
             searchResultDiv.innerHTML = ''; 
@@ -106,7 +106,7 @@ function initHistoryWeightingsPage() {
         };
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForWeighting.id}/weighting/add`, {
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForWeighting.id}/weighting/add/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(weightingData)
@@ -144,7 +144,7 @@ async function loadWeightingHistoryData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/weightings`);
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/weightings/`);
         if (!response.ok) throw new Error('Failed to fetch weighting history');
         const weightings = await response.json();
         createWeightingHistoryGrid(weightings);

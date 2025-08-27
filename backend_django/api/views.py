@@ -1,7 +1,8 @@
 from django.shortcuts import render
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, parser_classes
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser
 # Make sure Q is imported here
 from django.db import transaction
 from django.db.models import Count, Subquery, OuterRef, Q, F, FloatField, Case, When, Sum, IntegerField, Avg, Value
@@ -17,7 +18,7 @@ from .serializers import (FarmSerializer, LocationSerializer, SublocationSeriali
                         LotSummarySerializer, ActiveStockResponseSerializer, BulkAssignSublocationSerializer)   # We will add more serializers here later
 
                         
-from datetime import date
+from datetime import datetime, date
 
 @api_view(['GET', 'POST'])
 def farm_list(request):
@@ -1160,3 +1161,175 @@ def bulk_assign_sublocation(request, farm_id, location_id):
             {'error': f'An unexpected error occurred during assignment: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+@api_view(['POST'])
+def export_farms(request):
+    """
+    Exports all data for a given list of farm IDs into a single JSON file.
+    Accepts a JSON body with a 'farm_ids' key, which is a list of integers.
+    Handles POST /api/export/farms/
+    """
+    try:
+        data = request.data
+        farm_ids = data.get('farm_ids')
+        if not isinstance(farm_ids, list):
+            return Response({'error': "'farm_ids' must be a list."}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception:
+        return Response({'error': 'Invalid request body.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # --- The Core Eager-Loading Query ---
+    # This is the most efficient way to fetch a complex tree of related objects.
+    # We prefetch all collections to avoid thousands of subsequent database queries.
+    farms_to_export = Farm.objects.filter(id__in=farm_ids).prefetch_related(
+        'locations__sublocations',
+        'purchases__weightings',
+        'purchases__protocols',
+        'purchases__location_changes',
+        'purchases__diet_logs',
+        'purchases__sale',      # Use prefetch_related for one-to-one as well
+        'purchases__death',
+    )
+
+    if not farms_to_export:
+        return Response({'error': 'No farms found for the provided IDs.'}, status=status.HTTP_404_NOT_FOUND)
+
+    # --- Manual Serialization to Build the Exact JSON Structure ---
+    # While DRF serializers are great, for a complex, one-off export structure,
+    # building the dictionary manually is often clearer and more direct.
+    export_data = {
+        'export_format_version': '1.0',
+        'export_date': datetime.now().isoformat(),
+        'farms': []
+    }
+
+    for farm in farms_to_export:
+        farm_data = {'id': farm.id, 'name': farm.name, 'locations': [], 'purchases': []}
+        
+        for loc in farm.locations.all():
+            loc_data = {'id': loc.id, 'name': loc.name, 'area_hectares': loc.area_hectares, 'grass_type': loc.grass_type, 'location_type': loc.location_type, 'sublocations': []}
+            for sub in loc.sublocations.all():
+                loc_data['sublocations'].append({'id': sub.id, 'name': sub.name, 'area_hectares': sub.area_hectares})
+            farm_data['locations'].append(loc_data)
+
+        for p in farm.purchases.all():
+            p_data = {
+                'id': p.id, 'ear_tag': p.ear_tag, 'lot': p.lot, 'entry_date': p.entry_date.isoformat(),
+                'entry_weight': p.entry_weight, 'sex': p.sex, 'entry_age': p.entry_age,
+                'purchase_price': p.purchase_price, 'race': p.race,
+                'weightings': [{'date': w.date.isoformat(), 'weight_kg': w.weight_kg} for w in p.weightings.all()],
+                'protocols': [{'date': sp.date.isoformat(), 'protocol_type': sp.protocol_type, 'product_name': sp.product_name, 'dosage': sp.dosage, 'invoice_number': sp.invoice_number} for sp in p.protocols.all()],
+                'location_changes': [{'date': lc.date.isoformat(), 'location_id': lc.location_id, 'sublocation_id': lc.sublocation_id} for lc in p.location_changes.all()],
+                'diet_logs': [{'date': dl.date.isoformat(), 'diet_type': dl.diet_type, 'daily_intake_percentage': dl.daily_intake_percentage} for dl in p.diet_logs.all()],
+                'sale': {'exit_date': p.sale.date.isoformat(), 'exit_price': p.sale.sale_price} if hasattr(p, 'sale') and p.sale else None,
+                'death': {'date': p.death.date.isoformat(), 'cause': p.death.cause} if hasattr(p, 'death') and p.death else None
+            }
+            farm_data['purchases'].append(p_data)
+        
+        export_data['farms'].append(farm_data)
+
+    # Create a JsonResponse that the frontend can download as a file.
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    filename = f"bovitrack_export_{timestamp}.json"
+    response = JsonResponse(export_data, json_dumps_params={'indent': 4})
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    return response
+
+
+@api_view(['POST'])
+def import_farms(request):
+    """
+    Imports farm data from an uploaded JSON file. This is a transactional operation.
+    Handles POST /api/import/farms/
+    """
+    if 'import_file' not in request.FILES:
+        return Response({'error': 'No file part in the request.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    file = request.FILES['import_file']
+    if not file.name.endswith('.json'):
+        return Response({'error': 'Invalid file type. Please upload a .json file.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        import_data = json.loads(file.read().decode('utf-8'))
+    except Exception as e:
+        return Response({'error': f'Failed to parse JSON file: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # --- Use a single atomic transaction for the entire import process ---
+    # If any single database operation fails, all previous operations in this
+    # block will be automatically rolled back. This guarantees data integrity.
+    try:
+        with transaction.atomic():
+            farm_id_map, location_id_map, sublocation_id_map = {}, {}, {}
+            imported_farm_names = []
+
+            for farm_json in import_data.get('farms', []):
+                # Business Logic: Skip farms that already exist by name
+                if Farm.objects.filter(name=farm_json['name']).exists():
+                    continue
+
+                # 1. Create Farm and map old ID to new ID
+                new_farm = Farm.objects.create(name=farm_json['name'])
+                farm_id_map[farm_json['id']] = new_farm.id
+                imported_farm_names.append(new_farm.name)
+
+                # 2. Create Locations & Sublocations, mapping IDs as we go
+                for loc_json in farm_json.get('locations', []):
+                    new_loc = Location.objects.create(
+                        farm=new_farm, name=loc_json['name'], area_hectares=loc_json.get('area_hectares'),
+                        grass_type=loc_json.get('grass_type'), location_type=loc_json.get('location_type')
+                    )
+                    location_id_map[loc_json['id']] = new_loc.id
+
+                    for sub_json in loc_json.get('sublocations', []):
+                        new_sub = Sublocation.objects.create(
+                            farm=new_farm, parent_location=new_loc, name=sub_json['name'],
+                            area_hectares=sub_json.get('area_hectares')
+                        )
+                        sublocation_id_map[sub_json['id']] = new_sub.id
+                
+                # 3. Create Purchases and all their related historical events
+                for p_json in farm_json.get('purchases', []):
+                    new_purchase = Purchase.objects.create(
+                        farm=new_farm, ear_tag=p_json['ear_tag'], lot=p_json['lot'],
+                        entry_date=p_json['entry_date'], entry_weight=p_json['entry_weight'],
+                        sex=p_json['sex'], entry_age=p_json['entry_age'],
+                        purchase_price=p_json.get('purchase_price'), race=p_json.get('race')
+                    )
+                    
+                    # Now create the child records using the new_purchase object
+                    for w_json in p_json.get('weightings', []):
+                        Weighting.objects.create(animal=new_purchase, farm=new_farm, **w_json)
+                    for sp_json in p_json.get('protocols', []):
+                        SanitaryProtocol.objects.create(animal=new_purchase, farm=new_farm, **sp_json)
+                    for dl_json in p_json.get('diet_logs', []):
+                        DietLog.objects.create(animal=new_purchase, farm=new_farm, **dl_json)
+                    
+                    for lc_json in p_json.get('location_changes', []):
+                        # Use our ID maps to link to the newly created locations
+                        new_loc_id = location_id_map.get(lc_json['location_id'])
+                        new_subloc_id = sublocation_id_map.get(lc_json['sublocation_id'])
+                        if new_loc_id:
+                            LocationChange.objects.create(
+                                animal=new_purchase, farm=new_farm, date=lc_json['date'],
+                                location_id=new_loc_id, sublocation_id=new_subloc_id
+                            )
+
+                    if sale_json := p_json.get('sale'):
+                        Sale.objects.create(
+                            animal=new_purchase, farm=new_farm, 
+                            date=sale_json['exit_date'], sale_price=sale_json['exit_price']
+                        )
+                    if death_json := p_json.get('death'):
+                        Death.objects.create(animal=new_purchase, farm=new_farm, **death_json)
+        
+        if not imported_farm_names:
+            return Response({'message': 'Import complete. No new farms were added as they already exist.'}, status=status.HTTP_200_OK)
+
+        return Response({'message': f'Successfully imported data for farms: {", ".join(imported_farm_names)}'}, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        # If any error occurs inside the `with transaction.atomic()` block,
+        # the database is automatically rolled back to its previous state.
+        return Response({
+            'error': f'An unexpected error occurred, and all changes have been rolled back. Error: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

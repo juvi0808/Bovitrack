@@ -38,7 +38,7 @@ function initHistoryDietLogsPage() {
         searchResultDiv.innerHTML = `<p>${getTranslation('loading_animals')}...</p>`;
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search?eartag=${earTag}`);
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search/?eartag=${earTag}`);
             const animals = await response.json();
             searchResultDiv.innerHTML = ''; 
 
@@ -101,12 +101,12 @@ function initHistoryDietLogsPage() {
         const payload = {
             date: document.getElementById('diet-log-date').value,
             diet_type: document.getElementById('new-diet-type').value,
-            daily_intake_percentage: document.getElementById('new-diet-intake').value,
-            weight_kg: document.getElementById('diet-log-weight-kg').value
+            daily_intake_percentage: document.getElementById('new-diet-intake').value || null, 
+            weight_kg: document.getElementById('diet-log-weight-kg').value || null
         };
         
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForDietLog.id}/diet/add`, {
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForDietLog.id}/diet/add/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -117,7 +117,7 @@ function initHistoryDietLogsPage() {
                 throw new Error(result.error || 'An unknown error occurred');
             }
 
-            showToast(result.message, 'success');
+            showToast(getTranslation('success_diet_log_added'), 'success');
             loadDietLogHistoryData(); // Refresh the grid
 
             activeAnimalForDietLog = null;
@@ -147,7 +147,7 @@ async function loadDietLogHistoryData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/diets`);
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/diets/`);
         if (!response.ok) throw new Error('Failed to fetch diet log history');
         const history = await response.json();
         createDietLogHistoryGrid(history);

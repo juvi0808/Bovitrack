@@ -13,53 +13,58 @@ const http = require('http');
 let backendProcess = null;
 
 function startBackend() {
-    let command;
-    let backendPath;
+  let command;
+  let args;
+  let options = {};
 
-    // This is the magic switch!
-    if (app.isPackaged) {
-        // --- PRODUCTION MODE ---
-        // In the packaged app, the executable is in the 'resources' folder
-        console.log('Running in PRODUCTION mode.');
-        backendPath = path.join(process.resourcesPath, 'backend', 'bovitrack_backend.exe');
-        command = backendPath;
-    } else {
-        // --- DEVELOPMENT MODE ---
-        // In development, we run the Python script directly.
-        // Go up one level from 'frontend' to the project root.
-        console.log('Running in DEVELOPMENT mode.');
-        backendPath = path.join(__dirname, '..', 'run.py'); 
-        command = 'python'; // The command is 'python', and the script is an argument
-    }
+  if (app.isPackaged) {
+      // --- PRODUCTION MODE ---
+      console.log('Running in PRODUCTION mode.');
+      const backendPath = path.join(process.resourcesPath, 'backend', 'bovitrack_backend.exe');
+      command = backendPath;
+      args = [];
+  } else {
+      // --- DEVELOPMENT MODE (THE FIX) ---
+      console.log('Running in DEVELOPMENT mode.');
 
-    console.log(`Starting backend with command: ${command} and path: ${backendPath}`);
+      // --- IMPORTANT ---
+      // This path points directly to the Python executable inside your virtual environment.
+      // If your virtual environment folder is named something other than "venv", change it here.
+      const pythonExecutable = path.join(__dirname, '..', 'backend_django', '.venv', 'Scripts', 'python.exe');
+      const managePyPath = path.join(__dirname, '..', 'backend_django', 'manage.py');
 
-    // Spawn the process. The arguments are handled differently for an exe vs. a script.
-    if (app.isPackaged) {
-        backendProcess = spawn(command);
-    } else {
-        backendProcess = spawn(command, [backendPath]);
-    }
-    
-    // The rest of the function (logging stdout/stderr) stays the same
-    backendProcess.stdout.on('data', (data) => {
-        console.log(`Backend stdout: ${data}`);
-    });
-    backendProcess.stderr.on('data', (data) => {
-        console.error(`Backend stderr: ${data}`);
-    });
+      // The command is now the full path to the correct Python.
+      command = pythonExecutable; 
+      args = [managePyPath, 'runserver', '--noreload'];
+      options.cwd = path.join(__dirname, '..', 'backend_django');
+  }
+
+  console.log(`Starting backend with command: ${command}`, args.join(' '));
+
+  backendProcess = spawn(command, args, options);
+
+  backendProcess.stdout.on('data', (data) => {
+      console.log(`Backend stdout: ${data}`);
+  });
+
+  backendProcess.stderr.on('data', (data) => {
+      console.error(`Backend stderr: ${data}`);
+  });
 }
+
 
 // --- Function to check if the backend is ready ---
 function checkBackendReady(callback) {
-  const url = 'http://127.0.0.1:5000/api/'; // Use your API's base URL
+  // THE FIX: Check a valid Django endpoint. The port is now 8000.
+  const url = 'http://127.0.0.1:8000/api/farms/'; 
   const check = () => {
       http.get(url, (res) => {
-          if (res.statusCode === 200) {
+          // A 200 OK or 404 Not Found both mean the server is running and responding.
+          if (res.statusCode >= 200 && res.statusCode < 500) {
               console.log('Backend is ready!');
               callback();
           } else {
-              console.log('Backend not ready, retrying in 500ms...');
+              console.log(`Backend responded with ${res.statusCode}, retrying in 500ms...`);
               setTimeout(check, 500);
           }
       }).on('error', (err) => {

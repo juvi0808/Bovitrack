@@ -15,7 +15,7 @@ const { ModuleRegistry, AllCommunityModules, createGrid } = require('ag-grid-com
 ModuleRegistry.registerModules(AllCommunityModules);
 
 // --- Global State & Constants ---
-const API_URL = 'http://127.0.0.1:5000';
+const API_URL = 'http://127.0.0.1:8000';
 const LAST_FARM_ID_KEY = 'bovitrack-last-farm-id';
 const LANGUAGE_KEY = 'bovitrack-language'; // Moved to the top for safety
 
@@ -189,7 +189,7 @@ function getTranslation(key, replacements = {}) {
 
 async function loadFarms() {
     try {
-        const response = await fetch(`${API_URL}/api/farms`);
+        const response = await fetch(`${API_URL}/api/farms/`);
         if (!response.ok) throw new Error('Failed to fetch farms');
         
         //We assign the fetched data to our global variable.
@@ -278,7 +278,7 @@ async function handleAddFarmSubmit(event) {
     if (!farmName) return;
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/add`, {
+        const response = await fetch(`${API_URL}/api/farms/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: farmName })
@@ -311,8 +311,8 @@ async function handleRenameFarmSubmit(event) {
     if (!newName || !selectedFarmId) return;
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/rename`, { // New url will be /api/farm/${selectedFarmId}/
-            method: 'POST', // Will have to change to PUT once we migrate to the django backend
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/`, { // New url will be /api/farm/${selectedFarmId}/
+            method: 'PUT', // Will have to change to PUT once we migrate to the django backend
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: newName })
         });
@@ -349,28 +349,34 @@ async function handleDeleteFarmSubmit(event) {
     submitButton.textContent = getTranslation('deleting'); // Show loading state
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/delete`, { // New url will be /api/farm/${selectedFarmId}/
-            method: 'DELETE' // Will still be DELETE once we migrate to the django backend
+        // NOTE: The URL points to the resource itself, not a special /delete endpoint.
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/`, {
+            method: 'DELETE'
         });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error);
-        
-        showToast(result.message, 'success');
-        deleteFarmModal.classList.add('hidden');
-        
-        await loadFarms(); // Reloads the farm list and updates the global 'allFarms' array
 
-        const activeLink = document.querySelector('.nav-link.active');
-        const currentPageId = activeLink ? activeLink.dataset.page : null;
+        // Check if the response was successful (status 200-299).
+        // This correctly handles the 204 No Content status.
+        if (response.ok) {
+            // If the delete was successful, we don't try to parse a body.
+            // We just proceed with the success actions.
+            showToast(getTranslation('farm_deleted'), 'success');
+            deleteFarmModal.classList.add('hidden');
+            
+            await loadFarms(); // Reload the farm list
+            
+            // This logic correctly handles what to display after deletion
+            const activeLink = document.querySelector('.nav-link.active');
+            const currentPageId = activeLink ? activeLink.dataset.page : null;
+            if (allFarms.length === 0 && currentPageId === 'page-active-stock') {
+                initActiveStockPage();
+            } else {
+                await handleFarmSelection();
+            }
 
-        // If the last farm was deleted AND we are on the active stock page,
-        // re-run the init function for that page to show the welcome modal.
-        if (allFarms.length === 0 && currentPageId === 'page-active-stock') {
-            initActiveStockPage();
         } else {
-            // Otherwise, just refresh the data for the current page.
-            // This will select the next available farm or show the "Select a farm" message.
-            await handleFarmSelection();
+            // If the response is not ok (e.g., 404, 500), THEN we try to get an error message.
+            const errorData = await response.json().catch(() => ({ error: 'An unknown error occurred.' }));
+            throw new Error(errorData.error);
         }
 
 

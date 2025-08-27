@@ -209,7 +209,7 @@ class LocationChangeSerializer(serializers.ModelSerializer):
     lot = serializers.CharField(source='animal.lot', read_only=True)
     location_name = serializers.CharField(source='location.name', read_only=True)
     sublocation_name = serializers.CharField(source='sublocation.name', read_only=True, allow_null=True)
-
+    
     class Meta:
         model = LocationChange
         fields = [
@@ -223,7 +223,7 @@ class LocationChangeCreateSerializer(serializers.ModelSerializer):
     Serializer for CREATING a new location change.
     Includes validation for optional weight and sublocation.
     """
-    weight_kg = serializers.FloatField(required=False, write_only=True)
+    weight_kg = serializers.FloatField(required=False, write_only=True, allow_null=True)
     # location_id and sublocation_id are already on the model,
     # so we just need to ensure they are writeable.
     location_id = serializers.IntegerField()
@@ -280,7 +280,8 @@ class DietLogCreateSerializer(serializers.ModelSerializer):
     Serializer for CREATING a new diet log.
     Includes the optional weight field.
     """
-    weight_kg = serializers.FloatField(required=False, write_only=True)
+    weight_kg = serializers.FloatField(required=False, write_only=True, allow_null=True)
+    daily_intake_percentage = serializers.FloatField(required=False, write_only=True, allow_null=True)
 
     class Meta:
         model = DietLog
@@ -322,6 +323,7 @@ class PurchaseCreateSerializer(serializers.ModelSerializer):
     # --- Fields for related data that are NOT on the Purchase model ---
     location_id = serializers.IntegerField(write_only=True, required=True)
     initial_diet_type = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    purchase_price = serializers.FloatField(write_only=True, required=False, allow_null=True)
     daily_intake_percentage = serializers.FloatField(write_only=True, required=False, allow_null=True)
     
     # --- Nested Serializer for Sanitary Protocols ---

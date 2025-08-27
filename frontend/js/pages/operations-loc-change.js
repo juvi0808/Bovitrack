@@ -46,7 +46,7 @@ function initHistoryLocationChangesPage() {
         searchResultDiv.innerHTML = `<p>${getTranslation('loading_animals')}...</p>`;
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search?eartag=${earTag}`);
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search/?eartag=${earTag}`);
             const animals = await response.json();
             searchResultDiv.innerHTML = ''; 
 
@@ -108,7 +108,7 @@ function initHistoryLocationChangesPage() {
         sublocationSelect.disabled = true;
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/locations`);
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/locations/`);
             if (!response.ok) throw new Error('Could not fetch locations');
             
             // Store the full data in our variable
@@ -171,13 +171,13 @@ function initHistoryLocationChangesPage() {
         const payload = {
             date: document.getElementById('location-change-date').value,
             location_id: document.getElementById('new-location-select').value,
-            weight_kg: document.getElementById('location-change-weight-kg').value,
+            weight_kg: document.getElementById('location-change-weight-kg').value || null,
             sublocation_id: sublocationSelect.value || null, // Send null if empty
         };
 
         try {
             // Make a single, combined API call
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForLocationChange.id}/location/add`, {
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForLocationChange.id}/location/add/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -189,7 +189,7 @@ function initHistoryLocationChangesPage() {
             }
 
             // The backend now provides the correct success message
-            showToast(result.message, 'success');
+            showToast(getTranslation('success_location_change_added'), 'success');
             loadLocationChangeHistoryData(); // Refresh the grid
 
             activeAnimalForLocationChange = null;
@@ -220,7 +220,7 @@ async function loadLocationChangeHistoryData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location_log`);
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location_log/`);
         if (!response.ok) throw new Error('Failed to fetch location history');
         const history = await response.json();
         createLocationChangeHistoryGrid(history);

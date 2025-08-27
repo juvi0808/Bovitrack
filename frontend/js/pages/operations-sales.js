@@ -57,7 +57,7 @@ function initHistorySalesPage() {
         searchResultDiv.innerHTML = `<p>${getTranslation('loading_animals')}...</p>`;
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search?eartag=${earTag}`);
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search/?eartag=${earTag}`);
             const animals = await response.json();
 
             searchResultDiv.innerHTML = ''; // Clear "Loading..."
@@ -120,7 +120,7 @@ function initHistorySalesPage() {
 
         try {
             // The endpoint needs the farm_id and the unique purchase_id of the animal.
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForSale.id}/sale/add`, {
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForSale.id}/sale/add/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(saleData)
@@ -159,7 +159,7 @@ async function loadSalesHistoryData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/sales`);
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/sales/`);
         if (!response.ok) throw new Error('Failed to fetch sales history');
         const sales = await response.json();
         createSalesHistoryGrid(sales);

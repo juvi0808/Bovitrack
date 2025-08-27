@@ -77,7 +77,7 @@ function initHistorySanitaryProtocolsPage() {
         searchResultDiv.innerHTML = `<p>${getTranslation('loading_animals')}...</p>`;
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search?eartag=${earTag}`);
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search/?eartag=${earTag}`);
             const animals = await response.json();
             searchResultDiv.innerHTML = ''; 
 
@@ -177,7 +177,7 @@ function initHistorySanitaryProtocolsPage() {
         };
         
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForProtocol.id}/sanitary/add_batch`, { // Will become ${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForProtocol.id}/sanitary/add 
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForProtocol.id}/sanitary/add/`, { // Will become ${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForProtocol.id}/sanitary/add 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -219,7 +219,7 @@ async function loadSanitaryProtocolHistoryData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/sanitary`);
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/sanitary/`);
         if (!response.ok) throw new Error('Failed to fetch sanitary protocol history');
         const history = await response.json();
         createSanitaryProtocolHistoryGrid(history);

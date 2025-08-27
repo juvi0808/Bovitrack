@@ -22,7 +22,7 @@ async function loadDashboardData(page = 1) {
     gridDiv.innerHTML = getTranslation('loading_animals');
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/stock/active_summary`);
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/stock/active_summary/`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         
@@ -39,21 +39,28 @@ async function loadDashboardData(page = 1) {
 function displaySummary(kpis) {
     const summaryDiv = document.getElementById('summary-kpis');
     if (summaryDiv) {
+        // THE FIX: Use the '|| 0' trick to provide a default value if a kpi is null.
+        const totalAnimals = kpis.total_active_animals || 0;
+        const males = kpis.number_of_males || 0;
+        const females = kpis.number_of_females || 0;
+        const avgAge = kpis.average_age_months || 0;
+        const avgGmd = kpis.average_gmd_kg_day || 0;
+
         summaryDiv.innerHTML = `
             <div class="kpi-card">
-                <span class="kpi-card-value">${kpis.total_active_animals}</span>
+                <span class="kpi-card-value">${totalAnimals}</span>
                 <span class="kpi-card-label">${getTranslation('total_active_animals')}</span>
             </div>
             <div class="kpi-card">
-                <span class="kpi-card-value">${kpis.number_of_males} / ${kpis.number_of_females}</span>
+                <span class="kpi-card-value">${males} / ${females}</span>
                 <span class="kpi-card-label">${getTranslation('males')} / ${getTranslation('females')}</span>
             </div>
             <div class="kpi-card">
-                <span class="kpi-card-value">${kpis.average_age_months.toFixed(2)}</span>
+                <span class="kpi-card-value">${avgAge.toFixed(2)}</span>
                 <span class="kpi-card-label">${getTranslation('average_age')} (${getTranslation('months')})</span>
             </div>
             <div class="kpi-card">
-                <span class="kpi-card-value">${kpis.average_gmd_kg_day.toFixed(3)} kg/day</span>
+                <span class="kpi-card-value">${avgGmd.toFixed(3)} kg/day</span>
                 <span class="kpi-card-label">${getTranslation('average_gmd')}</span>
             </div>
         `;
@@ -82,11 +89,35 @@ function createAnimalGrid(animals) {
         },
         { headerName: getTranslation("entry_date"), field: "entry_date", width: 150 },
         { headerName: getTranslation("sex"), field: "sex", width: 120 },
-        { headerName: `${getTranslation('age')} (${getTranslation('months')})`, field: "kpis.current_age_months", valueFormatter: p => p.value.toFixed(2), width: 150 },
-        { headerName: `${getTranslation('last_wt_kg')}`, field: "kpis.last_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 150 },
+        { 
+            headerName: `${getTranslation('age')} (${getTranslation('months')})`, 
+            field: "kpis.current_age_months", 
+            // Check if p.value is not null before calling toFixed
+            valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', 
+            width: 150 
+        },
+        { 
+            headerName: `${getTranslation('last_wt_kg')}`, 
+            field: "kpis.last_weight_kg", 
+            // Check if p.value is not null before calling toFixed
+            valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', 
+            width: 150 
+        },
         { headerName: getTranslation("last_wt_date"), field: "kpis.last_weighting_date", width: 150 },
-        { headerName: getTranslation("avg_daily_gain_kg"), field: "kpis.average_daily_gain_kg", valueFormatter: p => p.value.toFixed(3), width: 180 },
-        { headerName: getTranslation("forecasted_weight"), field: "kpis.forecasted_current_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 180 },
+        { 
+            headerName: getTranslation("avg_daily_gain_kg"), 
+            field: "kpis.average_daily_gain_kg", 
+            // Check if p.value is not null before calling toFixed
+            valueFormatter: p => p.value != null ? p.value.toFixed(3) : '', 
+            width: 180 
+        },
+        { 
+            headerName: getTranslation("forecasted_weight"), 
+            field: "kpis.forecasted_current_weight_kg", 
+            // Check if p.value is not null before calling toFixed
+            valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', 
+            width: 180 
+        },
         { 
             headerName: getTranslation("current_location"), 
             field: "kpis.current_location_name",
@@ -170,7 +201,7 @@ function showNoFarmsModal() {
         };
 
         try {
-            const response = await fetch(`${API_URL}/api/dev/seed-test-farm`, {
+            const response = await fetch(`${API_URL}/api/dev/seed-test-farm/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(demoPayload)

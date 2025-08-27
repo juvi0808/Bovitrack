@@ -12,7 +12,7 @@ async function loadPurchaseHistoryData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchases`);
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchases/`);
         if (!response.ok) throw new Error('Failed to fetch purchase history');
         const purchases = await response.json();
         
@@ -127,7 +127,7 @@ async function openAddPurchaseModal() {
     locationSelect.disabled = true; // Disable it while loading
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/locations`);
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/locations/`);
         if (!response.ok) throw new Error('Could not fetch locations');
         const locations = await response.json();
 
@@ -223,15 +223,15 @@ async function openAddPurchaseModal() {
             entry_weight: document.getElementById('purchase-entry-weight').value,
             sex: document.getElementById('purchase-sex').value,
             race: document.getElementById('purchase-race').value,
-            purchase_price: document.getElementById('purchase-price').value,
+            purchase_price: document.getElementById('purchase-price').value || null,
             location_id: document.getElementById('purchase-location').value,
             sanitary_protocols: protocolsForCurrentPurchase,
             diet_type: document.getElementById('purchase-diet-type').value,
-            daily_intake_percentage: document.getElementById('purchase-diet-intake').value, 
+            daily_intake_percentage: document.getElementById('purchase-diet-intake').value || null, 
         };
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/add`, { // New url will be /api/farm/${selectedFarmId}/purchases
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchases/`, { // New url will be /api/farm/${selectedFarmId}/purchases
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)

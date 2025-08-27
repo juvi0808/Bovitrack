@@ -83,7 +83,7 @@ function initSettingsPage() {
         showToast(getTranslation('export_initiated'), 'success'); // Show initial toast
     
         try {
-            const response = await fetch(`${API_URL}/api/export/farms`, {
+            const response = await fetch(`${API_URL}/api/export/farms/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ farm_ids: selectedFarmIds })
@@ -147,7 +147,7 @@ function initSettingsPage() {
     
         try {
             showToast("Importing data...", "success");
-            const response = await fetch(`${API_URL}/api/import/farms`, {
+            const response = await fetch(`${API_URL}/api/import/farms/`, {
                 method: 'POST',
                 body: formData
             });
@@ -213,7 +213,7 @@ async function handleExportSubmit(event) {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/export/farms`, {
+        const response = await fetch(`${API_URL}/api/export/farms/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ farm_ids: selectedFarmIds })
@@ -276,7 +276,7 @@ async function handleFileSelectedForImport(event) {
 
     try {
         showToast("Importing data...", "success");
-        const response = await fetch(`${API_URL}/api/import/farms`, {
+        const response = await fetch(`${API_URL}/api/import/farms/`, {
             method: 'POST',
             body: formData
         });

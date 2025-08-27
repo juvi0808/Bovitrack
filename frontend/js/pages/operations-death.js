@@ -38,7 +38,7 @@ function initHistoryDeathsPage() {
         searchResultDiv.innerHTML = `<p>${getTranslation('loading_animals')}...</p>`;
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search?eartag=${earTag}`);
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search/?eartag=${earTag}`);
             const animals = await response.json();
             searchResultDiv.innerHTML = ''; 
 
@@ -104,7 +104,7 @@ function initHistoryDeathsPage() {
         };
         
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForDeath.id}/death/add`, {
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForDeath.id}/death/add/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -143,7 +143,7 @@ async function loadDeathHistoryData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/deaths`);
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/deaths/`);
         if (!response.ok) throw new Error('Failed to fetch death history');
         const history = await response.json();
         createDeathHistoryGrid(history);

@@ -10,7 +10,7 @@ async function loadLotsData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/lots/summary`);
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/lots/summary/`);
         if (!response.ok) throw new Error('Failed to fetch lots summary');
         const lots = await response.json();
         createLotsListGrid(lots);
@@ -27,13 +27,65 @@ function createLotsListGrid(lots) {
     gridDiv.className = 'ag-theme-quartz full-height-grid';
 
     const columnDefs = [
-        { headerName: getTranslation("lot"), field: "lot_number", width: 150, onCellClicked: (params) => showConsultView(params.data) },
-        { headerName: getTranslation("animal_count"), field: "animal_count", width: 150, onCellClicked: (params) => showConsultView(params.data) },
-        { headerName: getTranslation("males"), field: "male_count", width: 120, onCellClicked: (params) => showConsultView(params.data) },
-        { headerName: getTranslation("females"), field: "female_count", width: 120, onCellClicked: (params) => showConsultView(params.data) },
-        { headerName: `${getTranslation('average_age')} (${getTranslation('months')})`, field: "average_age_months", valueFormatter: p => p.value.toFixed(2), width: 180, onCellClicked: (params) => showConsultView(params.data) },
-        { headerName: `${getTranslation('average_gmd')} (kg)`, field: "average_gmd_kg", valueFormatter: p => p.value.toFixed(3), width: 180, onCellClicked: (params) => showConsultView(params.data) },
-        { headerName: `${getTranslation('forecasted_weight')} (kg)`, field: "average_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 200, onCellClicked: (params) => showConsultView(params.data) },
+        { 
+            headerName: getTranslation("lot"), 
+            field: "lot_number", 
+            width: 150, 
+            onCellClicked: (params) => {
+                setTimeout(() => showConsultView(params.data), 0);
+            }
+        },
+        { 
+            headerName: getTranslation("animal_count"), 
+            field: "animal_count", 
+            width: 150, 
+            onCellClicked: (params) => {
+                setTimeout(() => showConsultView(params.data), 0);
+            } 
+        },
+        { 
+            headerName: getTranslation("males"), 
+            field: "male_count", 
+            width: 120, 
+            onCellClicked: (params) => {
+                setTimeout(() => showConsultView(params.data), 0);
+            } 
+        },
+        { 
+            headerName: getTranslation("females"), 
+            field: "female_count", 
+            width: 120, 
+            onCellClicked: (params) => {
+                setTimeout(() => showConsultView(params.data), 0);
+            } 
+        },
+        { 
+            headerName: `${getTranslation('average_age')} (${getTranslation('months')})`, 
+            field: "average_age_months", 
+            valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', 
+            width: 180, 
+            onCellClicked: (params) => {
+                setTimeout(() => showConsultView(params.data), 0);
+            } 
+        },
+        { 
+            headerName: `${getTranslation('average_gmd')} (kg)`, 
+            field: "average_gmd_kg", 
+            valueFormatter: p => p.value != null ? p.value.toFixed(3) : '', 
+            width: 180, 
+            onCellClicked: (params) => {
+                setTimeout(() => showConsultView(params.data), 0);
+            } 
+        },
+        { 
+            headerName: `${getTranslation('forecasted_weight')} (kg)`, 
+            field: "average_weight_kg", 
+            valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', 
+            width: 200, 
+            onCellClicked: (params) => {
+                setTimeout(() => showConsultView(params.data), 0);
+            } 
+        },
     ];
 
     const gridOptions = {
@@ -53,25 +105,35 @@ function createLotsListGrid(lots) {
 
 function renderLotSummaryKPIs(lotData, container) {
     if (!container) return;
+    
+        // Use the '|| 0' trick to provide a default value if a KPI is null.
+    // This prevents the '.toFixed' error on lots with no animals or no history.
+    const animalCount = lotData.animal_count || 0;
+    const maleCount = lotData.male_count || 0;
+    const femaleCount = lotData.female_count || 0;
+    const avgAge = lotData.average_age_months || 0;
+    const avgGmd = lotData.average_gmd_kg || 0;
+    const avgWeight = lotData.average_weight_kg || 0;
+    
     container.innerHTML = `
         <div class="kpi-item">
-            <span class="kpi-value">${lotData.animal_count}</span>
+            <span class="kpi-value">${animalCount}</span>
             <span class="kpi-label">${getTranslation('animal_count')}</span>
         </div>
         <div class="kpi-item">
-            <span class="kpi-value">${lotData.male_count} / ${lotData.female_count}</span>
+            <span class="kpi-value">${maleCount} / ${femaleCount}</span>
             <span class="kpi-label">${getTranslation('males')} / ${getTranslation('females')}</span>
         </div>
         <div class="kpi-item">
-            <span class="kpi-value">${lotData.average_age_months.toFixed(2)}</span>
+            <span class="kpi-value">${avgAge.toFixed(2)}</span>
             <span class="kpi-label">${getTranslation('average_age')} (${getTranslation('months')})</span>
         </div>
         <div class="kpi-item">
-            <span class="kpi-value">${lotData.average_gmd_kg.toFixed(3)}</span>
+            <span class="kpi-value">${avgGmd.toFixed(3)}</span>
             <span class="kpi-label">${getTranslation('average_gmd')} (kg)</span>
         </div>
         <div class="kpi-item">
-            <span class="kpi-value">${lotData.average_weight_kg.toFixed(2)}</span>
+            <span class="kpi-value">${avgWeight.toFixed(2)}</span>
             <span class="kpi-label">${getTranslation('forecasted_weight')} (kg)</span>
         </div>
     `;
@@ -85,10 +147,30 @@ function createLotAnimalsGrid(animals) {
     const columnDefs = [
         { headerName: getTranslation("ear_tag"), field: "ear_tag", width: 120, onCellClicked: (params) => window.navigateToConsultAnimal(params.data.id,'page-farm-lots'), cellClass: 'clickable-cell' },
         { headerName: getTranslation("sex"), field: "sex", width: 100 },
-        { headerName: `${getTranslation('age')} (${getTranslation('months')})`, field: "kpis.current_age_months", valueFormatter: p => p.value.toFixed(2), width: 150 },
-        { headerName: getTranslation("last_wt_kg"), field: "kpis.last_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 150 },
-        { headerName: getTranslation("avg_daily_gain_kg"), field: "kpis.average_daily_gain_kg", valueFormatter: p => p.value.toFixed(3), width: 180 },
-        { headerName: getTranslation("forecasted_weight"), field: "kpis.forecasted_current_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 180 },
+        { 
+            headerName: `${getTranslation('age')} (${getTranslation('months')})`, 
+            field: "kpis.current_age_months", 
+            valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', // Null check
+            width: 150 
+        },
+        { 
+            headerName: getTranslation("last_wt_kg"), 
+            field: "kpis.last_weight_kg", 
+            valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', // Null check
+            width: 150 
+        },
+        { 
+            headerName: getTranslation("avg_daily_gain_kg"), 
+            field: "kpis.average_daily_gain_kg", 
+            valueFormatter: p => p.value != null ? p.value.toFixed(3) : '', // Null check
+            width: 180 
+        },
+        { 
+            headerName: getTranslation("forecasted_weight"), 
+            field: "kpis.forecasted_current_weight_kg", 
+            valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', // Null check
+            width: 180 
+        },
         { 
             headerName: getTranslation("current_location"), 
             field: "kpis.current_location_name",
@@ -130,7 +212,7 @@ function initLotsPage() {
         const requestedLotNumber = window.lotToConsult;
         window.lotToConsult = null; // Clear the flag
 
-        fetch(`${API_URL}/api/farm/${selectedFarmId}/lots/summary`)
+        fetch(`${API_URL}/api/farm/${selectedFarmId}/lots/summary/`)
             .then(res => res.json())
             .then(lots => {
                 const lotData = lots.find(l => l.lot_number == requestedLotNumber);
@@ -193,7 +275,7 @@ function initLotsPage() {
 
         try {
             // Fetch the detailed list of animals for this lot
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/lot/${lotNumber}?status=active`);
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/lot/${lotNumber}/?status=active`);
             if (!response.ok) throw new Error('Failed to fetch lot details');
             const animals = await response.json();
             
