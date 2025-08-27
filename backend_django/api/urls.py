@@ -42,6 +42,8 @@ urlpatterns = [
 
     path('farm/<int:farm_id>/location/<int:location_id>/bulk_assign_sublocation/', views.bulk_assign_sublocation, name='bulk-assign-sublocation'),
 
-    path('export/farms/', views.export_farms, name='export-farms'),
-    path('import/farms/', views.import_farms, name='import-farms'),
+    # path('export/farms/', views.export_farms, name='export-farms'),
+    # path('import/farms/', views.import_farms, name='import-farms'),
+
+    path('dev/seed-test-farm/', views.seed_test_farm, name='dev-seed-test-farm'),
 ]

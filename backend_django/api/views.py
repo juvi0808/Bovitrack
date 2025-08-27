@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser
 # Make sure Q is imported here
+from django.http import JsonResponse
 from django.db import transaction
 from django.db.models import Count, Subquery, OuterRef, Q, F, FloatField, Case, When, Sum, IntegerField, Avg, Value
 from django.db.models.functions import Coalesce, Cast, Now, NullIf
@@ -16,9 +17,16 @@ from .serializers import (FarmSerializer, LocationSerializer, SublocationSeriali
                         DietLogCreateSerializer, DeathSerializer, DeathCreateSerializer, LocationCreateUpdateSerializer, 
                         LocationSummarySerializer, AnimalSummarySerializer, SublocationCreateUpdateSerializer, AnimalMasterRecordSerializer,
                         LotSummarySerializer, ActiveStockResponseSerializer, BulkAssignSublocationSerializer)   # We will add more serializers here later
+                      
+from datetime import datetime, date, timedelta
+import random
+import io
+import csv
+import os
+import bisect
+from pathlib import Path
+import calendar
 
-                        
-from datetime import datetime, date
 
 @api_view(['GET', 'POST'])
 def farm_list(request):
@@ -1162,174 +1170,303 @@ def bulk_assign_sublocation(request, farm_id, location_id):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-@api_view(['POST'])
-def export_farms(request):
+# ==========================================================================
+# 4. Developer & Data Management Views
+# ==========================================================================
+
+# --- Utility functions ported from Flask (for the seeder) ---
+
+_historical_prices_cache = None
+_sorted_dates_cache = None
+
+def load_historical_prices():
     """
-    Exports all data for a given list of farm IDs into a single JSON file.
-    Accepts a JSON body with a 'farm_ids' key, which is a list of integers.
-    Handles POST /api/export/farms/
+    Loads and caches historical price data from api/data/historical_prices.csv.
+    This is a port of the original Flask utility function.
     """
-    try:
-        data = request.data
-        farm_ids = data.get('farm_ids')
-        if not isinstance(farm_ids, list):
-            return Response({'error': "'farm_ids' must be a list."}, status=status.HTTP_400_BAD_REQUEST)
-    except Exception:
-        return Response({'error': 'Invalid request body.'}, status=status.HTTP_400_BAD_REQUEST)
+    global _historical_prices_cache, _sorted_dates_cache
+    if _historical_prices_cache is not None:
+        return _historical_prices_cache, _sorted_dates_cache
 
-    # --- The Core Eager-Loading Query ---
-    # This is the most efficient way to fetch a complex tree of related objects.
-    # We prefetch all collections to avoid thousands of subsequent database queries.
-    farms_to_export = Farm.objects.filter(id__in=farm_ids).prefetch_related(
-        'locations__sublocations',
-        'purchases__weightings',
-        'purchases__protocols',
-        'purchases__location_changes',
-        'purchases__diet_logs',
-        'purchases__sale',      # Use prefetch_related for one-to-one as well
-        'purchases__death',
-    )
-
-    if not farms_to_export:
-        return Response({'error': 'No farms found for the provided IDs.'}, status=status.HTTP_404_NOT_FOUND)
-
-    # --- Manual Serialization to Build the Exact JSON Structure ---
-    # While DRF serializers are great, for a complex, one-off export structure,
-    # building the dictionary manually is often clearer and more direct.
-    export_data = {
-        'export_format_version': '1.0',
-        'export_date': datetime.now().isoformat(),
-        'farms': []
-    }
-
-    for farm in farms_to_export:
-        farm_data = {'id': farm.id, 'name': farm.name, 'locations': [], 'purchases': []}
-        
-        for loc in farm.locations.all():
-            loc_data = {'id': loc.id, 'name': loc.name, 'area_hectares': loc.area_hectares, 'grass_type': loc.grass_type, 'location_type': loc.location_type, 'sublocations': []}
-            for sub in loc.sublocations.all():
-                loc_data['sublocations'].append({'id': sub.id, 'name': sub.name, 'area_hectares': sub.area_hectares})
-            farm_data['locations'].append(loc_data)
-
-        for p in farm.purchases.all():
-            p_data = {
-                'id': p.id, 'ear_tag': p.ear_tag, 'lot': p.lot, 'entry_date': p.entry_date.isoformat(),
-                'entry_weight': p.entry_weight, 'sex': p.sex, 'entry_age': p.entry_age,
-                'purchase_price': p.purchase_price, 'race': p.race,
-                'weightings': [{'date': w.date.isoformat(), 'weight_kg': w.weight_kg} for w in p.weightings.all()],
-                'protocols': [{'date': sp.date.isoformat(), 'protocol_type': sp.protocol_type, 'product_name': sp.product_name, 'dosage': sp.dosage, 'invoice_number': sp.invoice_number} for sp in p.protocols.all()],
-                'location_changes': [{'date': lc.date.isoformat(), 'location_id': lc.location_id, 'sublocation_id': lc.sublocation_id} for lc in p.location_changes.all()],
-                'diet_logs': [{'date': dl.date.isoformat(), 'diet_type': dl.diet_type, 'daily_intake_percentage': dl.daily_intake_percentage} for dl in p.diet_logs.all()],
-                'sale': {'exit_date': p.sale.date.isoformat(), 'exit_price': p.sale.sale_price} if hasattr(p, 'sale') and p.sale else None,
-                'death': {'date': p.death.date.isoformat(), 'cause': p.death.cause} if hasattr(p, 'death') and p.death else None
-            }
-            farm_data['purchases'].append(p_data)
-        
-        export_data['farms'].append(farm_data)
-
-    # Create a JsonResponse that the frontend can download as a file.
-    timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
-    filename = f"bovitrack_export_{timestamp}.json"
-    response = JsonResponse(export_data, json_dumps_params={'indent': 4})
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    
-    return response
-
-
-@api_view(['POST'])
-def import_farms(request):
-    """
-    Imports farm data from an uploaded JSON file. This is a transactional operation.
-    Handles POST /api/import/farms/
-    """
-    if 'import_file' not in request.FILES:
-        return Response({'error': 'No file part in the request.'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    file = request.FILES['import_file']
-    if not file.name.endswith('.json'):
-        return Response({'error': 'Invalid file type. Please upload a .json file.'}, status=status.HTTP_400_BAD_REQUEST)
+    prices = {}
+    # Assumes the data file is in 'api/data/historical_prices.csv'
+    file_path = Path(__file__).resolve().parent / 'data' / 'historical_prices.csv'
 
     try:
-        import_data = json.loads(file.read().decode('utf-8'))
-    except Exception as e:
-        return Response({'error': f'Failed to parse JSON file: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+        with open(file_path, mode='r', encoding='utf-8') as infile:
+            reader = csv.DictReader(infile)
+            # ... (the rest of the price loading logic is identical to your Flask version)
+            headers = [h.lower() for h in reader.fieldnames or []]
+            
+            date_header = next((h for h in headers if 'date' in h), None)
+            purchase_header = next((h for h in headers if 'purchase' in h), None)
+            sale_header = next((h for h in headers if 'sale' in h), None)
 
-    # --- Use a single atomic transaction for the entire import process ---
-    # If any single database operation fails, all previous operations in this
-    # block will be automatically rolled back. This guarantees data integrity.
+            if not all([date_header, purchase_header, sale_header]):
+                print("WARNING: CSV missing required headers: 'date', 'purchase_price', 'sale_price'.")
+                _historical_prices_cache, _sorted_dates_cache = {}, []
+                return {}, []
+
+            for row in reader:
+                date_str = row.get(date_header)
+                purchase_str = row.get(purchase_header)
+                sale_str = row.get(sale_header)
+
+                if not date_str: continue
+                try:
+                    purchase_val = float(purchase_str) if purchase_str and purchase_str.strip() else None
+                    sale_val = float(sale_str) if sale_str and sale_str.strip() else None
+
+                    if purchase_val is not None or sale_val is not None:
+                         prices[date_str] = {
+                             'purchase': purchase_val or sale_val, 
+                             'sale': sale_val or purchase_val
+                        }
+                except (ValueError, TypeError):
+                    continue
+        
+        _historical_prices_cache = prices
+        _sorted_dates_cache = sorted(prices.keys())
+        return _historical_prices_cache, _sorted_dates_cache
+        
+    except FileNotFoundError:
+        print(f"WARNING: Price file not found at {file_path}.")
+        _historical_prices_cache, _sorted_dates_cache = {}, []
+        return {}, []
+
+def get_closest_price(target_date, price_data, sorted_dates):
+    """
+    Finds the price data for the date closest to the target_date.
+    Ported from the original Flask utility function.
+    """
+    if not sorted_dates: return None
+    target_date_str = target_date.isoformat()
+    pos = bisect.bisect_left(sorted_dates, target_date_str)
+    if pos == 0: return price_data[sorted_dates[0]]
+    if pos == len(sorted_dates): return price_data[sorted_dates[-1]]
+    
+    date_before_str = sorted_dates[pos - 1]
+    date_after_str = sorted_dates[pos]
+    date_before = date.fromisoformat(date_before_str)
+    date_after = date.fromisoformat(date_after_str)
+
+    return price_data[date_before_str] if (target_date - date_before) < (date_after - target_date) else price_data[date_after_str]
+
+
+@api_view(['POST'])
+def seed_test_farm(request):
+    """
+    (For Developers) Creates a test farm with a large volume of simulated data.
+    This is a destructive operation if the farm name already exists.
+    It uses bulk_create for high-performance insertion of event records.
+    """
+    try:
+        params = request.data
+        farm_name = params['farm_name']
+        purchases_per_year = int(params['total_animal_purchases_per_year'])
+        monthly_dist = params['monthly_concentration']
+        weighting_freq = int(params['weighting_frequency_days'])
+        sell_after_days = int(params['sell_after_days'])
+        assumed_gmd = float(params['assumed_gmd_kg'])
+        sanitary_protocols_config = params['sanitary_protocols']
+        initial_diet_config = params['initial_diet']
+        diet_change_config = params.get('diet_change')
+        num_locations = int(params['num_locations'])
+        num_sublocations = int(params['num_sublocations_per_location'])
+        total_farm_area_ha = float(params['total_farm_area_ha'])
+        fixed_purchase_price = params.get('fixed_purchase_price')
+        fixed_sale_price_per_kg = params.get('fixed_sale_price_per_kg')
+        years = int(params['years'])
+        end_date = datetime.strptime(params['end_date'], '%Y-%m-%d').date()
+
+    except (KeyError, ValueError) as e:
+        return Response({'error': f'Invalid or missing parameter: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    market_prices, sorted_market_dates = load_historical_prices()
+    if not market_prices and (fixed_purchase_price is None or fixed_sale_price_per_kg is None):
+        return Response({'error': 'Historical price data missing and no fixed prices provided.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # --- 1. DESTRUCTIVE DELETION of existing farm data ---
+    # This is much cleaner with the Django ORM. The related_name and CASCADE settings
+    # in the models handle the deletion of all child objects automatically and efficiently.
+    existing_farm = Farm.objects.filter(name=farm_name).first()
+    if existing_farm:
+        print(f"Farm '{farm_name}' exists. Deleting all associated data...")
+        existing_farm.delete()
+        print("Deletion complete.")
+
+    # --- Use a single atomic transaction for the entire seeding process ---
+    # This ensures that either the entire farm is created successfully, or no
+    # changes are made to the database, guaranteeing data integrity.
     try:
         with transaction.atomic():
-            farm_id_map, location_id_map, sublocation_id_map = {}, {}, {}
-            imported_farm_names = []
+            print("Creating new farm and locations...")
+            new_farm = Farm.objects.create(name=farm_name)
 
-            for farm_json in import_data.get('farms', []):
-                # Business Logic: Skip farms that already exist by name
-                if Farm.objects.filter(name=farm_json['name']).exists():
-                    continue
+            # --- 2. Bulk Create Locations & Sublocations ---
+            # Create objects in memory first, then insert them all in one DB query.
+            locations_to_create = []
 
-                # 1. Create Farm and map old ID to new ID
-                new_farm = Farm.objects.create(name=farm_json['name'])
-                farm_id_map[farm_json['id']] = new_farm.id
-                imported_farm_names.append(new_farm.name)
+            random_proportions = [random.uniform(0.7, 1.3) for _ in range(num_locations)]
+            total_proportion = sum(random_proportions)
+            normalized_proportions = [p / total_proportion for p in random_proportions]
+            
+            for i in range(num_locations):
+                location_area = total_farm_area_ha * normalized_proportions[i]
+                locations_to_create.append(Location(
+                    name=f'Pasture {i+1}', farm=new_farm, area_hectares=location_area,
+                    grass_type=random.choice(['Brachiaria decumbens', 'Mombaça']),
+                    location_type='Rotacionado'
+                ))
+            Location.objects.bulk_create(locations_to_create)
+            
+            # Query the newly created locations to get their IDs for sublocations
+            created_locations = list(Location.objects.filter(farm=new_farm))
+            
+            sublocations_to_create = []
+            if num_sublocations > 0:
+                for loc in created_locations:
+                    sublocation_area = loc.area_hectares / num_sublocations if loc.area_hectares else 0
+                    for j in range(num_sublocations):
+                        sublocations_to_create.append(Sublocation(
+                            name=f'Paddock {j+1}', parent_location=loc, farm=new_farm, area_hectares=sublocation_area
+                        ))
+                Sublocation.objects.bulk_create(sublocations_to_create)
 
-                # 2. Create Locations & Sublocations, mapping IDs as we go
-                for loc_json in farm_json.get('locations', []):
-                    new_loc = Location.objects.create(
-                        farm=new_farm, name=loc_json['name'], area_hectares=loc_json.get('area_hectares'),
-                        grass_type=loc_json.get('grass_type'), location_type=loc_json.get('location_type')
-                    )
-                    location_id_map[loc_json['id']] = new_loc.id
+            print(f"Created {len(created_locations)} locations and {len(sublocations_to_create)} sublocations.")
 
-                    for sub_json in loc_json.get('sublocations', []):
-                        new_sub = Sublocation.objects.create(
-                            farm=new_farm, parent_location=new_loc, name=sub_json['name'],
-                            area_hectares=sub_json.get('area_hectares')
+            # --- 3. Main Simulation Loop & Bulk Data Generation ---
+            # We will create Purchase objects one-by-one to get their IDs,
+            # but collect all their numerous child event objects into lists
+            # to be bulk-inserted at the end for maximum performance.
+            purchases_to_create = []
+            weightings_to_create = []
+            location_changes_to_create = []
+            diet_logs_to_create = []
+            protocols_to_create = []
+            sales_to_create = []
+            
+            start_date = end_date - timedelta(days=365 * years)
+            current_date = start_date
+            animal_eartag_counter = 0
+            lot_counter = 0
+            current_month_marker = start_date
+
+            print("Starting data simulation loop...")
+            while current_month_marker < end_date:
+                # --- Monthly Purchase Logic ---
+                month_key = str(current_month_marker.month)
+                total_purchases_this_month = int(purchases_per_year  * float(monthly_dist.get(month_key, 0)))
+
+                if total_purchases_this_month > 0:
+                    # 1. Pick one random day in the month for the purchase event.
+                    days_in_month = calendar.monthrange(current_month_marker.year, current_month_marker.month)[1]
+                    purchase_day = random.randint(1, days_in_month)
+                    purchase_date = date(current_month_marker.year, current_month_marker.month, purchase_day)
+
+                    # 2. Create one new lot for this single purchase event.
+                    lot_counter += 1
+                    lot_sex = random.choice(['M', 'F'])
+                    lot_race = random.choice(['Nelore', 'Angus', 'Brahman', 'Mestiço'])
+
+                    # 3. Create all animals for the month in this single lot.
+                    for _ in range(total_purchases_this_month):
+                        animal_eartag_counter += 1
+                        purchase_price = fixed_purchase_price
+                        if purchase_price is None:
+                            price_info = get_closest_price(purchase_date, market_prices, sorted_market_dates)
+                            purchase_price = price_info['purchase'] if price_info else 0
+                        
+                        initial_weight = random.uniform(180, 250)
+                        
+                        p = Purchase(
+                            ear_tag=str(animal_eartag_counter), lot=str(lot_counter), entry_date=purchase_date,
+                            entry_weight=initial_weight, sex=lot_sex, race=lot_race,
+                            entry_age=random.uniform(8, 12), farm=new_farm, purchase_price=purchase_price
                         )
-                        sublocation_id_map[sub_json['id']] = new_sub.id
+                        purchases_to_create.append(p)
                 
-                # 3. Create Purchases and all their related historical events
-                for p_json in farm_json.get('purchases', []):
-                    new_purchase = Purchase.objects.create(
-                        farm=new_farm, ear_tag=p_json['ear_tag'], lot=p_json['lot'],
-                        entry_date=p_json['entry_date'], entry_weight=p_json['entry_weight'],
-                        sex=p_json['sex'], entry_age=p_json['entry_age'],
-                        purchase_price=p_json.get('purchase_price'), race=p_json.get('race')
-                    )
-                    
-                    # Now create the child records using the new_purchase object
-                    for w_json in p_json.get('weightings', []):
-                        Weighting.objects.create(animal=new_purchase, farm=new_farm, **w_json)
-                    for sp_json in p_json.get('protocols', []):
-                        SanitaryProtocol.objects.create(animal=new_purchase, farm=new_farm, **sp_json)
-                    for dl_json in p_json.get('diet_logs', []):
-                        DietLog.objects.create(animal=new_purchase, farm=new_farm, **dl_json)
-                    
-                    for lc_json in p_json.get('location_changes', []):
-                        # Use our ID maps to link to the newly created locations
-                        new_loc_id = location_id_map.get(lc_json['location_id'])
-                        new_subloc_id = sublocation_id_map.get(lc_json['sublocation_id'])
-                        if new_loc_id:
-                            LocationChange.objects.create(
-                                animal=new_purchase, farm=new_farm, date=lc_json['date'],
-                                location_id=new_loc_id, sublocation_id=new_subloc_id
-                            )
+                # Move marker to the first day of the next month.
+                next_month = current_month_marker.month + 1
+                next_year = current_month_marker.year
+                if next_month > 12:
+                    next_month = 1
+                    next_year += 1
+                current_month_marker = date(next_year, next_month, 1)
 
-                    if sale_json := p_json.get('sale'):
-                        Sale.objects.create(
-                            animal=new_purchase, farm=new_farm, 
-                            date=sale_json['exit_date'], sale_price=sale_json['exit_price']
-                        )
-                    if death_json := p_json.get('death'):
-                        Death.objects.create(animal=new_purchase, farm=new_farm, **death_json)
+            # --- 4. Bulk Create all Purchases ---
+            # This is the first major bulk operation.
+            print(f"Generated {len(purchases_to_create)} purchase records. Starting bulk insert...")
+            Purchase.objects.bulk_create(purchases_to_create, batch_size=500)
+
+            # --- 5. Generate and Bulk Create Child Events ---
+            # Now that purchases are in the DB, query them back to get their IDs.
+            # Create a map for quick lookups to avoid re-querying inside the loop.
+            all_new_purchases = Purchase.objects.filter(farm=new_farm)
+            purchase_map = {p.ear_tag: p for p in all_new_purchases}
+            
+            print("Generating all historical event data...")
+            for p in all_new_purchases:
+                # Initial events
+                weightings_to_create.append(Weighting(date=p.entry_date, weight_kg=p.entry_weight, animal_id=p.id, farm_id=new_farm.id))
+                location_changes_to_create.append(LocationChange(date=p.entry_date, location=random.choice(created_locations), animal_id=p.id, farm_id=new_farm.id))
+                diet_logs_to_create.append(DietLog(date=p.entry_date, diet_type=initial_diet_config['diet_type'], daily_intake_percentage=initial_diet_config['daily_intake_percentage'], animal_id=p.id, farm_id=new_farm.id))
+                
+                # Simulate life events
+                sale_date = p.entry_date + timedelta(days=sell_after_days)
+                last_weight = p.entry_weight
+                last_weight_date = p.entry_date
+                
+                next_event_date = p.entry_date + timedelta(days=weighting_freq)
+                while next_event_date < sale_date and next_event_date < end_date:
+                    gain = (next_event_date - last_weight_date).days * (assumed_gmd * random.uniform(0.8, 1.2))
+                    new_weight = last_weight + gain
+                    weightings_to_create.append(Weighting(date=next_event_date, weight_kg=new_weight, animal_id=p.id, farm_id=new_farm.id))
+                    last_weight, last_weight_date = new_weight, next_event_date
+                    next_event_date += timedelta(days=weighting_freq)
+
+                for protocol in sanitary_protocols_config:
+                    next_protocol_date = p.entry_date + timedelta(days=protocol['frequency_days'])
+                    while next_protocol_date < sale_date and next_protocol_date < end_date:
+                        protocols_to_create.append(SanitaryProtocol(date=next_protocol_date, protocol_type=protocol['protocol_type'], product_name=protocol['product_name'], animal_id=p.id, farm_id=new_farm.id))
+                        next_protocol_date += timedelta(days=protocol['frequency_days'])
+                
+                if diet_change_config:
+                    diet_change_date = p.entry_date + timedelta(days=diet_change_config['days_after_purchase'])
+                    if diet_change_date < sale_date and diet_change_date < end_date:
+                        new_diet = diet_change_config['new_diet']
+                        diet_logs_to_create.append(DietLog(date=diet_change_date, diet_type=new_diet['diet_type'], daily_intake_percentage=new_diet['daily_intake_percentage'], animal_id=p.id, farm_id=new_farm.id))
+                
+                if sale_date < end_date:
+                    sale_price_per_kg = fixed_sale_price_per_kg
+                    if sale_price_per_kg is None:
+                         price_info = get_closest_price(sale_date, market_prices, sorted_market_dates)
+                         sale_price_per_kg = price_info['sale'] if price_info else 0
+                    
+                    final_gain = (sale_date - last_weight_date).days * assumed_gmd
+                    exit_weight = last_weight + final_gain
+                    total_sale_price = exit_weight * sale_price_per_kg
+                    
+                    sales_to_create.append(Sale(date=sale_date, sale_price=total_sale_price, animal_id=p.id, farm_id=new_farm.id))
+                    weightings_to_create.append(Weighting(date=sale_date, weight_kg=exit_weight, animal_id=p.id, farm_id=new_farm.id))
+
+            # --- 6. Final Bulk Inserts for all child events ---
+            print(f"Generated {len(weightings_to_create)} weighting records. Bulk inserting...")
+            Weighting.objects.bulk_create(weightings_to_create, batch_size=500)
+            print(f"Generated {len(location_changes_to_create)} location changes. Bulk inserting...")
+            LocationChange.objects.bulk_create(location_changes_to_create, batch_size=500)
+            print(f"Generated {len(diet_logs_to_create)} diet logs. Bulk inserting...")
+            DietLog.objects.bulk_create(diet_logs_to_create, batch_size=500)
+            print(f"Generated {len(protocols_to_create)} sanitary protocols. Bulk inserting...")
+            SanitaryProtocol.objects.bulk_create(protocols_to_create, batch_size=500)
+            print(f"Generated {len(sales_to_create)} sales. Bulk inserting...")
+            Sale.objects.bulk_create(sales_to_create, batch_size=500)
+            
+        # The 'with transaction.atomic()' block ends here. If no errors occurred,
+        # all changes are committed to the database.
         
-        if not imported_farm_names:
-            return Response({'message': 'Import complete. No new farms were added as they already exist.'}, status=status.HTTP_200_OK)
-
-        return Response({'message': f'Successfully imported data for farms: {", ".join(imported_farm_names)}'}, status=status.HTTP_201_CREATED)
+        return Response({'message': f"Successfully seeded farm '{farm_name}' with thousands of records."}, status=status.HTTP_201_CREATED)
 
     except Exception as e:
-        # If any error occurs inside the `with transaction.atomic()` block,
-        # the database is automatically rolled back to its previous state.
-        return Response({
-            'error': f'An unexpected error occurred, and all changes have been rolled back. Error: {str(e)}'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # If any error occurs during the transaction, all changes are automatically rolled back.
+        return Response({'error': f'An unexpected error occurred, and all changes have been rolled back. Error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
