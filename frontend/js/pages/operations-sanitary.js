@@ -77,7 +77,7 @@ function initHistorySanitaryProtocolsPage() {
         searchResultDiv.innerHTML = `<p>${getTranslation('loading_animals')}...</p>`;
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search?eartag=${earTag}`);
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search/?eartag=${earTag}`);
             const animals = await response.json();
             searchResultDiv.innerHTML = ''; 
 
@@ -177,7 +177,7 @@ function initHistorySanitaryProtocolsPage() {
         };
         
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForProtocol.id}/sanitary/add_batch`, {
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForProtocol.id}/sanitary/add/`, { // Will become ${API_URL}/api/farm/${selectedFarmId}/purchase/${activeAnimalForProtocol.id}/sanitary/add 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -209,7 +209,7 @@ function initHistorySanitaryProtocolsPage() {
     loadSanitaryProtocolHistoryData();
 }
 
-async function loadSanitaryProtocolHistoryData() {
+async function loadSanitaryProtocolHistoryData(page = 1) { // Add page parameter
     const gridDiv = document.getElementById('sanitary-protocol-history-grid');
     if (!gridDiv) return;
 
@@ -219,10 +219,16 @@ async function loadSanitaryProtocolHistoryData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/sanitary`);
+        // Add page query parameter
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/sanitary/?page=${page}`);
         if (!response.ok) throw new Error('Failed to fetch sanitary protocol history');
-        const history = await response.json();
-        createSanitaryProtocolHistoryGrid(history);
+        const data = await response.json(); // Paginated response
+        
+        createSanitaryProtocolHistoryGrid(data.results); // Use data.results
+        
+        // Render pagination controls
+        const paginationContainer = document.getElementById('pagination-controls');
+        renderPaginationControls(data, paginationContainer, loadSanitaryProtocolHistoryData, page);
 
     } catch (error) {
         console.error("Error loading sanitary protocol history:", error);

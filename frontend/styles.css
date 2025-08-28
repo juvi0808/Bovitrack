@@ -593,7 +593,7 @@ tbody tr:hover {
 
 /* --- Dashboard / Summary --- */
 
-#summary-kpis, #animal-list {
+#summary-kpis {
     background-color: #ffffff;
     padding: 15px;
     border-radius: 8px;
@@ -641,6 +641,12 @@ tbody tr:hover {
     display: flex;
     flex-direction: column;
     flex-grow: 1; /* Make this container grow to fill its parent (.page) */
+}
+
+.pagination-controls {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
 }
 
 /* --- Dashboard / Summary --- */

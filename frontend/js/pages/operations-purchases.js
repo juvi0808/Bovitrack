@@ -1,5 +1,4 @@
-async function loadPurchaseHistoryData() {
-    // We get the gridDiv reference just-in-time inside the function.
+async function loadPurchaseHistoryData(page = 1) {
     const gridDiv = document.getElementById('purchase-history-grid');
     if (!gridDiv) {
         console.error("Purchase history grid element not found!");
@@ -12,12 +11,14 @@ async function loadPurchaseHistoryData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchases`);
+        // Add the page query parameter to the fetch URL
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchases/?page=${page}`);
         if (!response.ok) throw new Error('Failed to fetch purchase history');
-        const purchases = await response.json();
         
-        // We still need a helper function to create the grid, but it can live inside this function's scope.
-        function createPurchaseHistoryGrid(data) {
+        // The response is now a paginated object
+        const data = await response.json();
+        
+        function createPurchaseHistoryGrid(purchases) {
             const columnDefs = [
                 { 
                     headerName: getTranslation("ear_tag"), 
@@ -42,7 +43,7 @@ async function loadPurchaseHistoryData() {
             ];
             const gridOptions = {
                 columnDefs: columnDefs,
-                rowData: data,
+                rowData: purchases,
                 defaultColDef: { sortable: true, filter: true, resizable: true, cellStyle: { 'text-align': 'center' } },
                 onGridReady: (params) => params.api.sizeColumnsToFit(),
             };
@@ -50,7 +51,12 @@ async function loadPurchaseHistoryData() {
             createGrid(gridDiv, gridOptions);
         }
 
-        createPurchaseHistoryGrid(purchases);
+        // Use the 'results' array from the paginated data for the grid
+        createPurchaseHistoryGrid(data.results);
+        
+        // Render the pagination controls
+        const paginationContainer = document.getElementById('pagination-controls');
+        renderPaginationControls(data, paginationContainer, loadPurchaseHistoryData, page);
 
     } catch (error) {
         console.error("Error loading purchase history:", error);
@@ -127,7 +133,7 @@ async function openAddPurchaseModal() {
     locationSelect.disabled = true; // Disable it while loading
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/locations`);
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/locations/`);
         if (!response.ok) throw new Error('Could not fetch locations');
         const locations = await response.json();
 
@@ -223,15 +229,15 @@ async function openAddPurchaseModal() {
             entry_weight: document.getElementById('purchase-entry-weight').value,
             sex: document.getElementById('purchase-sex').value,
             race: document.getElementById('purchase-race').value,
-            purchase_price: document.getElementById('purchase-price').value,
+            purchase_price: document.getElementById('purchase-price').value || null,
             location_id: document.getElementById('purchase-location').value,
             sanitary_protocols: protocolsForCurrentPurchase,
             diet_type: document.getElementById('purchase-diet-type').value,
-            daily_intake_percentage: document.getElementById('purchase-diet-intake').value, 
+            daily_intake_percentage: document.getElementById('purchase-diet-intake').value || null, 
         };
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchase/add`, {
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/purchases/add/`, { // New url will be /api/farm/${selectedFarmId}/purchases
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)

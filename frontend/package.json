@@ -1,6 +1,6 @@
 {
   "name": "bovitrack",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Livestock Management Application",
   "main": "main.js",
   "homepage": "./",
@@ -23,15 +23,15 @@
     "appId": "com.yourname.bovitrack",
     "productName": "BoviTrack",
     "files": [
-      "**/*",
-      "!node_modules/*",
-      "node_modules/ag-grid-community/styles/ag-grid.css",
-      "node_modules/ag-grid-community/styles/ag-theme-quartz.css",
-      "node_modules/chart.js/dist/chart.umd.js"
+      "main.js",
+      "index.html",
+      "styles.css",
+      "js/**/*",
+      "pages/**/*"
     ],
     "extraResources": [
       {
-        "from": "./backend/bovitrack_backend",
+        "from": "../backend_django/dist/bovitrack_backend",
         "to": "backend",
         "filter": [
           "**/*"

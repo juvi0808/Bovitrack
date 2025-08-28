@@ -74,7 +74,7 @@ function initConsultAnimalPage() {
         searchResultDiv.innerHTML = `<p>${getTranslation('loading_animals')}...</p>`;
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search?eartag=${earTag}`);
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/search/?eartag=${earTag}`);
             const animals = await response.json();
             renderSearchResults(animals);
         } catch (error) {
@@ -127,7 +127,7 @@ function initConsultAnimalPage() {
         document.getElementById('animal-weight-history-grid').innerHTML = `<p>${getTranslation('loading_animals')}...</p>`;
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/${animalId}`);
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/animal/${animalId}/`);
             if (!response.ok) throw new Error('Failed to fetch master record');
             const masterRecord = await response.json();
 

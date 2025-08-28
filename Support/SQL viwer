@@ -21,5 +21,6 @@
 -- SELECT * FROM weighting
 -- WHERE animal_id NOT IN (SELECT id FROM purchase);
 -- DELETE FROM weighting WHERE id = 2718;
-SELECT * FROM sanitary_protocol where farm_id = 2;
+-- SELECT * FROM sanitary_protocol where farm_id = 2;
 -- ALTER TABLE sanitary_protocol ADD COLUMN dosage VARCHAR(50);
+SELECT * FROM api_purchase 

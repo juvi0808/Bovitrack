@@ -23,5 +23,7 @@ __pycache__/
 
 /build/
 /dist
+/backend_django/dist
+/backend_django/build
 
 live_stock_manager.code-workspace

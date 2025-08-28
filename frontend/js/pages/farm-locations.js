@@ -10,7 +10,7 @@ async function loadLocationsData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/locations`);
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/locations/`);
         if (!response.ok) throw new Error('Failed to fetch locations');
         const locations = await response.json();
         renderLocationsList(locations);
@@ -159,10 +159,30 @@ function createLocationAnimalsGrid(animals) {
             cellClass: 'clickable-cell'
         },
         { headerName: getTranslation("sex"), field: "sex", width: 100 },
-        { headerName: `${getTranslation('age')} (${getTranslation('months')})`, field: "kpis.current_age_months", valueFormatter: p => p.value.toFixed(2), width: 150 },
-        { headerName: getTranslation("last_wt_kg"), field: "kpis.last_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 150 },
-        { headerName: getTranslation("avg_daily_gain_kg"), field: "kpis.average_daily_gain_kg", valueFormatter: p => p.value.toFixed(3), width: 180 },
-        { headerName: getTranslation("forecasted_weight"), field: "kpis.forecasted_current_weight_kg", valueFormatter: p => p.value.toFixed(2), width: 180 },
+        { 
+            headerName: `${getTranslation('age')} (${getTranslation('months')})`, 
+            field: "kpis.current_age_months", 
+            valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', // Null check
+            width: 150 
+        },
+        { 
+            headerName: getTranslation("last_wt_kg"), 
+            field: "kpis.last_weight_kg", 
+            valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', // Null check
+            width: 150 
+        },
+        { 
+            headerName: getTranslation("avg_daily_gain_kg"), 
+            field: "kpis.average_daily_gain_kg", 
+            valueFormatter: p => p.value != null ? p.value.toFixed(3) : '', // Null check
+            width: 180 
+        },
+        { 
+            headerName: getTranslation("forecasted_weight"), 
+            field: "kpis.forecasted_current_weight_kg", 
+            valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', // Null check
+            width: 180 
+        },
         { headerName: getTranslation("diet_type"), field: "kpis.current_diet_type" },
         { headerName: getTranslation("sublocation_name"), field: "kpis.current_sublocation_name" },
     ];
@@ -221,7 +241,7 @@ function initLocationsPage() {
         if (gridContainer) gridContainer.innerHTML = `<p>${getTranslation('loading_animals')}...</p>`;
 
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationId}/summary`);
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationId}/`); // New URL will be /api/farm/${selectedFarmId}/location/${locationId}/
             if (!response.ok) throw new Error('Failed to fetch location summary');
             const data = await response.json();
             
@@ -330,7 +350,11 @@ function initLocationsPage() {
         event.preventDefault();
         const locationData = { name: document.getElementById('location-name-input').value.trim(), area_hectares: document.getElementById('location-area-input').value, location_type: document.getElementById('location-type-input').value.trim(), grass_type: document.getElementById('location-grass-input').value.trim(), };
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/add`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(locationData) });
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/locations/`, { // New url will be /api/farm/${selectedFarmId}/location
+                method: 'POST',  
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(locationData) 
+            });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error);
             showToast(getTranslation('location_saved_successfully', { name: locationData.name }), 'success');
@@ -349,7 +373,11 @@ function initLocationsPage() {
         }
         const sublocationData = { name: document.getElementById('sublocation-name-input').value.trim(), area_hectares: document.getElementById('sublocation-area-input').value };
         try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${currentParentLocationId}/sublocation/add`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sublocationData) });
+            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${currentParentLocationId}/sublocations/`, { //New URL will be /api/farm/${selectedFarmId}/location/${currentParentLocationId}/sublocations/
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(sublocationData) 
+            });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error);
             showToast(getTranslation('subdivision_saved_successfully', { name: sublocationData.name }), 'success');
@@ -380,7 +408,7 @@ function initLocationsPage() {
             };
 
             try {
-                const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationId}/bulk_assign_sublocation`, {
+                const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationId}/bulk_assign_sublocation/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
