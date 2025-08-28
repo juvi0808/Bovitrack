@@ -325,95 +325,77 @@ def sublocation_detail(request, farm_id, sublocation_id):
         sublocation.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-@api_view(['GET', 'POST'])
+@api_view(['GET'])
 def purchase_list(request, farm_id):
     """
-    API view to list all purchases for a farm or create a new one.
-    - Handles GET /api/farm/<farm_id>/purchases/
-    - Handles POST /api/farm/<farm_id>/purchases/
+    API view to list all purchases for a farm (paginated).
+    This view follows the same pattern as other list views like sale_list.
+    Handles GET /api/farm/<farm_id>/purchases/
     """
-    # First, check if the farm itself exists.
-    try:
-        Farm.objects.get(pk=farm_id)
-    except Farm.DoesNotExist:
+    if not Farm.objects.filter(pk=farm_id).exists():
         return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    if request.method == 'GET':
-        purchases = Purchase.objects.filter(farm_id=farm_id).order_by('-entry_date')
-        serializer = PurchaseListSerializer(purchases, many=True)
-        return Response(serializer.data)
+    paginator = PageNumberPagination()
+    paginator.page_size = 100
 
-    elif request.method == 'POST':
-        # Pass the farm_id from the URL into the serializer's context
-        # so our custom validation can use it.
-        context = {'farm_id': farm_id}
-        serializer = PurchaseCreateSerializer(data=request.data, context=context)
+    purchases_qs = Purchase.objects.filter(farm_id=farm_id).order_by('-entry_date')
 
-        if serializer.is_valid():
-            # validated_data contains the clean, validated input data
-            validated_data = serializer.validated_data
-            
-            # Pop the extra fields that are not on the Purchase model itself
-            location_id = validated_data.pop('location_id')
-            initial_diet_type = validated_data.pop('initial_diet_type', None)
-            daily_intake_percentage = validated_data.pop('daily_intake_percentage', None)
-            protocols_data = validated_data.pop('sanitary_protocols', [])
+    paginated_purchases = paginator.paginate_queryset(purchases_qs, request)
+    serializer = PurchaseListSerializer(paginated_purchases, many=True)
+    
+    return paginator.get_paginated_response(serializer.data)
 
-            try:
-                # Use a transaction to ensure all or nothing is saved.
-                with transaction.atomic():
-                    # 1. Create the main Purchase object
-                    # We add farm_id here before creating the object.
-                    new_purchase = Purchase.objects.create(farm_id=farm_id, **validated_data)
 
-                    # 2. Create the initial Weighting
-                    Weighting.objects.create(
-                        farm_id=farm_id,
-                        animal=new_purchase,
-                        date=new_purchase.entry_date,
-                        weight_kg=new_purchase.entry_weight
-                    )
+# ADD THIS NEW FUNCTION FOR POST REQUESTS
+@api_view(['POST'])
+def purchase_create(request, farm_id):
+    """
+    API view to create a new purchase and its related initial records.
+    Handles POST /api/farm/<farm_id>/purchases/add/
+    """
+    if not Farm.objects.filter(pk=farm_id).exists():
+        return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+    context = {'farm_id': farm_id}
+    serializer = PurchaseCreateSerializer(data=request.data, context=context)
 
-                    # 3. Create the initial LocationChange
-                    LocationChange.objects.create(
-                        farm_id=farm_id,
-                        animal=new_purchase,
-                        date=new_purchase.entry_date,
-                        location_id=location_id
-                    )
+    if serializer.is_valid():
+        validated_data = serializer.validated_data
+        
+        location_id = validated_data.pop('location_id')
+        initial_diet_type = validated_data.pop('initial_diet_type', None)
+        daily_intake_percentage = validated_data.pop('daily_intake_percentage', None)
+        protocols_data = validated_data.pop('sanitary_protocols', [])
 
-                    # 4. Create the initial DietLog (if provided)
-                    if initial_diet_type:
-                        DietLog.objects.create(
-                            farm_id=farm_id,
-                            animal=new_purchase,
-                            date=new_purchase.entry_date,
-                            diet_type=initial_diet_type,
-                            daily_intake_percentage=daily_intake_percentage
-                        )
-                    
-                    # 5. Create SanitaryProtocols (if provided)
-                    for protocol_data in protocols_data:
-                        SanitaryProtocol.objects.create(
-                            farm_id=farm_id,
-                            animal=new_purchase,
-                            **protocol_data
-                        )
-                
-                # After the transaction is successfully committed, return the created purchase.
-                # Use the read-only serializer for the response.
-                response_serializer = PurchaseListSerializer(new_purchase)
-                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-            except Exception as e:
-                # If anything fails inside the transaction, it's automatically rolled back.
-                return Response(
-                    {"error": f"An unexpected error occurred during save: {str(e)}"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        try:
+            with transaction.atomic():
+                new_purchase = Purchase.objects.create(farm_id=farm_id, **validated_data)
+                Weighting.objects.create(
+                    farm_id=farm_id, animal=new_purchase,
+                    date=new_purchase.entry_date, weight_kg=new_purchase.entry_weight
                 )
+                LocationChange.objects.create(
+                    farm_id=farm_id, animal=new_purchase,
+                    date=new_purchase.entry_date, location_id=location_id
+                )
+                if initial_diet_type:
+                    DietLog.objects.create(
+                        farm_id=farm_id, animal=new_purchase, date=new_purchase.entry_date,
+                        diet_type=initial_diet_type, daily_intake_percentage=daily_intake_percentage
+                    )
+                for protocol_data in protocols_data:
+                    SanitaryProtocol.objects.create(farm_id=farm_id, animal=new_purchase, **protocol_data)
+            
+            response_serializer = PurchaseListSerializer(new_purchase)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
-        # If the initial validation fails, return the errors.
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(
+                {"error": f"An unexpected error occurred during save: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
 def sale_list(request, farm_id):
@@ -421,6 +403,7 @@ def sale_list(request, farm_id):
     API view to list all sales for a specific farm.
     This view is now optimized with annotations and is paginated.
     """
+    print(">>>> EXECUTING THE CORRECT sale_list VIEW <<<<")
     paginator = PageNumberPagination()
     paginator.page_size = 100
 
@@ -768,15 +751,20 @@ def death_list(request, farm_id):
     API view to list all death records for a specific farm.
     Handles GET /api/farm/<farm_id>/deaths/
     """
+    print(">>>> EXECUTING THE CORRECT death_list VIEW <<<<")
     if not Farm.objects.filter(pk=farm_id).exists():
         return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    deaths = Death.objects.filter(
+    paginator = PageNumberPagination()
+    paginator.page_size = 100
+
+    deaths_qs = Death.objects.filter(
         farm_id=farm_id
     ).select_related('animal').order_by('-date')
     
-    serializer = DeathSerializer(deaths, many=True)
-    return Response(serializer.data)
+    paginated_deaths = paginator.paginate_queryset(deaths_qs, request)
+    serializer = DeathSerializer(paginated_deaths, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 
 @api_view(['POST'])

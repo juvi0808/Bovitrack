@@ -549,7 +549,10 @@ function showToast(message, type = 'success') {
 }
 
 function renderPaginationControls(paginationData, container, callback, currentPage) {
-    if (!container) return;
+    if (!container || !paginationData || typeof paginationData.count === 'undefined') {
+        if(container) container.innerHTML = ''; // Ensure old controls are cleared
+        return;
+    }
 
     container.innerHTML = '';
 
@@ -560,19 +563,19 @@ function renderPaginationControls(paginationData, container, callback, currentPa
     if (totalPages <= 1) return; // Don't show controls if there's only one page
 
     const prevButton = document.createElement('button');
-    prevButton.textContent = '<< Previous';
+    prevButton.textContent = `<< ${getTranslation('previous')}`;
     prevButton.disabled = !paginationData.previous; // Use 'previous' link from API
     prevButton.className = 'button-secondary';
     prevButton.onclick = () => callback(currentPage - 1);
 
     const pageIndicator = document.createElement('span');
     // Use the currentPage and calculated totalPages
-    pageIndicator.textContent = `Page ${currentPage} of ${totalPages}`;
+    pageIndicator.textContent = `${getTranslation('page')} ${currentPage} ${getTranslation('of')} ${totalPages}`;
     pageIndicator.style.margin = '0 15px';
     pageIndicator.style.fontWeight = 'bold';
 
     const nextButton = document.createElement('button');
-    nextButton.textContent = 'Next >>';
+    nextButton.textContent = `${getTranslation('next')} >>`;
     nextButton.disabled = !paginationData.next; // Use 'next' link from API
     nextButton.className = 'button-secondary';
     nextButton.onclick = () => callback(currentPage + 1);

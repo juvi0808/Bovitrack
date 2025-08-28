@@ -133,7 +133,7 @@ function initHistoryDeathsPage() {
     loadDeathHistoryData();
 }
 
-async function loadDeathHistoryData() {
+async function loadDeathHistoryData(page = 1) {
     const gridDiv = document.getElementById('death-history-grid');
     if (!gridDiv) return;
 
@@ -143,17 +143,21 @@ async function loadDeathHistoryData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/deaths/`);
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/deaths/?page=${page}`);
         if (!response.ok) throw new Error('Failed to fetch death history');
-        const history = await response.json();
-        createDeathHistoryGrid(history);
+        const data = await response.json(); // This is now a paginated response
+        
+        createDeathHistoryGrid(data.results); // Use the .results property for the grid
+
+        // Render pagination controls
+        const paginationContainer = document.getElementById('pagination-controls');
+        renderPaginationControls(data, paginationContainer, loadDeathHistoryData, page);
 
     } catch (error) {
         console.error("Error loading death history:", error);
         gridDiv.innerHTML = `<p style="color: red;">${getTranslation('error_loading_data')}</p>`;
     }
 }
-
 function createDeathHistoryGrid(data) {
     const gridDiv = document.getElementById('death-history-grid');
     if (!gridDiv) return;

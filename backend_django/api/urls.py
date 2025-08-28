@@ -13,6 +13,7 @@ urlpatterns = [
     path('farm/<int:farm_id>/sublocation/<int:sublocation_id>/', views.sublocation_detail, name='sublocation-detail'),
 
     path('farm/<int:farm_id>/purchases/', views.purchase_list, name='purchase-list'),
+    path('farm/<int:farm_id>/purchases/add/', views.purchase_create, name='purchase-create'),
     
     path('farm/<int:farm_id>/sales/', views.sale_list, name='sale-list'),
     path('farm/<int:farm_id>/purchase/<int:purchase_id>/sale/add/', views.sale_create, name='sale-create'),
