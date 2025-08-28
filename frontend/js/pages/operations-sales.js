@@ -149,7 +149,7 @@ function initHistorySalesPage() {
 }
 
 // Fetches sales data from the API and populates the grid.
-async function loadSalesHistoryData() {
+async function loadSalesHistoryData(page = 1) { // Add page parameter
     const gridDiv = document.getElementById('sales-history-grid');
     if (!gridDiv) return;
 
@@ -159,10 +159,16 @@ async function loadSalesHistoryData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/sales/`);
+        // Add page query parameter to the URL
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/sales/?page=${page}`);
         if (!response.ok) throw new Error('Failed to fetch sales history');
-        const sales = await response.json();
-        createSalesHistoryGrid(sales);
+        const data = await response.json(); // This is now a paginated response object
+
+        createSalesHistoryGrid(data.results); // Use data.results for the grid
+        
+        // Render pagination controls
+        const paginationContainer = document.getElementById('pagination-controls');
+        renderPaginationControls(data, paginationContainer, loadSalesHistoryData, page);
 
     } catch (error) {
         console.error("Error loading sales history:", error);

@@ -3,11 +3,12 @@ from rest_framework.decorators import api_view, parser_classes
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser
+from rest_framework.pagination import PageNumberPagination
 # Make sure Q is imported here
 from django.http import JsonResponse
 from django.db import transaction
-from django.db.models import Count, Subquery, OuterRef, Q, F, FloatField, Case, When, Sum, IntegerField, Avg, Value
-from django.db.models.functions import Coalesce, Cast, Now, NullIf
+from django.db.models import Count, Subquery, OuterRef, Q, F, FloatField, Case, When, Sum, IntegerField, Avg, Value, ExpressionWrapper
+from django.db.models.functions import Coalesce, Cast, Now, NullIf, TruncDate
 
 from .models import Farm, Location, Purchase, LocationChange, Sublocation, Weighting, DietLog, Sale, Death, SanitaryProtocol
 from .serializers import (FarmSerializer, LocationSerializer, SublocationSerializer, 
@@ -16,7 +17,9 @@ from .serializers import (FarmSerializer, LocationSerializer, SublocationSeriali
                         SanitaryProtocolCreateSerializer, SaleCreateSerializer, SaleSerializer, LocationChangeCreateSerializer, 
                         DietLogCreateSerializer, DeathSerializer, DeathCreateSerializer, LocationCreateUpdateSerializer, 
                         LocationSummarySerializer, AnimalSummarySerializer, SublocationCreateUpdateSerializer, AnimalMasterRecordSerializer,
-                        LotSummarySerializer, ActiveStockResponseSerializer, BulkAssignSublocationSerializer)   # We will add more serializers here later
+                        LotSummarySerializer, ActiveStockResponseSerializer, BulkAssignSublocationSerializer, ActiveStockSummaryKpiSerializer,
+                        FullFarmExportSerializer
+                        )   # We will add more serializers here later
                       
 from datetime import datetime, date, timedelta
 import random
@@ -26,6 +29,7 @@ import os
 import bisect
 from pathlib import Path
 import calendar
+import json
 
 
 @api_view(['GET', 'POST'])
@@ -182,7 +186,6 @@ def location_detail(request, farm_id, location_id):
 
     if request.method == 'GET':
         # --- Step 1: Find the primary keys of active animals whose LATEST location is this one. ---
-        # This is the most performance-critical step.
         latest_locations = LocationChange.objects.filter(
             animal=OuterRef('pk')
         ).order_by('-date', '-id')
@@ -201,47 +204,49 @@ def location_detail(request, farm_id, location_id):
         latest_weightings = Weighting.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
         latest_diets = DietLog.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
 
-        # Django's equivalent of julianday is a bit more complex, using timedelta.
-        # We calculate durations in days.
-        days_on_farm_expr = (Now() - F('entry_date'))
-        days_for_gmd_expr = (Subquery(latest_weightings.values('date')[:1]) - F('entry_date'))
+        # --- FINAL CORRECTED ANNOTATIONS ---
+        # --- FIX: Use TruncDate for reliable date math ---
+        current_date = TruncDate(Now())
+        days_on_farm = ExpressionWrapper((current_date - F('entry_date')) / timedelta(days=1), output_field=FloatField())
         
-        # Cast timedelta fields to FloatField representing days for arithmetic
-        days_on_farm = Cast(days_on_farm_expr, FloatField()) / (24 * 60 * 60)
-        days_for_gmd = Cast(days_for_gmd_expr, FloatField()) / (24 * 60 * 60)
+        last_weighting_date_subq = Subquery(latest_weightings.values('date')[:1])
+        last_weighting_date_or_entry = Coalesce(last_weighting_date_subq, F('entry_date'))
         
-        last_weight_kg = Subquery(latest_weightings.values('weight_kg')[:1])
+        days_for_gmd_expr = last_weighting_date_subq - F('entry_date')
+        days_for_gmd = ExpressionWrapper(days_for_gmd_expr / timedelta(days=1), output_field=FloatField())
+        
+        # Use Coalesce to handle animals with no weightings yet
+        last_weight_kg = Coalesce(Subquery(latest_weightings.values('weight_kg')[:1]), F('entry_weight'))
         total_gain = last_weight_kg - F('entry_weight')
-        # Use NullIf to prevent division by zero. If days_for_gmd is 0,
-        # NullIf will return NULL, and any division by NULL results in NULL.
-        # This is the correct and efficient way to handle this in SQL.
-        gmd = total_gain / NullIf(days_for_gmd, 0.0)
-
+        gmd = total_gain / NullIf(days_for_gmd, Value(0.0), output_field=FloatField())
+        
+        days_since_last_weight = ExpressionWrapper((current_date - last_weighting_date_or_entry) / timedelta(days=1), output_field=FloatField())
+        forecasted_weight = last_weight_kg + (gmd * days_since_last_weight)
+        
         animals_qs = Purchase.objects.filter(
             pk__in=list(animal_ids_in_location)
         ).annotate(
+            # Annotate with all the fields required by AnimalSummarySerializer
             current_age_months=F('entry_age') + (days_on_farm / 30.44),
             last_weight_kg=last_weight_kg,
             average_daily_gain_kg=gmd,
-            forecasted_current_weight_kg=last_weight_kg + (gmd * days_on_farm),
+            forecasted_current_weight_kg=forecasted_weight,
             current_diet_type=Subquery(latest_diets.values('diet_type')[:1]),
-            current_sublocation_name=Subquery(
-                Sublocation.objects.filter(
-                    pk=Subquery(latest_locations.values('sublocation_id')[:1])
-                ).values('name')[:1]
-            )
+            days_on_farm_int=Cast(days_on_farm, IntegerField()),
+            last_weighting_date=last_weighting_date_subq,
+            current_diet_intake=Subquery(latest_diets.values('daily_intake_percentage')[:1]),
+            current_location_id=Subquery(latest_locations.values('location_id')[:1]),
+            current_sublocation_id=Subquery(latest_locations.values('sublocation_id')[:1])
+            # The faulty sublocation_name subquery is correctly removed.
+            # The serializer will handle the name lookup.
         )
 
         # --- Step 3: Assemble the final response object ---
-        # The 'location' object is already our 'location_details'.
-        # The 'animals_qs' is our 'animals' list.
         summary_data = {
             'location_details': location,
             'animals': animals_qs
         }
 
-        # Use the new top-level serializer to structure the response correctly.
-        # We pass the calculated location KPIs via context to the nested LocationSerializer.
         kpi_data = location_list.get_kpis_for_locations(farm_id)
         kpi_context = {
             'location_kpis': kpi_data.get('location_kpis', {}),
@@ -414,13 +419,39 @@ def purchase_list(request, farm_id):
 def sale_list(request, farm_id):
     """
     API view to list all sales for a specific farm.
+    This view is now optimized with annotations and is paginated.
     """
-    # Use select_related('animal') to fetch the related Purchase object
-    # in the same database query. This is a crucial performance optimization.
-    sales = Sale.objects.filter(farm_id=farm_id).select_related('animal').order_by('-date')
-    
-    serializer = SaleSerializer(sales, many=True)
-    return Response(serializer.data)
+    paginator = PageNumberPagination()
+    paginator.page_size = 100
+
+    # --- OPTIMIZATION: Subquery to get the final weight in the main query ---
+    exit_weight_subquery = Subquery(
+        Weighting.objects.filter(
+            animal=OuterRef('animal'),
+            date=OuterRef('date')
+        ).values('weight_kg')[:1]
+    )
+
+    base_sales_qs = Sale.objects.filter(farm_id=farm_id).select_related('animal')
+
+    # --- OPTIMIZATION: Annotate with all calculated fields at the database level ---
+    annotated_sales = base_sales_qs.annotate(
+        exit_weight_kg=exit_weight_subquery,
+        days_on_farm_expr=(F('date') - F('animal__entry_date')),
+        total_gain_expr=(F('exit_weight_kg') - F('animal__entry_weight'))
+    ).annotate(
+        days_on_farm=ExpressionWrapper(F('days_on_farm_expr') / timedelta(days=1), output_field=FloatField()),
+        gmd_kg_day=Case(
+            When(days_on_farm_expr__gt=timedelta(0), then=F('total_gain_expr') / F('days_on_farm')),
+            default=0.0,
+            output_field=FloatField()
+        ),
+        exit_age_months=F('animal__entry_age') + (F('days_on_farm') / 30.44)
+    ).order_by('-date')
+
+    paginated_sales = paginator.paginate_queryset(annotated_sales, request)
+    serializer = SaleSerializer(paginated_sales, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 @api_view(['POST'])
 def sale_create(request, farm_id, purchase_id):
@@ -480,24 +511,16 @@ def sale_create(request, farm_id, purchase_id):
 def weighting_list(request, farm_id):
     """
     API view to list all weighting records for a specific farm.
-    Handles GET /api/farm/<farm_id>/weightings/
+    Now paginated for performance.
     """
-    # Ensure the farm exists to provide a clean 404 if the ID is invalid.
-    if not Farm.objects.filter(pk=farm_id).exists():
-        return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
+    paginator = PageNumberPagination()
+    paginator.page_size = 100
 
-    # The core queryset for this view.
-    # 1. Filter by the farm_id from the URL.
-    # 2. Use select_related('animal') to perform a SQL JOIN and fetch the related
-    #    Purchase data in a single, efficient query. This prevents the N+1 problem
-    #    where the serializer would otherwise make a new DB query for each weighting.
-    # 3. Order the results by date, descending, to show the most recent first.
-    weightings = Weighting.objects.filter(farm_id=farm_id).select_related('animal').order_by('-date')
-
-    # Serialize the queryset. The WeightingSerializer will now have efficient access
-    # to the 'animal' object for each weighting record.
-    serializer = WeightingSerializer(weightings, many=True)
-    return Response(serializer.data)
+    weightings_qs = Weighting.objects.filter(farm_id=farm_id).select_related('animal').order_by('-date')
+    
+    paginated_weightings = paginator.paginate_queryset(weightings_qs, request)
+    serializer = WeightingSerializer(paginated_weightings, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 @api_view(['POST'])
 def weighting_create(request, farm_id, purchase_id):
@@ -531,18 +554,18 @@ def weighting_create(request, farm_id, purchase_id):
 def sanitary_protocol_list(request, farm_id):
     """
     API view to list all sanitary protocol events for a specific farm.
-    Handles GET /api/farm/<farm_id>/sanitary/
+    Now paginated for performance.
     """
-    if not Farm.objects.filter(pk=farm_id).exists():
-        return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
+    paginator = PageNumberPagination()
+    paginator.page_size = 100
 
-    # Use select_related('animal') for performance, just like in other list views.
-    protocols = SanitaryProtocol.objects.filter(
+    protocols_qs = SanitaryProtocol.objects.filter(
         farm_id=farm_id
     ).select_related('animal').order_by('-date')
     
-    serializer = SanitaryProtocolSerializer(protocols, many=True)
-    return Response(serializer.data)
+    paginated_protocols = paginator.paginate_queryset(protocols_qs, request)
+    serializer = SanitaryProtocolSerializer(paginated_protocols, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 
 @api_view(['POST'])
@@ -608,18 +631,18 @@ def sanitary_protocol_create(request, farm_id, purchase_id):
 def location_change_list(request, farm_id):
     """
     API view to list all location change events for a specific farm.
-    Handles GET /api/farm/<farm_id>/location_log/
+    Now paginated for performance.
     """
-    if not Farm.objects.filter(pk=farm_id).exists():
-        return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
+    paginator = PageNumberPagination()
+    paginator.page_size = 100
 
-    # Optimization: Use select_related to pre-fetch all related models in one query.
-    changes = LocationChange.objects.filter(
+    changes_qs = LocationChange.objects.filter(
         farm_id=farm_id
     ).select_related('animal', 'location', 'sublocation').order_by('-date')
     
-    serializer = LocationChangeSerializer(changes, many=True)
-    return Response(serializer.data)
+    paginated_changes = paginator.paginate_queryset(changes_qs, request)
+    serializer = LocationChangeSerializer(paginated_changes, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 
 @api_view(['POST'])
@@ -677,18 +700,18 @@ def location_change_create(request, farm_id, purchase_id):
 def diet_log_list(request, farm_id):
     """
     API view to list all diet log events for a specific farm.
-    Handles GET /api/farm/<farm_id>/diets/
+    Now paginated for performance.
     """
-    if not Farm.objects.filter(pk=farm_id).exists():
-        return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
+    paginator = PageNumberPagination()
+    paginator.page_size = 100
 
-    # Use select_related for optimized query
-    diets = DietLog.objects.filter(
+    diets_qs = DietLog.objects.filter(
         farm_id=farm_id
     ).select_related('animal').order_by('-date')
     
-    serializer = DietLogSerializer(diets, many=True)
-    return Response(serializer.data)
+    paginated_diets = paginator.paginate_queryset(diets_qs, request)
+    serializer = DietLogSerializer(paginated_diets, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 
 @api_view(['POST'])
@@ -883,74 +906,54 @@ def lots_summary(request, farm_id):
     Handles GET /api/farm/<farm_id>/lots/summary/
     """
     # --- Step 1: Security and Validation ---
-    # Ensure the farm exists. If not, return a 404 Not Found response immediately.
     if not Farm.objects.filter(pk=farm_id).exists():
         return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
 
     # --- Step 2: Define Reusable KPI Expressions for a Single Animal ---
-    # These expressions will be used to calculate KPIs for each animal *before* we group them by lot.
-
-    # Subquery to find the most recent weighting for any given animal.
-    # `OuterRef('pk')` is a powerful tool. It acts as a placeholder that says:
-    # "For each Purchase object in the main query, fill in its primary key here."
-    # This allows us to run a correlated subquery.
     latest_weightings = Weighting.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
 
-    # In Django, date arithmetic (e.g., `Now() - F('entry_date')`) results in a `timedelta` object.
-    # To use this in further calculations like division, we must convert it to a number.
-    # We `Cast` it to a `FloatField`, which represents the total number of seconds in the timedelta.
-    SECONDS_IN_DAY = 24 * 60 * 60.0
-    days_on_farm_expr = Now() - F('entry_date')
-    days_since_last_weight_expr = Now() - Subquery(latest_weightings.values('date')[:1])
-    days_for_gmd_expr = Subquery(latest_weightings.values('date')[:1]) - F('entry_date')
+    # --- FINAL CORRECTED ANNOTATIONS ---
+    # --- FIX: Use TruncDate for reliable date math ---
+    current_date = TruncDate(Now())
+    days_on_farm = ExpressionWrapper((current_date - F('entry_date')) / timedelta(days=1), output_field=FloatField())
     
-    days_on_farm = Cast(days_on_farm_expr, FloatField()) / SECONDS_IN_DAY
-    days_since_last_weight = Cast(days_since_last_weight_expr, FloatField()) / SECONDS_IN_DAY
-    days_for_gmd = Cast(days_for_gmd_expr, FloatField()) / SECONDS_IN_DAY
-
-    # `Coalesce` is used to prevent errors if an animal has no weightings yet.
-    # It tries to get the subquery result first; if that is `None`, it falls back to the `entry_weight`.
+    last_weighting_date_subq = Subquery(latest_weightings.values('date')[:1])
+    last_weighting_date_or_entry = Coalesce(last_weighting_date_subq, F('entry_date'))
+    
+    days_for_gmd_expr = last_weighting_date_subq - F('entry_date')
+    days_for_gmd = ExpressionWrapper(days_for_gmd_expr / timedelta(days=1), output_field=FloatField())
+    
     last_weight_kg = Coalesce(Subquery(latest_weightings.values('weight_kg')[:1]), F('entry_weight'))
     
     total_gain = last_weight_kg - F('entry_weight')
     
-    # `NullIf` is a crucial function to prevent division-by-zero errors.
-    # If `days_for_gmd` is 0, this expression will become `NULL` in the database,
-    # and any calculation with `NULL` results in `NULL` instead of an error.
     gmd = total_gain / NullIf(days_for_gmd, Value(0.0), output_field=FloatField())
     
+    days_since_last_weight = ExpressionWrapper((current_date - last_weighting_date_or_entry) / timedelta(days=1), output_field=FloatField())
     forecasted_weight = last_weight_kg + (gmd * days_since_last_weight)
 
     # --- Step 3: The Main Aggregation Query ---
-    # This single, powerful query performs all the work.
     summary_query = Purchase.objects.filter(
-        # First, we get all active animals for the farm.
         farm_id=farm_id, sale__isnull=True, death__isnull=True
     ).annotate(
         # The first `.annotate()` calculates the KPIs for EACH animal individually.
-        # We give them temporary names (like `_gmd`) because these are intermediate values
-        # that we will use in the final aggregation step.
         _gmd=gmd,
         _current_age_months=F('entry_age') + (days_on_farm / 30.44),
         _forecasted_weight=forecasted_weight
     ).values(
-        'lot'  # THIS IS THE MOST IMPORTANT PART. `.values('lot')` tells Django to perform a `GROUP BY lot`.
-               # All subsequent annotations will be applied to each group of lots.
+        'lot'  # This performs a GROUP BY lot.
     ).annotate(
         # The second `.annotate()` performs the aggregation functions on each group.
         animal_count=Count('id'),
-        # `Case/When` is used to count conditionally, equivalent to `SUM(CASE WHEN sex = 'M' THEN 1 ELSE 0 END)`.
         male_count=Count(Case(When(sex='M', then=1))),
         female_count=Count(Case(When(sex='F', then=1))),
         # We take the average of the pre-calculated individual animal KPIs.
         average_age_months=Avg('_current_age_months'),
         average_gmd_kg=Avg('_gmd'),
         average_weight_kg=Avg('_forecasted_weight')
-    ).order_by('lot') # Finally, order the results by lot number.
+    ).order_by('lot')
 
     # --- Step 4: Serialization ---
-    # The `summary_query` is now a queryset of dictionaries, where each dictionary represents a lot.
-    # We pass this directly to our simple LotSummarySerializer to format it into the final JSON.
     serializer = LotSummarySerializer(summary_query, many=True)
     return Response(serializer.data)
 
@@ -959,17 +962,10 @@ def lots_summary(request, farm_id):
 def lot_detail_summary(request, farm_id, lot_number):
     """
     Gets a detailed summary of all active animals within a specific lot.
-    Reuses the annotations and serializer from the animal_search endpoint.
-    Handles GET /api/farm/<farm_id>/lot/<lot_number>/
     """
-    # --- Step 1: Security and Validation ---
     if not Farm.objects.filter(pk=farm_id).exists():
         return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    # --- Step 2: The Base Query ---
-    # Unlike the summary view, here we are NOT aggregating. We are getting a list
-    # of individual animals. The key difference is filtering by the `lot_number`
-    # from the URL.
     base_query = Purchase.objects.filter(
         farm_id=farm_id,
         lot=lot_number,
@@ -977,128 +973,134 @@ def lot_detail_summary(request, farm_id, lot_number):
         death__isnull=True
     )
 
-    # --- Step 3: Annotate with Individual Animal KPIs ---
-    # This entire block of code is a perfect example of reusability. It's the same
-    # set of annotations used in the `animal_search` view. Its purpose is to
-    # attach all the necessary KPI fields directly to each `Purchase` object
-    # in the queryset, so the serializer can easily access them.
+    # --- FINAL CORRECTED ANNOTATIONS ---
     latest_weightings = Weighting.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
     latest_diets = DietLog.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
     latest_locations = LocationChange.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
+    
+    # --- FIX: Use TruncDate for reliable date math ---
+    current_date = TruncDate(Now())
+    days_on_farm = ExpressionWrapper((current_date - F('entry_date')) / timedelta(days=1), output_field=FloatField())
 
-    SECONDS_IN_DAY = 24 * 60 * 60.0
-    days_on_farm_expr = Now() - F('entry_date')
-    days_for_gmd_expr = Subquery(latest_weightings.values('date')[:1]) - F('entry_date')
-    days_on_farm = Cast(days_on_farm_expr, FloatField()) / SECONDS_IN_DAY
-    days_for_gmd = Cast(days_for_gmd_expr, FloatField()) / SECONDS_IN_DAY
+    last_weighting_date_subq = Subquery(latest_weightings.values('date')[:1])
+    last_weighting_date_or_entry = Coalesce(last_weighting_date_subq, F('entry_date'))
+    
+    days_for_gmd_expr = last_weighting_date_subq - F('entry_date')
+    days_for_gmd = ExpressionWrapper(days_for_gmd_expr / timedelta(days=1), output_field=FloatField())
+
     last_weight_kg = Coalesce(Subquery(latest_weightings.values('weight_kg')[:1]), F('entry_weight'))
     total_gain = last_weight_kg - F('entry_weight')
     gmd = total_gain / NullIf(days_for_gmd, Value(0.0), output_field=FloatField())
 
+    days_since_last_weight = ExpressionWrapper((current_date - last_weighting_date_or_entry) / timedelta(days=1), output_field=FloatField())
+    forecasted_weight = last_weight_kg + (gmd * days_since_last_weight)
+
     annotated_query = base_query.annotate(
-        # Each animal in the filtered lot gets these calculated fields attached to it.
         current_age_months=F('entry_age') + (days_on_farm / 30.44),
         last_weight_kg=last_weight_kg,
         average_daily_gain_kg=gmd,
-        forecasted_current_weight_kg=last_weight_kg + (gmd * days_on_farm),
+        forecasted_current_weight_kg=forecasted_weight,
         current_diet_type=Subquery(latest_diets.values('diet_type')[:1]),
         days_on_farm_int=Cast(days_on_farm, IntegerField()),
-        last_weighting_date=Subquery(latest_weightings.values('date')[:1]),
+        last_weighting_date=last_weighting_date_subq,
         current_diet_intake=Subquery(latest_diets.values('daily_intake_percentage')[:1]),
         current_location_id=Subquery(latest_locations.values('location_id')[:1]),
-        current_location_name=Subquery(
-            Location.objects.filter(pk=Subquery(latest_locations.values('location_id')[:1])).values('name')[:1]
-        ),
         current_sublocation_id=Subquery(latest_locations.values('sublocation_id')[:1]),
-        current_sublocation_name=Subquery(
-            Sublocation.objects.filter(pk=Subquery(latest_locations.values('sublocation_id')[:1])).values('name')[:1]
-        )
     ).order_by('ear_tag')
 
-    # --- Step 4: Serialization ---
-    # We can reuse the `AnimalSummarySerializer` because it is designed to work with any
-    # `Purchase` queryset that has been annotated with the specific KPI fields it expects.
-    # This is another great example of the DRY (Don't Repeat Yourself) principle in action.
     serializer = AnimalSummarySerializer(annotated_query, many=True)
     return Response(serializer.data)
 
 @api_view(['GET'])
 def active_stock_summary(request, farm_id):
     """
-    Gets a complete summary of the active stock for a specific farm,
-    with all calculations performed efficiently in the database.
-    Handles GET /api/farm/<farm_id>/stock/active_summary/
+    Gets a complete summary of the active stock for a specific farm.
+    This view returns all active animals for client-side grid functionality.
     """
-    # --- Step 1: Security and Validation ---
     if not Farm.objects.filter(pk=farm_id).exists():
-        return Response({"error": "Farm not found."}, status=status.HTTP_4_NOT_FOUND)
+        return Response({"error": "Farm not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    # --- Step 2: Define Base Queryset and Reusable Annotations ---
-    # This is the foundation for both of our queries. It gets all animals
-    # that have not been sold and have not been recorded as dead.
     active_animals_qs = Purchase.objects.filter(
         farm_id=farm_id, sale__isnull=True, death__isnull=True
     )
 
-    # This block of annotation logic is identical to the one in `lot_detail_summary`.
-    # It defines how to calculate all per-animal KPIs at the database level.
+    # --- Define reusable annotations (same as before) ---
     latest_weightings = Weighting.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
     latest_diets = DietLog.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
     latest_locations = LocationChange.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
-    SECONDS_IN_DAY = 24 * 60 * 60.0
-    days_on_farm_expr = Now() - F('entry_date')
-    days_for_gmd_expr = Subquery(latest_weightings.values('date')[:1]) - F('entry_date')
-    days_on_farm = Cast(days_on_farm_expr, FloatField()) / SECONDS_IN_DAY
-    days_for_gmd = Cast(days_for_gmd_expr, FloatField()) / SECONDS_IN_DAY
+
+    current_date = TruncDate(Now())
+    days_on_farm = ExpressionWrapper((current_date - F('entry_date')) / timedelta(days=1), output_field=FloatField())
+    
+    last_weighting_date_subq = Subquery(latest_weightings.values('date')[:1])
+    last_weighting_date_or_entry = Coalesce(last_weighting_date_subq, F('entry_date'))
+    
+    days_for_gmd_expr = last_weighting_date_subq - F('entry_date')
+    days_for_gmd = ExpressionWrapper(days_for_gmd_expr / timedelta(days=1), output_field=FloatField())
+
     last_weight_kg = Coalesce(Subquery(latest_weightings.values('weight_kg')[:1]), F('entry_weight'))
     total_gain = last_weight_kg - F('entry_weight')
     gmd = total_gain / NullIf(days_for_gmd, Value(0.0), output_field=FloatField())
 
-    # --- Step 3: Execute Query 1 (Get the list of all animals with their KPIs) ---
-    # We apply the annotation logic to our base queryset to get the detailed animal list.
-    animal_details_query = active_animals_qs.annotate(
-        current_age_months=F('entry_age') + (days_on_farm / 30.44),
-        last_weight_kg=last_weight_kg,
-        average_daily_gain_kg=gmd,
-        forecasted_current_weight_kg=last_weight_kg + (gmd * days_on_farm),
-        current_diet_type=Subquery(latest_diets.values('diet_type')[:1]),
-        days_on_farm_int=Cast(days_on_farm, IntegerField()),
-        last_weighting_date=Subquery(latest_weightings.values('date')[:1]),
-        current_diet_intake=Subquery(latest_diets.values('daily_intake_percentage')[:1]),
-        current_location_id=Subquery(latest_locations.values('location_id')[:1]),
-        current_location_name=Subquery(
-            Location.objects.filter(pk=Subquery(latest_locations.values('location_id')[:1])).values('name')[:1]
-        ),
-        current_sublocation_id=Subquery(latest_locations.values('sublocation_id')[:1]),
-        current_sublocation_name=Subquery(
-            Sublocation.objects.filter(pk=Subquery(latest_locations.values('sublocation_id')[:1])).values('name')[:1]
-        )
-    ).order_by('lot', 'ear_tag')
+    days_since_last_weight = ExpressionWrapper((current_date - last_weighting_date_or_entry) / timedelta(days=1), output_field=FloatField())
+    forecasted_weight = last_weight_kg + (gmd * days_since_last_weight)
 
-
-    # --- Step 4: Execute Query 2 (Get the aggregated summary KPIs) ---
-    # `.aggregate()` is the most efficient way to perform calculations over an entire dataset.
-    # It returns a single dictionary of results, not a queryset.
+    # --- QUERY 1: Aggregated KPIs ---
     summary_kpis_result = active_animals_qs.aggregate(
         total_active_animals=Count('id'),
         number_of_males=Count(Case(When(sex='M', then=1))),
         number_of_females=Count(Case(When(sex='F', then=1))),
-        # We can reuse our annotation expressions directly inside the aggregate call.
         average_age_months=Avg(F('entry_age') + (days_on_farm / 30.44)),
         average_gmd_kg=Avg(gmd)
     )
 
-    # --- Step 5: Assemble and Serialize the Final Response ---
-    # Create the single Python dictionary that matches the structure expected by our top-level serializer.
-    response_data = {
-        'summary_kpis': summary_kpis_result,
-        'animals': animal_details_query
-    }
+    # --- QUERY 2: The detailed list of ALL animals ---
+    animal_details_query = active_animals_qs.annotate(
+        current_age_months=F('entry_age') + (days_on_farm / 30.44),
+        last_weight_kg=last_weight_kg,
+        average_daily_gain_kg=gmd,
+        forecasted_current_weight_kg=forecasted_weight,
+        current_diet_type=Subquery(latest_diets.values('diet_type')[:1]),
+        days_on_farm_int=Cast(days_on_farm, IntegerField()),
+        last_weighting_date=last_weighting_date_subq,
+        current_diet_intake=Subquery(latest_diets.values('daily_intake_percentage')[:1]),
+        current_location_id=Subquery(latest_locations.values('location_id')[:1]),
+        current_sublocation_id=Subquery(latest_locations.values('sublocation_id')[:1]),
+    ).order_by('lot', 'ear_tag')
 
-    # Pass this dictionary to the serializer. DRF will handle passing the correct
-    # parts of the data to the nested `ActiveStockSummaryKpiSerializer` and `AnimalSummarySerializer`.
-    serializer = ActiveStockResponseSerializer(response_data)
-    return Response(serializer.data)
+    # --- Execute query and pre-fetch names ---
+    all_animals = list(animal_details_query)
+
+    location_ids = {animal.current_location_id for animal in all_animals if animal.current_location_id}
+    sublocation_ids = {animal.current_sublocation_id for animal in all_animals if animal.current_sublocation_id}
+
+    locations = Location.objects.filter(id__in=location_ids).values('id', 'name')
+    sublocations = Sublocation.objects.filter(id__in=sublocation_ids).values('id', 'name')
+
+    location_name_map = {loc['id']: loc['name'] for loc in locations}
+    sublocation_name_map = {sub['id']: sub['name'] for sub in sublocations}
+    
+    serializer_context = {
+        'location_name_map': location_name_map,
+        'sublocation_name_map': sublocation_name_map
+    }
+    
+    # --- FIX STARTS HERE ---
+    
+    # 1. Assemble a dictionary with the RAW data (model objects, not serialized data).
+    final_data = {
+        'summary_kpis': summary_kpis_result,
+        'animals': all_animals  # Pass the list of annotated Purchase objects directly
+    }
+    
+    # 2. Instantiate the top-level serializer, passing it the raw data and the context.
+    #    It will now correctly delegate the serialization of the 'animals' list
+    #    to the AnimalSummarySerializer.
+    response_serializer = ActiveStockResponseSerializer(final_data, context=serializer_context)
+    
+    # --- FIX ENDS HERE ---
+
+    return Response(response_serializer.data)
 
 @api_view(['POST'])
 def bulk_assign_sublocation(request, farm_id, location_id):
@@ -1275,7 +1277,7 @@ def seed_test_farm(request):
         num_sublocations = int(params['num_sublocations_per_location'])
         total_farm_area_ha = float(params['total_farm_area_ha'])
         fixed_purchase_price = params.get('fixed_purchase_price')
-        fixed_sale_price_per_kg = params.get('fixed_sale_price_per_kg')
+        fixed_sale_price = params.get('fixed_sale_price_per_kg')
         years = int(params['years'])
         end_date = datetime.strptime(params['end_date'], '%Y-%m-%d').date()
 
@@ -1283,7 +1285,7 @@ def seed_test_farm(request):
         return Response({'error': f'Invalid or missing parameter: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
     market_prices, sorted_market_dates = load_historical_prices()
-    if not market_prices and (fixed_purchase_price is None or fixed_sale_price_per_kg is None):
+    if not market_prices and (fixed_purchase_price is None or fixed_sale_price is None):
         return Response({'error': 'Historical price data missing and no fixed prices provided.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # --- 1. DESTRUCTIVE DELETION of existing farm data ---
@@ -1348,7 +1350,7 @@ def seed_test_farm(request):
             
             start_date = end_date - timedelta(days=365 * years)
             current_date = start_date
-            animal_eartag_counter = 0
+            ear_tag_sequence = 0
             lot_counter = 0
             current_month_marker = start_date
 
@@ -1371,7 +1373,22 @@ def seed_test_farm(request):
 
                     # 3. Create all animals for the month in this single lot.
                     for _ in range(total_purchases_this_month):
-                        animal_eartag_counter += 1
+                        # a. Increment the ear tag sequence first.
+                        ear_tag_sequence += 1
+
+                        # b. If the sequence goes past 1000, reset it and start a NEW lot.
+                        #    This is the key to respecting the unique_together constraint.
+                        if ear_tag_sequence > 1000:
+                            ear_tag_sequence = 1
+                            lot_counter += 1
+                        
+                        # c. Ensure the very first lot is numbered '1'.
+                        if lot_counter == 0:
+                            lot_counter = 1
+
+                        # d. Now, we have a unique (ear_tag, lot) pair.
+                        #    e.g., (1000, 49) will be followed by (1, 50).
+                        
                         purchase_price = fixed_purchase_price
                         if purchase_price is None:
                             price_info = get_closest_price(purchase_date, market_prices, sorted_market_dates)
@@ -1380,9 +1397,15 @@ def seed_test_farm(request):
                         initial_weight = random.uniform(180, 250)
                         
                         p = Purchase(
-                            ear_tag=str(animal_eartag_counter), lot=str(lot_counter), entry_date=purchase_date,
-                            entry_weight=initial_weight, sex=lot_sex, race=lot_race,
-                            entry_age=random.uniform(8, 12), farm=new_farm, purchase_price=purchase_price
+                            ear_tag=str(ear_tag_sequence), # Use the cycling ear tag
+                            lot=str(lot_counter),          # Use the lot that changes on rollover
+                            entry_date=purchase_date,
+                            entry_weight=initial_weight, 
+                            sex=lot_sex, 
+                            race=lot_race,
+                            entry_age=random.uniform(8, 12), 
+                            farm=new_farm, 
+                            purchase_price=purchase_price
                         )
                         purchases_to_create.append(p)
                 
@@ -1438,14 +1461,14 @@ def seed_test_farm(request):
                         diet_logs_to_create.append(DietLog(date=diet_change_date, diet_type=new_diet['diet_type'], daily_intake_percentage=new_diet['daily_intake_percentage'], animal_id=p.id, farm_id=new_farm.id))
                 
                 if sale_date < end_date:
-                    sale_price_per_kg = fixed_sale_price_per_kg
-                    if sale_price_per_kg is None:
+                    sale_price = fixed_sale_price
+                    if sale_price is None:
                          price_info = get_closest_price(sale_date, market_prices, sorted_market_dates)
-                         sale_price_per_kg = price_info['sale'] if price_info else 0
+                         sale_price = price_info['sale'] if price_info else 0
                     
                     final_gain = (sale_date - last_weight_date).days * assumed_gmd
                     exit_weight = last_weight + final_gain
-                    total_sale_price = exit_weight * sale_price_per_kg
+                    total_sale_price = sale_price
                     
                     sales_to_create.append(Sale(date=sale_date, sale_price=total_sale_price, animal_id=p.id, farm_id=new_farm.id))
                     weightings_to_create.append(Weighting(date=sale_date, weight_kg=exit_weight, animal_id=p.id, farm_id=new_farm.id))
@@ -1469,4 +1492,118 @@ def seed_test_farm(request):
 
     except Exception as e:
         # If any error occurs during the transaction, all changes are automatically rolled back.
+        return Response({'error': f'An unexpected error occurred, and all changes have been rolled back. Error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+def export_farms(request):
+    """
+    Exports all data for a given list of farm IDs into a single JSON file.
+    """
+    farm_ids = request.data.get('farm_ids')
+    if not isinstance(farm_ids, list):
+        return Response({'error': "'farm_ids' must be a list."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Django's equivalent of eager loading for massive performance gain
+    farms_to_export = Farm.objects.filter(id__in=farm_ids).prefetch_related(
+        'locations__sublocations',
+        'purchases__weightings',
+        'purchases__protocols',
+        'purchases__location_changes',
+        'purchases__diet_logs',
+        'purchases__sale',
+        'purchases__death',
+    )
+
+    if not farms_to_export.exists():
+        return Response({'error': 'No farms found for the provided IDs.'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = FullFarmExportSerializer(farms_to_export, many=True)
+    
+    export_data = {
+        'export_format_version': '1.0',
+        'export_date': datetime.now().isoformat(),
+        'farms': serializer.data
+    }
+    
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    filename = f"bovitrack_export_{timestamp}.json"
+
+    # Use JsonResponse to create the file download response
+    response = JsonResponse(export_data, json_dumps_params={'indent': 4})
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    return response
+
+@api_view(['POST'])
+@parser_classes([MultiPartParser])
+@transaction.atomic
+def import_farms(request):
+    """
+    Imports farm data from an uploaded JSON file within a single database transaction.
+    """
+    import_file = request.FILES.get('import_file')
+    if not import_file:
+        return Response({'error': 'No import file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not import_file.name.endswith('.json'):
+        return Response({'error': 'Invalid file type. Please upload a .json file.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        import_data = json.load(import_file)
+        
+        farm_id_map, location_id_map, purchase_id_map = {}, {}, {}
+        imported_farm_names = []
+        
+        existing_farm_names = set(Farm.objects.values_list('name', flat=True))
+
+        for farm_data in import_data.get('farms', []):
+            farm_name = farm_data['name']
+            if farm_name in existing_farm_names:
+                continue
+
+            # 1. Create Farm
+            new_farm = Farm.objects.create(name=farm_name)
+            farm_id_map[farm_data['id']] = new_farm.id
+            imported_farm_names.append(farm_name)
+
+            # 2. Create Locations & Sublocations
+            for loc_data in farm_data.get('locations', []):
+                new_loc = Location.objects.create(farm=new_farm, **{k: v for k, v in loc_data.items() if k not in ['id', 'sublocations']})
+                location_id_map[loc_data['id']] = new_loc.id
+
+                for sub_data in loc_data.get('sublocations', []):
+                    Sublocation.objects.create(farm=new_farm, parent_location=new_loc, **{k: v for k, v in sub_data.items() if k != 'id'})
+
+            # 3. Create Purchases and related events
+            for p_data in farm_data.get('purchases', []):
+                # Pop related data to handle separately
+                weightings_data = p_data.pop('weightings', [])
+                protocols_data = p_data.pop('protocols', [])
+                loc_changes_data = p_data.pop('location_changes', [])
+                diet_logs_data = p_data.pop('diet_logs', [])
+                sale_data = p_data.pop('sale', None)
+                death_data = p_data.pop('death', None)
+
+                new_purchase = Purchase.objects.create(farm=new_farm, **{k: v for k, v in p_data.items() if k != 'id'})
+                purchase_id_map[p_data['id']] = new_purchase.id
+
+                for w_data in weightings_data: Weighting.objects.create(farm=new_farm, animal=new_purchase, **w_data)
+                for sp_data in protocols_data: SanitaryProtocol.objects.create(farm=new_farm, animal=new_purchase, **sp_data)
+                for dl_data in diet_logs_data: DietLog.objects.create(farm=new_farm, animal=new_purchase, **dl_data)
+                
+                for lc_data in loc_changes_data:
+                    old_loc_id = lc_data.pop('location_id', None)
+                    new_loc_id = location_id_map.get(old_loc_id)
+                    if new_loc_id:
+                        LocationChange.objects.create(farm=new_farm, animal=new_purchase, location_id=new_loc_id, **lc_data)
+
+                if sale_data: Sale.objects.create(farm=new_farm, animal=new_purchase, **sale_data)
+                if death_data: Death.objects.create(farm=new_farm, animal=new_purchase, **death_data)
+        
+        if not imported_farm_names:
+            return Response({'message': 'Import complete. No new farms were added as existing names were found.'}, status=status.HTTP_200_OK)
+
+        return Response({'message': f'Successfully imported data for farms: {", ".join(imported_farm_names)}'}, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        # The @transaction.atomic decorator handles the rollback automatically on any exception.
         return Response({'error': f'An unexpected error occurred, and all changes have been rolled back. Error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

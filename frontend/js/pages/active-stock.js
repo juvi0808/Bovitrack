@@ -1,15 +1,15 @@
 // This function is now at the top level, so main-renderer.js can call it.
-async function loadDashboardData(page = 1) {
+async function loadDashboardData() {
     const summaryDiv = document.getElementById('summary-kpis');
     const gridDiv = document.getElementById('animal-grid');
     const pageContent = document.getElementById('active-stock-content');
     
+    // NOTE: paginationControlsDiv is no longer needed here
     if (!summaryDiv || !gridDiv) {
         console.error("Dashboard elements not found on the page!");
         return;
     }
 
-    // Unhide the main content if it was hidden
     pageContent.classList.remove('hidden');
 
     if (!selectedFarmId) {
@@ -20,20 +20,63 @@ async function loadDashboardData(page = 1) {
 
     summaryDiv.innerHTML = getTranslation('loading_summary');
     gridDiv.innerHTML = getTranslation('loading_animals');
-
+    
     try {
+        // The URL no longer needs a page parameter
         const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/stock/active_summary/`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         
         displaySummary(data.summary_kpis);
+        // We now get the data from the 'animals' key, not 'results'
         createAnimalGrid(data.animals);
+        // The call to displayPaginationControls is removed
 
     } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
         summaryDiv.innerHTML = `Error: ${getTranslation('could_not_load_summary_data')}`;
         gridDiv.innerHTML = `Error: ${getTranslation('could_not_load_animal_list')}`;
     }
+}
+
+function displayPaginationControls(data, currentPage) {
+    const container = document.getElementById('pagination-controls');
+    if (!container) return;
+
+    container.innerHTML = ''; // Clear previous controls
+
+    if (data.count === 0 || !data.results || data.results.length === 0) {
+        return;
+    }
+    
+    // This calculation is a bit tricky since the API doesn't give us total_pages,
+    // so we derive it.
+    const pageSize = 100; // As set in your backend view
+    const totalPages = Math.ceil(data.count / pageSize);
+
+    if (totalPages <= 1) return; // Don't show controls for a single page
+
+    // Previous Button
+    const prevButton = document.createElement('button');
+    prevButton.textContent = getTranslation('previous'); // <-- FIX
+    prevButton.disabled = !data.previous;
+    prevButton.className = 'button-secondary';
+    prevButton.onclick = () => loadDashboardData(currentPage - 1);
+
+    // Page Info Span
+    const pageInfo = document.createElement('span');
+    pageInfo.textContent = `${getTranslation('page')} ${currentPage} ${getTranslation('of')} ${totalPages}`; // <-- FIX
+    pageInfo.style.margin = '0 15px';
+
+
+    // Next Button
+    const nextButton = document.createElement('button');
+    nextButton.textContent = getTranslation('next'); // <-- FIX
+    nextButton.disabled = !data.next;
+    nextButton.className = 'button-secondary';
+    nextButton.onclick = () => loadDashboardData(currentPage + 1);
+
+    container.append(prevButton, pageInfo, nextButton);
 }
 
 function displaySummary(kpis) {
@@ -72,64 +115,61 @@ function createAnimalGrid(animals) {
 
         gridDiv.className = 'ag-theme-quartz full-height-grid';
         const columnDefs = [       
-        { 
-            headerName: getTranslation("ear_tag"), 
-            field: "ear_tag", 
-            width: 120,
-            onCellClicked: (params) => window.navigateToConsultAnimal(params.data.id,'page-active-stock'),
-            cellClass: 'clickable-cell'
-        },
-        { 
-            headerName: getTranslation("lot"), 
-            field: "lot", 
-            width: 100, 
-            filter: 'agNumberColumnFilter',
-            onCellClicked: (params) => window.navigateToConsultLot(params.value,'page-active-stock'),
-            cellClass: 'clickable-cell'
-        },
-        { headerName: getTranslation("entry_date"), field: "entry_date", width: 150 },
-        { headerName: getTranslation("sex"), field: "sex", width: 120 },
-        { 
-            headerName: `${getTranslation('age')} (${getTranslation('months')})`, 
-            field: "kpis.current_age_months", 
-            // Check if p.value is not null before calling toFixed
-            valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', 
-            width: 150 
-        },
-        { 
-            headerName: `${getTranslation('last_wt_kg')}`, 
-            field: "kpis.last_weight_kg", 
-            // Check if p.value is not null before calling toFixed
-            valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', 
-            width: 150 
-        },
-        { headerName: getTranslation("last_wt_date"), field: "kpis.last_weighting_date", width: 150 },
-        { 
-            headerName: getTranslation("avg_daily_gain_kg"), 
-            field: "kpis.average_daily_gain_kg", 
-            // Check if p.value is not null before calling toFixed
-            valueFormatter: p => p.value != null ? p.value.toFixed(3) : '', 
-            width: 180 
-        },
-        { 
-            headerName: getTranslation("forecasted_weight"), 
-            field: "kpis.forecasted_current_weight_kg", 
-            // Check if p.value is not null before calling toFixed
-            valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', 
-            width: 180 
-        },
-        { 
-            headerName: getTranslation("current_location"), 
-            field: "kpis.current_location_name",
-            onCellClicked: (params) => window.navigateToConsultLocation(params.data.kpis.current_location_id, params.value,'page-active-stock'),
-            cellClass: (params) => params.value ? 'clickable-cell' : ''
-        },
-        { headerName: getTranslation("diet_type"), field: "kpis.current_diet_type" },
-        { headerName: `${getTranslation('diet_intake')} (%)`, field: "kpis.current_diet_intake", valueFormatter: p => p.value ? `${p.value}%` : 'N/A', width: 150 },
-    ];const gridOptions = {
+            { 
+                headerName: getTranslation("ear_tag"), 
+                field: "ear_tag", 
+                width: 120,
+                onCellClicked: (params) => window.navigateToConsultAnimal(params.data.id,'page-active-stock'),
+                cellClass: 'clickable-cell'
+            },
+            { 
+                headerName: getTranslation("lot"), 
+                field: "lot", 
+                width: 100, 
+                filter: 'agNumberColumnFilter',
+                onCellClicked: (params) => window.navigateToConsultLot(params.value,'page-active-stock'),
+                cellClass: 'clickable-cell'
+            },
+            { headerName: getTranslation("entry_date"), field: "entry_date", width: 150 },
+            { headerName: getTranslation("sex"), field: "sex", width: 120 },
+            { 
+                headerName: `${getTranslation('age')} (${getTranslation('months')})`, 
+                field: "kpis.current_age_months", 
+                valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', 
+                width: 150 
+            },
+            { 
+                headerName: `${getTranslation('last_wt_kg')}`, 
+                field: "kpis.last_weight_kg", 
+                valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', 
+                width: 150 
+            },
+            { headerName: getTranslation("last_wt_date"), field: "kpis.last_weighting_date", width: 150 },
+            { 
+                headerName: getTranslation("avg_daily_gain_kg"), 
+                field: "kpis.average_daily_gain_kg", 
+                valueFormatter: p => p.value != null ? p.value.toFixed(3) : '', 
+                width: 180 
+            },
+            { 
+                headerName: getTranslation("forecasted_weight"), 
+                field: "kpis.forecasted_current_weight_kg", 
+                valueFormatter: p => p.value != null ? p.value.toFixed(2) : '', 
+                width: 180 
+            },
+            { 
+                headerName: getTranslation("current_location"), 
+                field: "kpis.current_location_name",
+                onCellClicked: (params) => window.navigateToConsultLocation(params.data.kpis.current_location_id, params.value,'page-active-stock'),
+                cellClass: (params) => params.value ? 'clickable-cell' : ''
+            },
+            { headerName: getTranslation("diet_type"), field: "kpis.current_diet_type" },
+            { headerName: `${getTranslation('diet_intake')} (%)`, field: "kpis.current_diet_intake", valueFormatter: p => p.value ? `${p.value}%` : 'N/A', width: 150 },
+        ];
+        
+        const gridOptions = {
             columnDefs: columnDefs,
             rowData: animals,
-
             defaultColDef: {
                 sortable: true,
                 filter: true,
@@ -138,6 +178,7 @@ function createAnimalGrid(animals) {
             },
             onGridReady: (params) => params.api.sizeColumnsToFit(),
         };
+
         gridDiv.innerHTML = '';
         createGrid(gridDiv, gridOptions);
     }

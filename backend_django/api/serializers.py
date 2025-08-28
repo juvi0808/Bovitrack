@@ -100,30 +100,39 @@ class AnimalSummarySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Purchase
-        # Add farm_id to the top-level fields to match Flask output
         fields = [
             'id', 'farm_id', 'ear_tag', 'lot', 'entry_date', 'entry_weight', 'sex', 'entry_age',
             'purchase_price', 'race', 'kpis'
         ]
 
     def get_kpis(self, obj):
-        # The view now annotates all required values onto the queryset object.
         last_w_date = getattr(obj, 'last_weighting_date', None)
+
+        # --- OPTIMIZATION: Use pre-fetched maps from context ---
+        # This is a super-fast dictionary lookup, not a database query.
+        location_map = self.context.get('location_name_map', {})
+        sublocation_map = self.context.get('sublocation_name_map', {})
+        
+        location_id = getattr(obj, 'current_location_id', None)
+        sublocation_id = getattr(obj, 'current_sublocation_id', None)
+
+        location_name = location_map.get(location_id)
+        sublocation_name = sublocation_map.get(sublocation_id)
 
         return {
             'average_daily_gain_kg': getattr(obj, 'average_daily_gain_kg', None),
             'current_age_months': getattr(obj, 'current_age_months', None),
             'current_diet_intake': getattr(obj, 'current_diet_intake', None),
             'current_diet_type': getattr(obj, 'current_diet_type', None),
-            'current_location_id': getattr(obj, 'current_location_id', None),
-            'current_location_name': getattr(obj, 'current_location_name', None),
-            'current_sublocation_id': getattr(obj, 'current_sublocation_id', None),
-            'current_sublocation_name': getattr(obj, 'current_sublocation_name', None),
+            'current_location_id': location_id,
+            'current_location_name': location_name,
+            'current_sublocation_id': sublocation_id,
+            'current_sublocation_name': sublocation_name,
             'days_on_farm': getattr(obj, 'days_on_farm_int', None),
             'forecasted_current_weight_kg': getattr(obj, 'forecasted_current_weight_kg', None),
             'last_weight_kg': getattr(obj, 'last_weight_kg', None),
             'last_weighting_date': last_w_date.isoformat() if last_w_date else None,
-            'status': "Active" # Since this search only returns active animals
+            'status': "Active"
         }
 
 class LocationSummarySerializer(serializers.Serializer):
@@ -133,18 +142,6 @@ class LocationSummarySerializer(serializers.Serializer):
     """
     location_details = LocationSerializer()
     animals = AnimalSummarySerializer(many=True)
-
-class SublocationSerializer(serializers.ModelSerializer):
-    """
-    Simple serializer for LISTING or RETRIEVING a sublocation.
-    Matches the basic structure of the old Flask API's to_dict().
-    """
-    # Renaming 'parent_location_id' to match the old API's 'location_id'
-    location_id = serializers.IntegerField(source='parent_location_id', read_only=True)
-    
-    class Meta:
-        model = Sublocation
-        fields = ['id', 'name', 'area_hectares', 'geo_json_data', 'location_id']
 
 
 class SublocationCreateUpdateSerializer(serializers.ModelSerializer):
@@ -367,7 +364,7 @@ class PurchaseListSerializer(serializers.ModelSerializer):
 
 class SaleSerializer(serializers.ModelSerializer):
     """
-    Serializer for the Sale model, enriched with calculated KPIs.
+    Serializer for the Sale model, enriched with calculated KPIs from annotations.
     """
     sale_id = serializers.IntegerField(source='id', read_only=True)
     animal_id = serializers.IntegerField(source='animal.id', read_only=True)
@@ -375,7 +372,6 @@ class SaleSerializer(serializers.ModelSerializer):
     exit_date = serializers.DateField(source='date', read_only=True)
     exit_price = serializers.FloatField(source='sale_price', read_only=True)
 
-    # --- Fields from the related Animal object ---
     ear_tag = serializers.CharField(source='animal.ear_tag', read_only=True)
     lot = serializers.CharField(source='animal.lot', read_only=True)
     race = serializers.CharField(source='animal.race', read_only=True)
@@ -384,15 +380,14 @@ class SaleSerializer(serializers.ModelSerializer):
     entry_weight = serializers.FloatField(source='animal.entry_weight', read_only=True)
     entry_price = serializers.FloatField(source='animal.purchase_price', read_only=True)
     
-    # --- Calculated KPI Fields ---
-    days_on_farm = serializers.SerializerMethodField()
-    exit_weight = serializers.SerializerMethodField()
-    gmd_kg_day = serializers.SerializerMethodField()
-    exit_age_months = serializers.SerializerMethodField()
+    # --- OPTIMIZATION: These are now direct fields from the annotated queryset ---
+    days_on_farm = serializers.FloatField(read_only=True)
+    exit_weight = serializers.FloatField(source='exit_weight_kg', read_only=True)
+    gmd_kg_day = serializers.FloatField(read_only=True)
+    exit_age_months = serializers.FloatField(read_only=True)
 
     class Meta:
         model = Sale
-        # This list now defines the exact fields AND order of the final JSON output.
         fields = [
             'animal_id', 'days_on_farm', 'ear_tag', 'entry_date', 'entry_price',
             'entry_weight', 'exit_age_months', 'exit_date', 'exit_price',
@@ -701,3 +696,70 @@ class BulkAssignSublocationSerializer(serializers.Serializer):
             })
 
         return data
+
+# ==========================================================================
+# Full-Depth Serializers for Data Export
+# ==========================================================================
+
+class _FullSaleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Sale
+        exclude = ['id', 'animal', 'farm'] # Exclude internal IDs
+
+class _FullDeathSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Death
+        exclude = ['id', 'animal', 'farm']
+
+class _FullWeightingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Weighting
+        exclude = ['id', 'animal', 'farm']
+
+class _FullSanitaryProtocolSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SanitaryProtocol
+        exclude = ['id', 'animal', 'farm']
+
+class _FullLocationChangeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LocationChange
+        fields = ['date', 'location_id', 'sublocation_id'] # Only export the IDs
+
+class _FullDietLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DietLog
+        exclude = ['id', 'animal', 'farm']
+
+class _FullPurchaseSerializer(serializers.ModelSerializer):
+    # These are the related managers from the Purchase model
+    weightings = _FullWeightingSerializer(many=True, read_only=True)
+    protocols = _FullSanitaryProtocolSerializer(many=True, read_only=True)
+    location_changes = _FullLocationChangeSerializer(many=True, read_only=True)
+    diet_logs = _FullDietLogSerializer(many=True, read_only=True)
+    sale = _FullSaleSerializer(read_only=True)
+    death = _FullDeathSerializer(read_only=True)
+
+    class Meta:
+        model = Purchase
+        exclude = ['farm'] # We exclude the farm FK as it's implied by the parent
+
+class _FullSublocationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Sublocation
+        exclude = ['parent_location', 'farm']
+
+class _FullLocationSerializer(serializers.ModelSerializer):
+    sublocations = _FullSublocationSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Location
+        exclude = ['farm']
+
+class FullFarmExportSerializer(serializers.ModelSerializer):
+    locations = _FullLocationSerializer(many=True, read_only=True)
+    purchases = _FullPurchaseSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Farm
+        fields = ['id', 'name', 'locations', 'purchases']

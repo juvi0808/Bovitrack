@@ -210,7 +210,7 @@ function initHistoryLocationChangesPage() {
 }
 
 // Fetches location change data and populates the grid.
-async function loadLocationChangeHistoryData() {
+async function loadLocationChangeHistoryData(page = 1) { // Add page parameter
     const gridDiv = document.getElementById('location-change-history-grid');
     if (!gridDiv) return;
 
@@ -220,10 +220,16 @@ async function loadLocationChangeHistoryData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location_log/`);
+        // Add page query parameter
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location_log/?page=${page}`);
         if (!response.ok) throw new Error('Failed to fetch location history');
-        const history = await response.json();
-        createLocationChangeHistoryGrid(history);
+        const data = await response.json(); // Paginated response
+        
+        createLocationChangeHistoryGrid(data.results); // Use data.results
+        
+        // Render pagination controls
+        const paginationContainer = document.getElementById('pagination-controls');
+        renderPaginationControls(data, paginationContainer, loadLocationChangeHistoryData, page);
 
     } catch (error) {
         console.error("Error loading location history:", error);

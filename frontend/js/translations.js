@@ -261,7 +261,11 @@ const translations = {
         demo_farm_loaded_successfully: "Demo Farm loaded successfully! Refreshing data...",
         success_location_change_added: "Location change added successfully!",
         success_diet_log_added: "Diet log added successfully!",
-        farm_deleted: "Farm deleted successfully!"
+        farm_deleted: "Farm deleted successfully!",
+        page: "Page",
+        of: "of",
+        previous: "Previous",
+        next: "Next",
     },
     pt: {
         // Navbar
@@ -525,7 +529,11 @@ const translations = {
         demo_farm_loaded_successfully: "Fazenda Demo carregada com sucesso! Atualizando dados...",
         success_location_change_added: "Mudança de local adicionada com sucesso!",
         success_diet_log_added: "Registro de dieta adicionado com sucesso!",
-        farm_deleted: "Fazenda deletada com sucesso!"
+        farm_deleted: "Fazenda deletada com sucesso!",
+        page: "Página",
+        of: "de",
+        previous: "Anterior",
+        next: "Próximo"
     }
 };
 

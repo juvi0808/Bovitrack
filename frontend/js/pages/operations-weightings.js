@@ -134,7 +134,7 @@ function initHistoryWeightingsPage() {
 }
 
 // Fetches weighting data from the API and populates the grid.
-async function loadWeightingHistoryData() {
+async function loadWeightingHistoryData(page = 1) { // Add page parameter
     const gridDiv = document.getElementById('weighting-history-grid');
     if (!gridDiv) return;
 
@@ -144,10 +144,16 @@ async function loadWeightingHistoryData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/weightings/`);
+        // Add page query parameter
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/weightings/?page=${page}`);
         if (!response.ok) throw new Error('Failed to fetch weighting history');
-        const weightings = await response.json();
-        createWeightingHistoryGrid(weightings);
+        const data = await response.json(); // Paginated response
+        
+        createWeightingHistoryGrid(data.results); // Use data.results
+        
+        // Render pagination controls
+        const paginationContainer = document.getElementById('pagination-controls');
+        renderPaginationControls(data, paginationContainer, loadWeightingHistoryData, page);
 
     } catch (error) {
         console.error("Error loading weighting history:", error);

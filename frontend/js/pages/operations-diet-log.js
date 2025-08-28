@@ -137,7 +137,7 @@ function initHistoryDietLogsPage() {
 }
 
 // Fetches diet log history data and populates the grid.
-async function loadDietLogHistoryData() {
+async function loadDietLogHistoryData(page = 1) { // Add page parameter
     const gridDiv = document.getElementById('diet-log-history-grid');
     if (!gridDiv) return;
 
@@ -147,10 +147,16 @@ async function loadDietLogHistoryData() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/diets/`);
+        // Add page query parameter
+        const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/diets/?page=${page}`);
         if (!response.ok) throw new Error('Failed to fetch diet log history');
-        const history = await response.json();
-        createDietLogHistoryGrid(history);
+        const data = await response.json(); // Paginated response
+        
+        createDietLogHistoryGrid(data.results); // Use data.results
+        
+        // Render pagination controls
+        const paginationContainer = document.getElementById('pagination-controls');
+        renderPaginationControls(data, paginationContainer, loadDietLogHistoryData, page);
 
     } catch (error) {
         console.error("Error loading diet log history:", error);

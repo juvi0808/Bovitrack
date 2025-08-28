@@ -548,32 +548,34 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-function renderPaginationControls(paginationData, container, callback) {
+function renderPaginationControls(paginationData, container, callback, currentPage) {
     if (!container) return;
 
-    // Clear previous controls
     container.innerHTML = '';
 
-    if (paginationData.total_pages <= 1) return; // Don't show controls if there's only one page
+    // Calculate total pages. The page size is 100 as set in the backend views.
+    const pageSize = 100;
+    const totalPages = Math.ceil(paginationData.count / pageSize);
 
-    const { current_page, total_pages, has_prev, has_next } = paginationData;
+    if (totalPages <= 1) return; // Don't show controls if there's only one page
 
     const prevButton = document.createElement('button');
     prevButton.textContent = '<< Previous';
-    prevButton.disabled = !has_prev;
+    prevButton.disabled = !paginationData.previous; // Use 'previous' link from API
     prevButton.className = 'button-secondary';
-    prevButton.onclick = () => callback(current_page - 1);
+    prevButton.onclick = () => callback(currentPage - 1);
 
     const pageIndicator = document.createElement('span');
-    pageIndicator.textContent = `Page ${current_page} of ${total_pages}`;
+    // Use the currentPage and calculated totalPages
+    pageIndicator.textContent = `Page ${currentPage} of ${totalPages}`;
     pageIndicator.style.margin = '0 15px';
     pageIndicator.style.fontWeight = 'bold';
 
     const nextButton = document.createElement('button');
     nextButton.textContent = 'Next >>';
-    nextButton.disabled = !has_next;
+    nextButton.disabled = !paginationData.next; // Use 'next' link from API
     nextButton.className = 'button-secondary';
-    nextButton.onclick = () => callback(current_page + 1);
+    nextButton.onclick = () => callback(currentPage + 1);
 
     container.appendChild(prevButton);
     container.appendChild(pageIndicator);

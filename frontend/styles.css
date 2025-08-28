@@ -643,6 +643,12 @@ tbody tr:hover {
     flex-grow: 1; /* Make this container grow to fill its parent (.page) */
 }
 
+.pagination-controls {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+}
+
 /* --- Dashboard / Summary --- */
 
 #summary-kpis, #animal-list {
