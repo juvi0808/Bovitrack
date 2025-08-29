@@ -25,10 +25,10 @@ const farmLocationsPageManager = (() => {
     let infoWindow;
     let isMapInitialized = false;
     let currentlyEditingFeature = null;
+    let currentlyEditingSublocations = [];
     let originalGeoJsonForCancel = null;
     let currentParentLocationId = null;
     
-    // --- NEW STATE VARIABLES FOR CROSS-VIEW ACTIONS ---
     let locationIdToDrawFor = null; // Stores {id, name} of location needing a shape
     let locationIdToFocusOnLoad = null; // Stores ID of location to focus on when map loads
     let sublocationIdToDrawFor = null; // Stores ID of sublocation needing a shape
@@ -43,9 +43,6 @@ const farmLocationsPageManager = (() => {
         cancelEditLocationBtn, addSublocationModal, addSublocationForm,
         cancelAddSublocationBtn, backBtn, editSublocationModal, editSublocationForm,
         cancelEditSublocationBtn, mapEditBox, mapEditTitle, mapSaveChangesBtn, mapCancelEditBtn;
-
-
-   
 
     // This function can now be called from outside (e.g., from main-renderer.js)
     async function loadLocationsData() {
@@ -189,7 +186,7 @@ const farmLocationsPageManager = (() => {
             } catch (e) { console.error("Error parsing map state", e); }
 
             map = new google.maps.Map(document.getElementById('map-canvas'), { center: initialCenter, zoom: initialZoom, mapTypeId: 'hybrid' });
-            infoWindow = new google.maps.InfoWindow();
+            infoWindow = new google.maps.InfoWindow({zIndex: 100});
             drawingManager = new google.maps.drawing.DrawingManager({
                 drawingMode: null, drawingControl: true,
                 drawingControlOptions: { position: google.maps.ControlPosition.TOP_CENTER, drawingModes: ['polygon'] },
@@ -256,8 +253,9 @@ const farmLocationsPageManager = (() => {
                 shapesExist = true;
                 let featureData = (geoData.type === 'Feature') ? geoData : { type: 'Feature', geometry: geoData, properties: {} };
                 
+                // This feature holds all parent location data
                 featureData.properties = { 
-                    type: 'pasture', // This is the main, clickable feature
+                    type: 'pasture', 
                     locationId: loc.id, 
                     locationName: loc.name, 
                     area: loc.area_hectares, 
@@ -274,12 +272,12 @@ const farmLocationsPageManager = (() => {
                     const color = COLOR_PALETTE[index % COLOR_PALETTE.length];
                     map.data.overrideStyle(feature, {
                         fillColor: color,
-                        fillOpacity: 0.35, // Standard opacity for the fill
+                        fillOpacity: 0.35,
                         strokeWeight: 0,   // No stroke on this layer
-                        clickable: true    // This is the layer that responds to clicks
+                        clickable: true,
+                        zIndex: 1
                     });
     
-                    // The label is associated with the main body of the location
                     const featureBounds = new google.maps.LatLngBounds();
                     feature.getGeometry().forEachLatLng(latlng => featureBounds.extend(latlng));
                     const labelText = `${loc.name}<br>${loc.area_hectares ? loc.area_hectares.toFixed(2) + ' ha' : ''}`;
@@ -291,7 +289,7 @@ const farmLocationsPageManager = (() => {
             }
         });
     
-        // --- STAGE 2: Render the SUBLOCATION lines ---
+        // --- STAGE 2: Render the SUBLOCATION lines and make them the clickable entity ---
         locations.forEach(loc => {
             if (loc.sublocations && loc.sublocations.length > 0) {
                 loc.sublocations.forEach(sub => {
@@ -300,16 +298,36 @@ const farmLocationsPageManager = (() => {
                     
                     if (subGeoData && typeof subGeoData === 'object') {
                         let featureData = (subGeoData.type === 'Feature') ? subGeoData : { type: 'Feature', geometry: subGeoData, properties: {} };
-                        featureData.properties = { type: 'sublocation' }; // Minimal properties needed
+                        
+                        // Embed ALL necessary data for the infowindow right here
+                        featureData.properties = { 
+                            type: 'sublocation',
+                            // Parent Info
+                            locationId: loc.id, 
+                            locationName: loc.name, 
+                            area: loc.area_hectares, 
+                            animalCount: loc.kpis.animal_count,
+                            grassType: loc.grass_type,
+                            capacityRateActual: loc.kpis.capacity_rate_actual_ua_ha,
+                            capacityRateForecast: loc.kpis.capacity_rate_forecasted_ua_ha,
+                            // Sublocation Info
+                            sublocationId: sub.id,
+                            sublocationName: sub.name,
+                            sublocationArea: sub.area_hectares,
+                            sublocationAnimalCount: sub.animal_count
+                        };
+    
                         const features = map.data.addGeoJson(featureData);
                         
                         if (features[0]) {
                             map.data.overrideStyle(features[0], {
-                                fillOpacity: 0.0,
+                                fillColor: sub.animal_count > 0 ? '#FFFFFF' : '#000000',
+                                fillOpacity: sub.animal_count > 0 ? 0.3 : 0.0, 
                                 strokeColor: '#FFFFFF',
                                 strokeWeight: 2,
                                 strokeOpacity: 0.8,
-                                clickable: false 
+                                clickable: true, // This IS the clickable layer
+                                zIndex: 2
                             });
                             features[0].getGeometry().forEachLatLng(latlng => bounds.extend(latlng));
                         }
@@ -318,30 +336,31 @@ const farmLocationsPageManager = (() => {
             }
         });
     
-        // --- STAGE 3: Render the parent location OUTLINES (no fill) ---
+        // --- STAGE 3: Render the parent location OUTLINES (no fill) on top of everything ---
         locations.forEach((loc, index) => {
             let geoData = loc.geo_json_data;
             if (geoData && typeof geoData === 'string') { try { geoData = JSON.parse(geoData); } catch (e) { geoData = null; } }
             
             if (geoData && typeof geoData === 'object') {
                 let featureData = (geoData.type === 'Feature') ? geoData : { type: 'Feature', geometry: geoData, properties: {} };
-                featureData.properties = { type: 'pasture-outline' }; // Give it a unique type
+                featureData.properties = { type: 'pasture-outline' }; // A purely visual, non-clickable layer
                 const features = map.data.addGeoJson(featureData);
                 
                 if (features[0]) {
                     const color = COLOR_PALETTE[index % COLOR_PALETTE.length];
                     map.data.overrideStyle(features[0], {
-                        fillOpacity: 0.0, // No fill on this layer
+                        fillOpacity: 0.0, 
                         strokeColor: color,
-                        strokeWeight: 4,  // A thicker outline
+                        strokeWeight: 4,
                         strokeOpacity: 1,
-                        clickable: false  // This layer is purely visual
+                        clickable: false,
+                        zIndex: 3 // Render on the very top
                     });
                 }
             }
         });
     
-        // Auto-zoom and focus logic (remains the same)
+        // Auto-zoom and focus logic
         if (shapesExist && !bounds.isEmpty() && !locationIdToFocusOnLoad && !sublocationIdToFocusOnLoad) {
             map.fitBounds(bounds);
         }
@@ -349,7 +368,7 @@ const farmLocationsPageManager = (() => {
         if (locationIdToFocusOnLoad) {
             let featureFound = false;
             map.data.forEach(feature => {
-                if (feature.getProperty('locationId') == locationIdToFocusOnLoad) {
+                if (feature.getProperty('locationId') == locationIdToFocusOnLoad && feature.getProperty('type') === 'pasture') {
                     featureFound = true;
                     const featureBounds = new google.maps.LatLngBounds();
                     feature.getGeometry().forEachLatLng(latlng => featureBounds.extend(latlng));
@@ -374,7 +393,7 @@ const farmLocationsPageManager = (() => {
                 }
             });
             if (!featureFound) console.error(`Could not find feature for sublocation ID ${sublocationIdToFocusOnLoad}`);
-            sublocationIdToFocusOnLoad = null; // Reset the flag
+            sublocationIdToFocusOnLoad = null; 
         }
 
     }
@@ -383,7 +402,7 @@ const farmLocationsPageManager = (() => {
         drawingManager.setDrawingMode(null);
         const area = google.maps.geometry.spherical.computeArea(polygon.getPath()) / 10000;
         
-        // --- CHANGE 4: ADD A NEW CASE FOR SUBLOCATIONS ---
+        // Case 1: Drawing for an existing SUBLOCATION
         if (sublocationIdToDrawFor) {
             const sublocationToUpdate = sublocationIdToDrawFor;
             sublocationIdToDrawFor = null; // Clear the flag
@@ -402,14 +421,13 @@ const farmLocationsPageManager = (() => {
                 
                 if (confirmed) {
                     try {
-                        // Fetch original sublocation to not overwrite its name
                         const fetchResponse = await fetch(`${API_URL}/api/farm/${selectedFarmId}/sublocation/${sublocationToUpdate.id}/`);
                         if (!fetchResponse.ok) throw new Error('Could not fetch original sublocation data.');
                         const originalData = await fetchResponse.json();
                         
                         const payload = {
                             name: originalData.name,
-                            area_hectares: area, // Use the new calculated area
+                            area_hectares: area,
                             geo_json_data: shapeData
                         };
 
@@ -421,6 +439,56 @@ const farmLocationsPageManager = (() => {
                         if (!updateResponse.ok) throw new Error(result.error || 'Failed to save shape');
                         
                         showToast(getTranslation('shape_assigned_successfully', { name: result.name }), 'success');
+                        loadLocationsData();
+
+                    } catch (error) {
+                        showToast(`${getTranslation('error_assigning_shape')}: ${error.message}`, 'error');
+                    }
+                }
+            });
+            polygon.setMap(null);
+
+        // **FIX STARTS HERE**
+        // Case 2: Drawing for an existing PARENT LOCATION
+        } else if (locationIdToDrawFor) {
+            const locationToUpdate = locationIdToDrawFor;
+            locationIdToDrawFor = null; // Clear the flag
+
+            const dataLayer = new google.maps.Data();
+            dataLayer.add(new google.maps.Data.Feature({ geometry: new google.maps.Data.Polygon([polygon.getPath().getArray()]) }));
+
+            dataLayer.toGeoJson(async (geoJson) => {
+                const shapeData = (geoJson.features && geoJson.features.length > 0) ? JSON.stringify(geoJson.features[0]) : null;
+                if (!shapeData) {
+                    polygon.setMap(null);
+                    return;
+                }
+                const confirmed = await showCustomConfirm(getTranslation('confirm_assign_shape', { name: locationToUpdate.name }));
+
+                if (confirmed) {
+                    try {
+                        // Fetch the original location data to preserve its name, grass type, etc.
+                        const fetchResponse = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationToUpdate.id}/`);
+                        if (!fetchResponse.ok) throw new Error('Could not fetch original location data.');
+                        const originalData = (await fetchResponse.json()).location_details;
+                        
+                        const payload = {
+                            name: originalData.name,
+                            location_type: originalData.location_type,
+                            grass_type: originalData.grass_type,
+                            area_hectares: area, // Update with the new calculated area
+                            geo_json_data: shapeData // Add the new shape data
+                        };
+
+                        const updateResponse = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationToUpdate.id}/`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        const result = await updateResponse.json();
+                        if (!updateResponse.ok) throw new Error(result.error || 'Failed to save shape');
+                        
+                        showToast(getTranslation('shape_assigned_successfully', { name: result.name }), 'success');
                         loadLocationsData(); // Refresh everything
 
                     } catch (error) {
@@ -428,9 +496,9 @@ const farmLocationsPageManager = (() => {
                     }
                 }
             });
-            polygon.setMap(null); // Remove the temporary red polygon
-
-        // Case 2: The original behavior - creating a brand new location
+            polygon.setMap(null);
+        
+        // Case 3: Drawing a brand NEW location from the map controls
         } else {
             const dataLayer = new google.maps.Data();
             dataLayer.add(new google.maps.Data.Feature({ geometry: new google.maps.Data.Polygon([polygon.getPath().getArray()]) }));
@@ -448,6 +516,7 @@ const farmLocationsPageManager = (() => {
             });
             polygon.setMap(null);
         }
+        // **FIX ENDS HERE**
     }
 
     function handleSeeOnMapFromList(locationId) {
@@ -595,54 +664,145 @@ const farmLocationsPageManager = (() => {
     // --- Shape Editing Logic ---
 
     function createInfoWindowContent(feature) {
-        const props = { 
+        // --- Read Parent Location Properties ---
+        const locProps = { 
             id: feature.getProperty('locationId'), 
             name: feature.getProperty('locationName'), 
             area: feature.getProperty('area'), 
             count: feature.getProperty('animalCount'),
-            // --- Read the new properties from the feature ---
             grass: feature.getProperty('grassType'),
             capacity: feature.getProperty('capacityRateActual'),
             forecast: feature.getProperty('capacityRateForecast')
-
         };
+    
+        // --- Check for Sublocation Properties ---
+        const sublocId = feature.getProperty('sublocationId');
+    
         const contentDiv = document.createElement('div');
         contentDiv.className = 'map-infowindow-content';
-
-        // --- Update the HTML to display the new data ---
-        contentDiv.innerHTML = `
-        <h4>${props.name}</h4>
-        <p><b>${getTranslation('map_area')}:</b> ${props.area ? props.area.toFixed(2) : 'N/A'} ha</p>
-        <p><b>${getTranslation('map_animals')}:</b> ${props.count}</p>
-        <p><b>${getTranslation('map_grass_type')}:</b> ${props.grass || 'N/A'}</p>
-        <p><b>${getTranslation('map_capacity_actual')}:</b> ${props.capacity != null ? props.capacity : 'N/A'}</p>
-        <p><b>${getTranslation('map_capacity_forecast')}:</b> ${props.forecast != null ? props.forecast : 'N/A'}</p>
-        <div class="map-infowindow-actions">
-            <button class="button-secondary edit-shape-btn">${getTranslation('edit_shape')}</button>
-        </div>
-    `;
-        const editButton = contentDiv.querySelector('.edit-shape-btn');
-        if (editButton) { editButton.onclick = () => handleEditShapeClick(props.id); }
+    
+        // **FIX 2:** Build the HTML sequentially to include all necessary information.
+        // Start with the full parent location details, which are always present.
+        // Start with the parent location info and its dedicated action button.
+        let html = `
+            <div class="parent-info-section">
+                <h4>${locProps.name}</h4>
+                <p><b>${getTranslation('map_area')}:</b> ${locProps.area ? locProps.area.toFixed(2) : 'N/A'} ha</p>
+                <p><b>${getTranslation('map_animals')}:</b> ${locProps.count}</p>
+                <p><b>${getTranslation('map_grass_type')}:</b> ${locProps.grass || 'N/A'}</p>
+                <p><b>${getTranslation('map_capacity_actual')}:</b> ${locProps.capacity != null ? locProps.capacity : 'N/A'}</p>
+                <p><b>${getTranslation('map_capacity_forecast')}:</b> ${locProps.forecast != null ? locProps.forecast : 'N/A'}</p>
+                <div class="map-infowindow-actions">
+                    <button class="button-secondary edit-shape-btn" data-location-id="${locProps.id}">${getTranslation('edit_shape')}</button>
+                </div>
+            </div>
+        `;
+    
+        // If a sublocation was clicked, append a new, separate section for it.
+        if (sublocId) {
+            const sublocProps = {
+                id: sublocId,
+                name: feature.getProperty('sublocationName'),
+                area: feature.getProperty('sublocationArea'),
+            };
+            html += `
+                <hr style="margin: 8px 0;">
+                <div class="sublocation-infowindow-details">
+                    <p><b>${getTranslation('subdivision')}:</b> ${sublocProps.name}</p>
+                    <p><b>${getTranslation('area_hectares')}:</b> ${sublocProps.area ? sublocProps.area.toFixed(2) : 'N/A'} ha</p>
+                    <div class="map-infowindow-actions">
+                         <button class="button-secondary assign-herd-infowindow-btn" 
+                                 data-location-id="${locProps.id}" 
+                                 data-location-name="${locProps.name}" 
+                                 data-sublocation-id="${sublocProps.id}" 
+                                 data-sublocation-name="${sublocProps.name}">
+                                 ${getTranslation('assign_herd')}
+                         </button>
+                         <button class="button-primary edit-all-sublocations-btn" 
+                                 data-location-id="${locProps.id}">
+                                 ${getTranslation('edit_subdivision')}
+                         </button>
+                    </div>
+                </div>
+            `;
+        }
+    
+        contentDiv.innerHTML = html;
+    
+        // --- Wire up Event Listeners ---
+        const editShapeBtn = contentDiv.querySelector('.edit-shape-btn');
+        if (editShapeBtn) {
+            editShapeBtn.onclick = () => handleEditShapeClick(editShapeBtn.dataset.locationId);
+        }
+    
+        const assignHerdBtn = contentDiv.querySelector('.assign-herd-infowindow-btn');
+        if (assignHerdBtn) {
+            assignHerdBtn.onclick = (e) => {
+                const ds = e.target.dataset;
+                handleBulkAssignClick(ds.locationId, ds.locationName, ds.sublocationId, ds.sublocationName);
+            };
+        }
+    
+        const editAllSublocationsBtn = contentDiv.querySelector('.edit-all-sublocations-btn');
+        if (editAllSublocationsBtn) {
+            editAllSublocationsBtn.onclick = (e) => {
+                handleEditAllSublocationsClick(e.target.dataset.locationId);
+            };
+        }
+    
         return contentDiv;
+    }
+
+    function handleEditAllSublocationsClick(locationId) {
+        infoWindow.close();
+    
+        const sublocationsToEdit = [];
+        let locationName = '';
+    
+        map.data.forEach(feature => {
+            if (feature.getProperty('type') === 'sublocation' && feature.getProperty('locationId') == locationId) {
+                sublocationsToEdit.push(feature);
+                if (!locationName) locationName = feature.getProperty('locationName');
+            }
+        });
+    
+        if (sublocationsToEdit.length === 0) {
+            showToast("No editable subdivisions found for this location.", "error");
+            return;
+        }
+    
+        currentlyEditingSublocations = sublocationsToEdit;
+        originalGeoJsonForCancel = []; // Store original shapes
+    
+        currentlyEditingSublocations.forEach(feature => {
+            feature.toGeoJson(geoJson => originalGeoJsonForCancel.push(geoJson));
+            map.data.overrideStyle(feature, {
+                editable: true,
+                clickable: false,
+                fillColor: '#FFD700', // Gold highlight
+                fillOpacity: 0.3,
+                strokeColor: '#FFD700',
+                zIndex: 99
+            });
+        });
+    
+        mapEditTitle.textContent = `Editing subdivisions for: ${locationName}`;
+        mapEditBox.classList.remove('hidden');
     }
 
     function handleEditShapeClick(locationId) {
         try {
             infoWindow.close();
-            cancelEditing();
             let featureFound = false;
             map.data.forEach(feature => {
-                if (feature.getProperty('locationId') == locationId) {
+                if (feature.getProperty('locationId') == locationId && feature.getProperty('type') === 'pasture') {
                     featureFound = true;
                     currentlyEditingFeature = feature;
-                    feature.toGeoJson(geoJson => { originalGeoJsonForCancel = geoJson; });
-
-                    // Use the original stroke color for the editing highlight
-                    const originalColor = feature.getProperty('strokeColor') || '#FFD700';
+                    feature.toGeoJson(geoJson => { originalGeoJsonForCancel = [geoJson]; });
 
                     map.data.overrideStyle(feature, {
-                        editable: true, clickable: false, fillColor: originalColor,
-                        strokeColor: originalColor, zIndex: 99
+                        editable: true, clickable: false, fillColor: '#FFD700',
+                        strokeColor: '#FFD700', zIndex: 99
                     });
 
                     // Temporarily hide the label for the shape being edited
@@ -658,54 +818,111 @@ const farmLocationsPageManager = (() => {
         } catch (error) { console.error("ERROR inside handleEditShapeClick:", error); }
     }
 
-    async function handleSaveShapeClick() { // No longer needs locationId
-        if (!currentlyEditingFeature) return;
-        
-        const locationId = currentlyEditingFeature.getProperty('locationId'); // Get ID from the feature
-
-        try {
-            const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationId}/`);
-            if (!response.ok) throw new Error('Could not fetch original location data.');
-            const originalData = (await response.json()).location_details;
-
-            currentlyEditingFeature.toGeoJson(async (geoJsonFeature) => {
-                const geometry = currentlyEditingFeature.getGeometry();
-                const path = geometry.getArray()[0].getArray();
-                const newArea = google.maps.geometry.spherical.computeArea(path) / 10000;
-                const payload = {
-                    name: originalData.name, location_type: originalData.location_type,
-                    grass_type: originalData.grass_type, area_hectares: newArea,
-                    geo_json_data: JSON.stringify(geoJsonFeature)
-                };
-                const updateResponse = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationId}/`, {
-                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    async function handleSaveShapeClick() {
+        // Case 1: Saving a single parent location
+        if (currentlyEditingFeature) {
+            const locationId = currentlyEditingFeature.getProperty('locationId');
+            try {
+                const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationId}/`);
+                if (!response.ok) throw new Error('Could not fetch original location data.');
+                const originalData = (await response.json()).location_details;
+    
+                currentlyEditingFeature.toGeoJson(async (geoJsonFeature) => {
+                    const geometry = currentlyEditingFeature.getGeometry();
+                    const path = geometry.getArray()[0].getArray();
+                    const newArea = google.maps.geometry.spherical.computeArea(path) / 10000;
+                    const payload = {
+                        name: originalData.name, location_type: originalData.location_type,
+                        grass_type: originalData.grass_type, area_hectares: newArea,
+                        geo_json_data: JSON.stringify(geoJsonFeature)
+                    };
+                    const updateResponse = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationId}/`, {
+                        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                    });
+                    const result = await updateResponse.json();
+                    if (!updateResponse.ok) throw new Error(result.error || 'Failed to save shape');
+                    
+                    showToast(getTranslation('location_saved_successfully', { name: result.name }), 'success');
+                    cancelEditing();
+                    loadLocationsData();
                 });
-                const result = await updateResponse.json();
-                if (!updateResponse.ok) throw new Error(result.error || 'Failed to save shape');
-                
-                showToast(getTranslation('location_saved_successfully', { name: result.name }), 'success');
-                cancelEditing(); // This will hide the panel and reset the shape
-                loadLocationsData();
+            } catch (error) {
+                showToast(`Error: ${error.message}`, 'error');
+                cancelEditing();
+            }
+        } 
+        // Case 2: Saving multiple sublocations
+        else if (currentlyEditingSublocations.length > 0) {
+            const promises = currentlyEditingSublocations.map(feature => {
+                return new Promise((resolve, reject) => {
+                    feature.toGeoJson(async (geoJsonFeature) => {
+                        const subId = feature.getProperty('sublocationId');
+                        const geometry = feature.getGeometry();
+                        const path = geometry.getArray()[0].getArray();
+                        const newArea = google.maps.geometry.spherical.computeArea(path) / 10000;
+
+                        try {
+                            // We must fetch the original name to avoid overwriting it
+                            const origRes = await fetch(`${API_URL}/api/farm/${selectedFarmId}/sublocation/${subId}/`);
+                            if (!origRes.ok) throw new Error(`Failed to fetch original data for sublocation ${subId}`);
+                            const origData = await origRes.json();
+
+                            const payload = {
+                                name: origData.name, // Preserve the original name
+                                area_hectares: newArea,
+                                geo_json_data: JSON.stringify(geoJsonFeature)
+                            };
+                            
+                            const updateRes = await fetch(`${API_URL}/api/farm/${selectedFarmId}/sublocation/${subId}/`, {
+                                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                            });
+                            
+                            if (!updateRes.ok) throw new Error(`Failed to update sublocation ${subId}`);
+                            resolve(await updateRes.json());
+                        } catch (err) {
+                            reject(err);
+                        }
+                    });
+                });
             });
-        } catch (error) {
-            showToast(`Error: ${error.message}`, 'error');
-            cancelEditing();
+
+            try {
+                await Promise.all(promises);
+                showToast("All subdivision shapes saved successfully!", 'success');
+            } catch (error) {
+                showToast(`Error saving one or more shapes: ${error.message}`, 'error');
+            } finally {
+                cancelEditing();
+                loadLocationsData();
+            }
         }
     }
 
     function cancelEditing() {
         if (currentlyEditingFeature) {
             map.data.remove(currentlyEditingFeature);
-            if (originalGeoJsonForCancel) {
-                map.data.addGeoJson(originalGeoJsonForCancel);
+            if (originalGeoJsonForCancel && originalGeoJsonForCancel[0]) {
+                map.data.addGeoJson(originalGeoJsonForCancel[0]);
             }
-            // After canceling, we need to refresh all styles and labels
-            loadLocationsData();
         }
+    
+        if (currentlyEditingSublocations.length > 0) {
+            currentlyEditingSublocations.forEach(feature => map.data.remove(feature));
+            if (originalGeoJsonForCancel) {
+                originalGeoJsonForCancel.forEach(geoJson => map.data.addGeoJson(geoJson));
+            }
+        }
+    
+        // Reset all editing state variables
         currentlyEditingFeature = null;
+        currentlyEditingSublocations = [];
         originalGeoJsonForCancel = null;
+    
         infoWindow.close();
         mapEditBox.classList.add('hidden');
+        
+        // After canceling, it's safest to just reload all map data to restore styles
+        loadLocationsData();
     }
 
     // --- View Switching & Page Event Handlers ---
@@ -832,6 +1049,7 @@ const farmLocationsPageManager = (() => {
         addLocationModal = document.getElementById('add-location-modal');
         addLocationForm = document.getElementById('add-location-form');
         cancelAddLocationBtn = document.getElementById('cancel-add-location');
+        editLocationBtn = document.getElementById('edit-location-btn');
         editLocationModal = document.getElementById('edit-location-modal');
         editLocationForm = document.getElementById('edit-location-form');
         cancelEditLocationBtn = document.getElementById('cancel-edit-location');
@@ -850,9 +1068,21 @@ const farmLocationsPageManager = (() => {
         // --- INITIAL EVENT LISTENERS ---
         showListViewBtn.onclick = () => switchToView('list');
         showMapViewBtn.onclick = () => switchToView('map');
-        showAddLocationModalBtn.onclick = () => { /* ... */ };
+        showAddLocationModalBtn.onclick = () => {
+            addLocationForm.reset();
+            tempGeoJson = null; // Ensure no shape data is carried over
+            
+            // Make sure the area input is writable, as we are not drawing
+            const areaInput = document.getElementById('location-area-input');
+            if(areaInput) {
+                areaInput.readOnly = false;
+            }
+            
+            addLocationModal.classList.remove('hidden');
+        };
         cancelAddLocationBtn.onclick = () => addLocationModal.classList.add('hidden');
         addLocationForm.onsubmit = handleAddLocationSubmit;
+        // editLocationBtn.onclick = () => { /* ... */ };
         cancelEditLocationBtn.onclick = () => editLocationModal.classList.add('hidden');
         editLocationForm.onsubmit = handleEditLocationSubmit;
         
@@ -883,7 +1113,7 @@ const farmLocationsPageManager = (() => {
             const drawOnMapBtn = event.target.closest('.draw-on-map-btn');
             const seeOnMapBtn = event.target.closest('.see-on-map-btn');
 
-            if (editLocationBtn) handleTopLevelEditClick(editLocationBtn.dataset.locationId);
+            if (editLocationBtn) handleEditLocationClick(editLocationBtn.dataset.locationId);
             if (deleteLocationBtn) handleDeleteLocationClick(deleteLocationBtn.dataset.locationId, deleteLocationBtn.dataset.locationName);
             if (seeDetailsBtn) showConsultView(seeDetailsBtn.dataset.locationId, seeDetailsBtn.dataset.locationName);
             if (addSubdivisionBtn) openAddSublocationModal(addSubdivisionBtn.dataset.locationId, addSubdivisionBtn.dataset.locationName);
