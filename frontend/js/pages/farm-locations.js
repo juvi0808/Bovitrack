@@ -42,7 +42,8 @@ const farmLocationsPageManager = (() => {
         addLocationForm, cancelAddLocationBtn, editLocationModal, editLocationForm,
         cancelEditLocationBtn, addSublocationModal, addSublocationForm,
         cancelAddSublocationBtn, backBtn, editSublocationModal, editSublocationForm,
-        cancelEditSublocationBtn, mapEditBox, mapEditTitle, mapSaveChangesBtn, mapCancelEditBtn;
+        cancelEditSublocationBtn, mapEditBox, mapEditTitle, mapSaveChangesBtn, mapCancelEditBtn,
+        consultTitle, summaryContainer, locationAnimalsGrid;
 
     // This function can now be called from outside (e.g., from main-renderer.js)
     async function loadLocationsData() {
@@ -953,8 +954,10 @@ const farmLocationsPageManager = (() => {
             const response = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationId}/`);
             if (!response.ok) throw new Error('Failed to fetch summary');
             const data = await response.json();
-            renderLocationSummary(data.location_details, summaryContainer);
+            
+            renderLocationSummary(data.location_details, data.location_details.kpis, summaryContainer);
             createLocationAnimalsGrid(data.animals);
+
         } catch (error) {
             console.error("Error loading location summary:", error);
             summaryContainer.innerHTML = `<p style="color:red;">Could not load summary data.</p>`;
@@ -1027,6 +1030,92 @@ const farmLocationsPageManager = (() => {
         } catch (error) { showToast(`${getTranslation('error_updating_location')}: ${error.message}`, 'error'); }
     }
 
+    function renderLocationSummary(locationDetails, kpis, container) {
+        if (!container || !locationDetails) return;
+
+        // Use the '|| 0' or '|| 'N/A'' trick to prevent errors with null/missing data
+        const animalCount = kpis.animal_count || 0;
+        const area = locationDetails.area_hectares || 0;
+        const grass = locationDetails.grass_type || 'N/A';
+        const capacityActual = kpis.capacity_rate_actual_ua_ha || 'N/A';
+        const capacityForecast = kpis.capacity_rate_forecasted_ua_ha || 'N/A';
+
+        container.innerHTML = `
+            <div class="kpi-card">
+                <span class="kpi-card-value">${animalCount}</span>
+                <span class="kpi-card-label">${getTranslation('animal_count')}</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-card-value">${area.toFixed(2)} ha</span>
+                <span class="kpi-card-label">${getTranslation('area_hectares')}</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-card-value">${grass}</span>
+                <span class="kpi-card-label">${getTranslation('grass_type')}</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-card-value">${capacityActual}</span>
+                <span class="kpi-card-label">${getTranslation('capacity_rate_actual_ua_ha')}</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-card-value">${capacityForecast}</span>
+                <span class="kpi-card-label">${getTranslation('capacity_rate_forecasted_ua_ha')}</span>
+            </div>
+        `;
+    }
+
+    function createLocationAnimalsGrid(animals) {
+        const gridDiv = document.getElementById('location-animals-grid');
+        if (!gridDiv) return;
+
+        gridDiv.className = 'ag-theme-quartz full-height-grid';
+
+        const columnDefs = [
+            { headerName: getTranslation("ear_tag"), field: "ear_tag", width: 120, onCellClicked: (params) => window.navigateToConsultAnimal(params.data.id, 'page-farm-locations'), cellClass: 'clickable-cell' },
+            { headerName: getTranslation("lot"), field: "lot", width: 100, onCellClicked: (params) => window.navigateToConsultLot(params.value, 'page-farm-locations'), cellClass: 'clickable-cell' },
+            { headerName: getTranslation("sex"), field: "sex", width: 100 },
+            { 
+                headerName: `${getTranslation('age')} (${getTranslation('months')})`, 
+                field: "kpis.current_age_months", 
+                valueFormatter: p => p.value != null ? p.value.toFixed(2) : '',
+                width: 150 
+            },
+            { 
+                headerName: getTranslation("last_wt_kg"), 
+                field: "kpis.last_weight_kg", 
+                valueFormatter: p => p.value != null ? p.value.toFixed(2) : '',
+                width: 150 
+            },
+            { 
+                headerName: getTranslation("avg_daily_gain_kg"), 
+                field: "kpis.average_daily_gain_kg", 
+                valueFormatter: p => p.value != null ? p.value.toFixed(3) : '',
+                width: 180 
+            },
+            { 
+                headerName: getTranslation("forecasted_weight"), 
+                field: "kpis.forecasted_current_weight_kg", 
+                valueFormatter: p => p.value != null ? p.value.toFixed(2) : '',
+                width: 180 
+            },
+            { headerName: getTranslation("diet_type"), field: "kpis.current_diet_type" },
+        ];
+    
+        const gridOptions = {
+            columnDefs: columnDefs,
+            rowData: animals,
+            defaultColDef: {
+                sortable: true,
+                filter: true,
+                resizable: true,
+                cellStyle: { 'text-align': 'center' }
+            },
+            onGridReady: (params) => params.api.sizeColumnsToFit(),
+        };
+        gridDiv.innerHTML = '';
+        createGrid(gridDiv, gridOptions);
+    }
+
     // This is the main entry point for the page
     function init() {
         console.log("Initializing Locations Page...");
@@ -1064,6 +1153,9 @@ const farmLocationsPageManager = (() => {
         mapEditTitle = document.getElementById('map-edit-title');
         mapSaveChangesBtn = document.getElementById('map-save-changes-btn');
         mapCancelEditBtn = document.getElementById('map-cancel-edit-btn');
+        consultTitle = document.getElementById('location-consult-title');
+        summaryContainer = document.getElementById('location-summary-kpis');
+        locationAnimalsGrid = document.getElementById('location-animals-grid');
         
         // --- INITIAL EVENT LISTENERS ---
         showListViewBtn.onclick = () => switchToView('list');

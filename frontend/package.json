@@ -1,12 +1,12 @@
 {
   "name": "bovitrack",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Livestock Management Application",
   "main": "main.js",
   "homepage": "./",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder"
+    "build": "dotenv -e ../.env -- electron-builder"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +17,8 @@
     "dotenv": "^17.2.1"
   },
   "devDependencies": {
+    "cross-env": "^10.0.0",
+    "dotenv-cli": "^10.0.0",
     "electron": "^31.0.1",
     "electron-builder": "^24.13.3"
   },

@@ -9,7 +9,7 @@ const path = require('path');
 const { spawn } = require('child_process'); // Import Node.js's child process module
 const http = require('http');
 
-require('dotenv').config(); // This loads the .env file
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });  // This loads the .env file
 
 let backendProcess = null;
 

@@ -7,7 +7,7 @@ from rest_framework.pagination import PageNumberPagination
 # Make sure Q is imported here
 from django.http import JsonResponse
 from django.db import transaction
-from django.db.models import Count, Subquery, OuterRef, Q, F, FloatField, Case, When, Sum, IntegerField, Avg, Value, ExpressionWrapper
+from django.db.models import Count, Subquery, OuterRef, Q, F, FloatField, Case, When, Sum, IntegerField, Avg, Value, ExpressionWrapper, CharField
 from django.db.models.functions import Coalesce, Cast, Now, NullIf, TruncDate
 
 from .models import Farm, Location, Purchase, LocationChange, Sublocation, Weighting, DietLog, Sale, Death, SanitaryProtocol
@@ -236,22 +236,27 @@ def location_detail(request, farm_id, location_id):
             last_weighting_date=last_weighting_date_subq,
             current_diet_intake=Subquery(latest_diets.values('daily_intake_percentage')[:1]),
             current_location_id=Subquery(latest_locations.values('location_id')[:1]),
-            current_sublocation_id=Subquery(latest_locations.values('sublocation_id')[:1])
-            # The faulty sublocation_name subquery is correctly removed.
-            # The serializer will handle the name lookup.
+            current_sublocation_id=Subquery(latest_locations.values('sublocation_id')[:1]),
+
+            # Use '__' to fetch the name from the related table directly in the subquery
+            current_location_name=Subquery(latest_locations.values('location__name')[:1]),
+            current_sublocation_name=Subquery(latest_locations.values('sublocation__name')[:1])
         )
 
-        # --- Step 3: Assemble the final response object ---
         summary_data = {
             'location_details': location,
-            'animals': animals_qs
+            'animals': animals_qs  # Pass the queryset directly
         }
 
+        # The context for the LocationSummarySerializer is now much simpler.
+        # It no longer needs the name maps.
         kpi_data = location_list.get_kpis_for_locations(farm_id)
         kpi_context = {
             'location_kpis': kpi_data.get('location_kpis', {}),
             'sublocation_counts': kpi_data.get('sublocation_kpis', {}),
-        }   
+        }
+        # Note: You can remove the LocationSummarySerializer change now if you want,
+        # but leaving it is also fine and makes it more robust for the future.
         serializer = LocationSummarySerializer(summary_data, context=kpi_context)
         return Response(serializer.data)
 
@@ -961,12 +966,11 @@ def lot_detail_summary(request, farm_id, lot_number):
         death__isnull=True
     )
 
-    # --- FINAL CORRECTED ANNOTATIONS ---
     latest_weightings = Weighting.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
     latest_diets = DietLog.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
     latest_locations = LocationChange.objects.filter(animal=OuterRef('pk')).order_by('-date', '-id')
     
-    # --- FIX: Use TruncDate for reliable date math ---
+    # --- Use TruncDate for reliable date math ---
     current_date = TruncDate(Now())
     days_on_farm = ExpressionWrapper((current_date - F('entry_date')) / timedelta(days=1), output_field=FloatField())
 
@@ -994,6 +998,10 @@ def lot_detail_summary(request, farm_id, lot_number):
         current_diet_intake=Subquery(latest_diets.values('daily_intake_percentage')[:1]),
         current_location_id=Subquery(latest_locations.values('location_id')[:1]),
         current_sublocation_id=Subquery(latest_locations.values('sublocation_id')[:1]),
+        
+        # Use '__' to fetch the name from the related table directly in the subquery
+        current_location_name=Subquery(latest_locations.values('location__name')[:1]),
+        current_sublocation_name=Subquery(latest_locations.values('sublocation__name')[:1])
     ).order_by('ear_tag')
 
     serializer = AnimalSummarySerializer(annotated_query, many=True)
@@ -1054,39 +1062,24 @@ def active_stock_summary(request, farm_id):
         current_diet_intake=Subquery(latest_diets.values('daily_intake_percentage')[:1]),
         current_location_id=Subquery(latest_locations.values('location_id')[:1]),
         current_sublocation_id=Subquery(latest_locations.values('sublocation_id')[:1]),
+        current_location_name=Subquery(
+        latest_locations.values('location__name')[:1],
+        output_field=CharField()
+    ),
+    current_sublocation_name=Subquery(
+        latest_locations.values('sublocation__name')[:1],
+        output_field=CharField()
+    )
     ).order_by('lot', 'ear_tag')
 
-    # --- Execute query and pre-fetch names ---
-    all_animals = list(animal_details_query)
-
-    location_ids = {animal.current_location_id for animal in all_animals if animal.current_location_id}
-    sublocation_ids = {animal.current_sublocation_id for animal in all_animals if animal.current_sublocation_id}
-
-    locations = Location.objects.filter(id__in=location_ids).values('id', 'name')
-    sublocations = Sublocation.objects.filter(id__in=sublocation_ids).values('id', 'name')
-
-    location_name_map = {loc['id']: loc['name'] for loc in locations}
-    sublocation_name_map = {sub['id']: sub['name'] for sub in sublocations}
-    
-    serializer_context = {
-        'location_name_map': location_name_map,
-        'sublocation_name_map': sublocation_name_map
-    }
-    
-    # --- FIX STARTS HERE ---
-    
-    # 1. Assemble a dictionary with the RAW data (model objects, not serialized data).
     final_data = {
         'summary_kpis': summary_kpis_result,
-        'animals': all_animals  # Pass the list of annotated Purchase objects directly
+        'animals': animal_details_query
     }
-    
-    # 2. Instantiate the top-level serializer, passing it the raw data and the context.
-    #    It will now correctly delegate the serialization of the 'animals' list
-    #    to the AnimalSummarySerializer.
-    response_serializer = ActiveStockResponseSerializer(final_data, context=serializer_context)
-    
-    # --- FIX ENDS HERE ---
+
+    print(animal_details_query.values('current_location_name'))
+
+    response_serializer = ActiveStockResponseSerializer(final_data)
 
     return Response(response_serializer.data)
 

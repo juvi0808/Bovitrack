@@ -110,14 +110,11 @@ class AnimalSummarySerializer(serializers.ModelSerializer):
 
         # --- OPTIMIZATION: Use pre-fetched maps from context ---
         # This is a super-fast dictionary lookup, not a database query.
-        location_map = self.context.get('location_name_map', {})
-        sublocation_map = self.context.get('sublocation_name_map', {})
+        location_name = getattr(obj, 'current_location_name', None)
+        sublocation_name = getattr(obj, 'current_sublocation_name', None)
         
         location_id = getattr(obj, 'current_location_id', None)
         sublocation_id = getattr(obj, 'current_sublocation_id', None)
-
-        location_name = location_map.get(location_id)
-        sublocation_name = sublocation_map.get(sublocation_id)
 
         return {
             'average_daily_gain_kg': getattr(obj, 'average_daily_gain_kg', None),
@@ -141,7 +138,26 @@ class LocationSummarySerializer(serializers.Serializer):
     Defines the final JSON structure: {'location_details': {...}, 'animals': [...]}.
     """
     location_details = LocationSerializer()
-    animals = AnimalSummarySerializer(many=True)
+    # By making 'animals' a SerializerMethodField, we gain full control.
+    animals = serializers.SerializerMethodField()
+
+    def get_animals(self, obj):
+        """
+        This method is called to serialize the 'animals' field.
+        We can now manually instantiate AnimalSummarySerializer and pass the context.
+        """
+        # 'obj' is the summary_data dictionary from the view
+        animals_queryset = obj.get('animals')
+        # The full context from the view is available here via self.context
+        serializer_context = self.context
+
+        # Instantiate the serializer for the list of animals, passing the crucial context
+        serializer = AnimalSummarySerializer(
+            animals_queryset,
+            many=True,
+            context=serializer_context
+        )
+        return serializer.data
 
 
 class SublocationCreateUpdateSerializer(serializers.ModelSerializer):
