@@ -9,6 +9,7 @@ const path = require('path');
 const { spawn } = require('child_process'); // Import Node.js's child process module
 const http = require('http');
 
+require('dotenv').config(); // This loads the .env file
 
 let backendProcess = null;
 
@@ -136,6 +137,17 @@ const createWindow = async () => {
   try {
     await startBackend();
     win.loadFile('index.html');
+
+    // Send the API key to the renderer process after it has finished loading
+    win.webContents.on('did-finish-load', () => {
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+      if (apiKey) {
+        win.webContents.send('maps-api-key', apiKey);
+      } else {
+        console.error("Google Maps API key not found in .env file!");
+      }
+    });
+
   } catch (error) {
     console.error('Could not start backend, quitting app.', error);
     dialog.showErrorBox(

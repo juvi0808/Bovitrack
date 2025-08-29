@@ -1,30 +1,58 @@
-<div class="page" id="locations-page-container">
-
-    <!-- View 1: List of all locations (default view) -->
-    <div id="locations-list-view">
-        <div class="page-header">
-            <h2 data-translate="history_locations">Locations</h2>
+<!-- File: B:/live_stock_manager/frontend/pages/farm-locations.html -->
+<div id="farm-locations-page" class="page">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1 data-translate="locations">Locations</h1>
+        <div class="header-actions">
+            <!-- View Toggle Buttons -->
+            <div class="locations-view-toggle">
+                <button id="show-list-view-btn" class="toggle-btn active" data-translate="list_view">List View</button>
+                <button id="show-map-view-btn" class="toggle-btn" data-translate="map_view">Map View</button>
+            </div>
             <button id="show-add-location-modal-btn" class="button-primary" data-translate="add_new_location">Add New Location</button>
         </div>
-        <div id="locations-container" class="locations-list-container">
-            <!-- Location cards will be rendered here by JavaScript -->
+    </div>
+
+    <!-- This container holds both the list and map views, which are toggled -->
+    <div class="locations-content-container">
+        <!-- List View (Default) -->
+        <div id="locations-list-view" class="locations-view active">
+            <div id="locations-container" class="locations-list-container">
+                <!-- Location cards will be dynamically inserted here by farm-locations.js -->
+            </div>
+        </div>
+
+        <!-- Map View (Initially hidden) -->
+        <div id="locations-map-view" class="locations-view">
+            <!-- THIS IS THE CRITICAL DIV FOR THE GOOGLE MAP -->
+            <div id="map-canvas"></div>
         </div>
     </div>
 
-    <!-- View 2: Detailed summary of a single location (hidden by default) -->
+    <!-- Consult View (Initially hidden, shown when 'See Details' is clicked) -->
     <div id="location-consult-view" class="hidden">
         <div class="page-header">
-            <h2 id="location-consult-title">Location Details</h2>
+            <h1 id="location-consult-title">Location Occupancy</h1>
             <button id="back-to-locations-list-btn" class="button-secondary" data-translate="back_to_locations_list">Back to Locations List</button>
         </div>
-        <!-- This container will display the summary KPIs using the same style as the location cards -->
-        <div id="location-summary-kpis" class="location-card-kpis">
-            <!-- Summary KPIs will be rendered here by JavaScript -->
+        <div id="location-summary-kpis" class="kpi-grid">
+            <!-- Summary KPIs will be injected here -->
         </div>
-        <h3 data-translate="animals_in_location" style="text-align: center; margin-top: 20px;">Animals in this Location</h3>
         <div id="location-animals-grid" class="full-height-grid ag-theme-quartz">
-            <!-- AG Grid for animals will be rendered here by JavaScript -->
+            <!-- AG Grid for animals in the location will be created here -->
         </div>
     </div>
-
+    <div id="map-edit-box" class="hidden">
+        <!-- And make the following changes -->
+        <h4 id="map-edit-title">Editing: Location Name</h4>
+        
+        <!-- FIX 1: Also make this paragraph translatable -->
+        <p data-translate="drag_points_to_adjust">Drag the white points to adjust the shape.</p>
+        
+        <div class="map-infowindow-actions">
+            <!-- FIX 2: Replace the broken syntax with the data-translate attribute -->
+            <button id="map-save-changes-btn" class="button-primary" data-translate="save_changes"></button>
+            <button id="map-cancel-edit-btn" class="button-secondary" data-translate="cancel"></button>
+        </div>
+    </div>
 </div>

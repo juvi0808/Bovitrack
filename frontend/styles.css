@@ -1026,3 +1026,128 @@ tbody tr:hover {
     margin-bottom: 15px;
     max-width: 90%;
 }
+
+/* ==========================================================================
+   15. Farm Locations Map View
+   ========================================================================== */
+
+   #farm-locations-page .locations-content-container {
+    display: flex;
+    flex-grow: 1;
+    min-height: 0; /* Important for flex children with overflow */
+}
+
+.locations-view {
+    display: none; /* Hide views by default */
+    width: 100%;
+    height: 100%;
+    flex-direction: column; /* Ensure children stack correctly */
+}
+
+.locations-view.active {
+    display: flex; /* Show the active view */
+}
+
+.locations-view-toggle {
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.toggle-btn {
+    padding: 8px 16px;
+    border: 1px solid #007bff;
+    background-color: transparent;
+    color: #007bff;
+    cursor: pointer;
+    font-size: 1em;
+}
+
+.toggle-btn:first-child {
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+}
+
+.toggle-btn:last-child {
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+    border-left: none;
+}
+
+.toggle-btn.active {
+    background-color: #007bff;
+    color: white;
+}
+
+/* Style for the InfoWindow content on the map */
+.map-infowindow-content {
+    line-height: 1.5;
+    font-size: 1em;
+}
+
+.map-infowindow-content h4 {
+    margin: 0 0 10px 0;
+}
+
+.map-infowindow-content p {
+    margin: 4px 0;
+}
+
+.map-infowindow-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+}
+
+#map-canvas {
+    width: 100%;
+    flex-grow: 1; /* This is the key: it tells the map to fill all available vertical space in its parent */
+    min-height: 0; /* A flexbox best practice to prevent overflow issues */
+}
+
+#map-edit-box {
+    position: absolute;
+    top: 80px; /* Adjust to be below the "Map/Satellite" buttons */
+    right: 10px;
+    width: 280px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    padding: 15px 20px;
+    z-index: 10; /* Ensures it's on top of the map canvas */
+    border: 1px solid #ccc;
+}
+
+#map-edit-box h4 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 1.1em;
+    color: #333;
+}
+
+#map-edit-box p {
+    margin: 0 0 15px 0;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.sublocation-actions {
+    display: flex;
+    gap: 5px; /* Adds a small space between the buttons */
+    align-items: center;
+}
+
+.map-location-label {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: bold;
+    white-space: nowrap;
+    /* This centers the div on its coordinate */
+    transform: translate(-50%, -50%);
+    /* This allows clicks to go "through" the label to the polygon below */
+    pointer-events: none;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+}

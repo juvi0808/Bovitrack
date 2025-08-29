@@ -18,6 +18,7 @@ ModuleRegistry.registerModules(AllCommunityModules);
 const API_URL = 'http://127.0.0.1:8000';
 const LAST_FARM_ID_KEY = 'bovitrack-last-farm-id';
 const LANGUAGE_KEY = 'bovitrack-language'; // Moved to the top for safety
+const { ipcRenderer } = require('electron');
 
 let selectedFarmId = null;
 let allFarms = [];
@@ -63,6 +64,13 @@ const farmNameToDeleteSpan = document.getElementById('farm-name-to-delete');
 // --- Main App Initialization ---
 // This line says: "When the entire HTML document has been fully loaded and is ready..."
 document.addEventListener('DOMContentLoaded', initializeApp);
+
+// --- Google Maps API Key ---
+ipcRenderer.on('maps-api-key', (event, apiKey) => {
+    console.log("Received Google Maps API Key.");
+    loadGoogleMapsScript(apiKey);
+});
+
 
 // An "async function" is a special function that can perform long-running tasks
 // (like network requests) without freezing the whole application.
@@ -166,6 +174,18 @@ function setLanguage(lang) {
     }
 }
 
+// --- Google Maps API Key ---
+function loadGoogleMapsScript(apiKey) {
+    if (window.google && window.google.maps) {
+        console.log("Google Maps script already loaded.");
+        return;
+    }
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=drawing,geometry`;
+    script.defer = true;
+    document.head.appendChild(script);
+}
+
 function applyTranslations() {
     document.querySelectorAll('[data-translate]').forEach(element => {
         const key = element.getAttribute('data-translate');
@@ -264,7 +284,8 @@ async function handleFarmSelection() {
     else if (pageId === 'page-operations-death') {
         await loadDeathHistoryData();}  
     else if (pageId === 'page-farm-locations') { 
-        await loadLocationsData();}      
+        await farmLocationsPageManager.loadData(); // Use the new manager object
+    }    
     else if (pageId === 'page-farm-lots') { 
         await loadLotsData();
     }     
@@ -510,7 +531,7 @@ async function showPage(pageId) {
         } else if (pageId === 'page-operations-death') {
             initHistoryDeathsPage(); 
         } else if (pageName === 'farm-locations') { 
-            initLocationsPage();
+            farmLocationsPageManager.init(); // Use the new manager object
         } else if (pageName === 'farm-lots') { 
             initLotsPage();
         } else if (pageName === 'lookup-consult-animal') {

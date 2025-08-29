@@ -470,7 +470,7 @@
                     </div>
                     <div class="form-group">
                         <label for="location-area-input" data-translate="area_hectares">Area (Hectares)</label>
-                        <input type="number" step="0.01" id="location-area-input">
+                        <input type="number" step="any" id="location-area-input">
                     </div>
                     <div class="form-group">
                         <label for="location-type-input" data-translate="location_type">Location Type (Optional)</label>
@@ -484,6 +484,62 @@
                 <div class="modal-actions">
                     <button type="submit" data-translate="save_location">Save Location</button>
                     <button type="button" id="cancel-add-location" data-translate="cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- Edit Location Modal -->
+    <div id="edit-location-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 data-translate="edit_location">Edit Location</h3>
+            <form id="edit-location-form">
+                <!-- We will store the location ID here when the form is opened -->
+                <input type="hidden" id="edit-location-id">
+                <div class="form-grid">
+                    <div class="form-group form-group-full">
+                        <label for="edit-location-name-input" data-translate="location_name">Location Name</label>
+                        <input type="text" id="edit-location-name-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-location-area-input" data-translate="area_hectares">Area (Hectares)</label>
+                        <input type="number" step="any" id="edit-location-area-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-location-type-input" data-translate="location_type">Location Type (Optional)</label>
+                        <input type="text" id="edit-location-type-input" placeholder="e.g., Pasture, Feedlot">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label for="edit-location-grass-input" data-translate="grass_type">Grass Type (Optional)</label>
+                        <input type="text" id="edit-location-grass-input" placeholder="e.g., Brachiaria, Tifton">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" data-translate="save_changes">Save Changes</button>
+                    <button type="button" id="cancel-edit-location" data-translate="cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="edit-sublocation-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 data-translate="edit_subdivision">Edit Subdivision</h3>
+            <form id="edit-sublocation-form">
+                <!-- Hidden input to store the ID of the sublocation being edited -->
+                <input type="hidden" id="edit-sublocation-id">
+                
+                <div class="form-grid">
+                    <div class="form-group form-group-full">
+                        <label for="edit-sublocation-name-input" data-translate="subdivision_name">Subdivision Name</label>
+                        <input type="text" id="edit-sublocation-name-input" required>
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label for="edit-sublocation-area-input" data-translate="area_hectares">Area (Hectares)</label>
+                        <input type="number" step="any" id="edit-sublocation-area-input">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" data-translate="save_changes">Save Changes</button>
+                    <button type="button" id="cancel-edit-sublocation" data-translate="cancel">Cancel</button>
                 </div>
             </form>
         </div>
@@ -516,7 +572,7 @@
     <!-- that getElementById() can find the elements it's looking for. -->
     <script src="./node_modules/chart.js/dist/chart.umd.js"></script>
     <script src="./js/translations.js"></script>
-    <script src="./js/main-renderer.js"></script>
+
     <script src="./js/pages/active-stock.js"></script>
     <script src="./js/pages/operations-purchases.js"></script>
     <script src="./js/pages/operations-sales.js"></script>
@@ -529,5 +585,6 @@
     <script src="./js/pages/farm-lots.js"></script>
     <script src="./js/pages/lookup-consult-animal.js"></script>
     <script src="./js/pages/settings.js"></script>
+    <script src="./js/main-renderer.js"></script>
 </body>
 </html>

@@ -2,6 +2,10 @@
 __pycache__/
 *.pyc
 
+# Environment variables
+.env
+*.env
+
 # Virtual Environment folder
 # This is a huge folder that can be recreated with "pip install"
 /venv/
@@ -25,5 +29,6 @@ __pycache__/
 /dist
 /backend_django/dist
 /backend_django/build
+/app
 
 live_stock_manager.code-workspace
