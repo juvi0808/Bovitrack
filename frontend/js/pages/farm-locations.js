@@ -31,8 +31,10 @@ const farmLocationsPageManager = (() => {
     // --- NEW STATE VARIABLES FOR CROSS-VIEW ACTIONS ---
     let locationIdToDrawFor = null; // Stores {id, name} of location needing a shape
     let locationIdToFocusOnLoad = null; // Stores ID of location to focus on when map loads
-    let mapLabels = []; // To keep track of our custom labels
+    let sublocationIdToDrawFor = null; // Stores ID of sublocation needing a shape
+    let sublocationIdToFocusOnLoad = null; // Stores ID of sublocation to focus on when map loads
 
+    let mapLabels = []; // To keep track of our custom labels
     let Label = null; 
 
     let pageContainer, locationsContainer, locationsListView, locationConsultView, locationsMapView,
@@ -84,19 +86,26 @@ const farmLocationsPageManager = (() => {
                 : `<button class="button-primary draw-on-map-btn" data-location-id="${location.id}" data-location-name="${location.name}">${getTranslation('draw_on_map')}</button>`;
             let sublocationsHtml = `<p>${getTranslation('no_subdivisions_yet')}</p>`;
             if (location.sublocations && location.sublocations.length > 0) {
-                sublocationsHtml = `<ul class="sublocation-list">${location.sublocations.map(sub => `
-                    <li class="${sub.animal_count > 0 ? 'occupied' : ''}">
+                sublocationsHtml = `<ul class="sublocation-list">${location.sublocations.map(sub => {
+                    // --- CHANGE 1: Add a "Draw on Map" button for sublocations ---
+                    const subMapButtonHtml = sub.geo_json_data
+                        ? `<button class="button-secondary see-on-map-btn" title="${getTranslation('see_on_map')}" data-sublocation-id="${sub.id}">🗺️</button>`
+                        : `<button class="button-primary draw-on-map-btn" title="${getTranslation('draw_on_map')}" data-sublocation-id="${sub.id}" data-sublocation-name="${sub.name}">✏️🗺️</button>`;
+
+                    return `<li class="${sub.animal_count > 0 ? 'occupied' : ''}">
                         <div class="sublocation-info">
                             <span>${sub.name}</span>
                             <span class="sublocation-area">${sub.area_hectares ? sub.area_hectares.toFixed(2) + ' ha' : ''}</span>
                         </div>
                         ${sub.animal_count > 0 ? `<span class="occupied-animal-count">${getTranslation('animal_occupation')}: ${sub.animal_count}</span>` : ''}
                         <div class="sublocation-actions">
-                             <button class="button-secondary assign-herd-btn" data-location-id="${location.id}" data-location-name="${location.name}" data-sublocation-id="${sub.id}" data-sublocation-name="${sub.name}">${getTranslation('assign_herd')}</button>
+                            ${subMapButtonHtml}
+                            <button class="button-secondary assign-herd-btn" data-location-id="${location.id}" data-location-name="${location.name}" data-sublocation-id="${sub.id}" data-sublocation-name="${sub.name}">${getTranslation('assign_herd')}</button>
                             <button class="action-button edit-sublocation-btn" data-sublocation-id="${sub.id}" title="${getTranslation('edit')}">✏️</button>
                             <button class="action-button btn-danger delete-sublocation-btn" data-sublocation-id="${sub.id}" data-sublocation-name="${sub.name}" title="${getTranslation('delete')}">🗑️</button>
                         </div>
-                    </li>`).join('')}</ul>`;
+                    </li>`;
+                }).join('')}</ul>`;
             }
             locationCard.innerHTML = `
                 <div class="location-card-header">
@@ -141,7 +150,7 @@ const farmLocationsPageManager = (() => {
                     this.div.style.color = this.color; // Apply dynamic color
             
                     const panes = this.getPanes();
-                    panes.overlayLayer.appendChild(this.div);
+                    panes.floatPane.appendChild(this.div);
                 }
             
                 draw() {
@@ -222,22 +231,23 @@ const farmLocationsPageManager = (() => {
         // This part runs EVERY time you switch to the map view
         loadLocationsData();
         
-        if (locationIdToDrawFor) {
+        if (locationIdToDrawFor || sublocationIdToDrawFor) {
             drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
         }
     }
 
     function renderLocationsOnMap(locations) {
         // Clear old shapes and labels
-        map.data.forEach(f => { if (f.getProperty('type') === 'pasture') map.data.remove(f); });
+        map.data.forEach(f => map.data.remove(f));
         mapLabels.forEach(label => label.setMap(null));
         mapLabels = [];
-
+    
         if (!locations || locations.length === 0) return;
-
+    
         const bounds = new google.maps.LatLngBounds();
         let shapesExist = false;
         
+        // --- STAGE 1: Render the parent location FILLS (no outline) ---
         locations.forEach((loc, index) => {
             let geoData = loc.geo_json_data;
             if (geoData && typeof geoData === 'string') { try { geoData = JSON.parse(geoData); } catch (e) { geoData = null; } }
@@ -245,14 +255,13 @@ const farmLocationsPageManager = (() => {
             if (geoData && typeof geoData === 'object') {
                 shapesExist = true;
                 let featureData = (geoData.type === 'Feature') ? geoData : { type: 'Feature', geometry: geoData, properties: {} };
+                
                 featureData.properties = { 
-                    ...featureData.properties, 
-                    type: 'pasture', 
+                    type: 'pasture', // This is the main, clickable feature
                     locationId: loc.id, 
                     locationName: loc.name, 
                     area: loc.area_hectares, 
-                    animalCount: loc.kpis.animal_count, 
-                    locationType: loc.location_type, 
+                    animalCount: loc.kpis.animal_count,
                     grassType: loc.grass_type,
                     capacityRateActual: loc.kpis.capacity_rate_actual_ua_ha,
                     capacityRateForecast: loc.kpis.capacity_rate_forecasted_ua_ha
@@ -260,31 +269,80 @@ const farmLocationsPageManager = (() => {
                 
                 const features = map.data.addGeoJson(featureData);
                 const feature = features[0];
-
+    
                 if (feature) {
-                    // 1. Calculate and apply the unique color
                     const color = COLOR_PALETTE[index % COLOR_PALETTE.length];
                     map.data.overrideStyle(feature, {
                         fillColor: color,
-                        strokeColor: color
+                        fillOpacity: 0.35, // Standard opacity for the fill
+                        strokeWeight: 0,   // No stroke on this layer
+                        clickable: true    // This is the layer that responds to clicks
                     });
-
-                    // 2. Calculate the center and create the label
+    
+                    // The label is associated with the main body of the location
                     const featureBounds = new google.maps.LatLngBounds();
                     feature.getGeometry().forEachLatLng(latlng => featureBounds.extend(latlng));
-                    
                     const labelText = `${loc.name}<br>${loc.area_hectares ? loc.area_hectares.toFixed(2) + ' ha' : ''}`;
                     const label = new Label(map, featureBounds.getCenter(), labelText, color);
                     mapLabels.push(label);
-
-                    // Extend the main bounds
+    
                     feature.getGeometry().forEachLatLng(latlng => bounds.extend(latlng));
                 }
             }
         });
-
-        // Handle auto-zoom and focus logic
-        if (shapesExist && !bounds.isEmpty() && !locationIdToFocusOnLoad) {
+    
+        // --- STAGE 2: Render the SUBLOCATION lines ---
+        locations.forEach(loc => {
+            if (loc.sublocations && loc.sublocations.length > 0) {
+                loc.sublocations.forEach(sub => {
+                    let subGeoData = sub.geo_json_data;
+                    if (subGeoData && typeof subGeoData === 'string') { try { subGeoData = JSON.parse(subGeoData); } catch (e) { subGeoData = null; } }
+                    
+                    if (subGeoData && typeof subGeoData === 'object') {
+                        let featureData = (subGeoData.type === 'Feature') ? subGeoData : { type: 'Feature', geometry: subGeoData, properties: {} };
+                        featureData.properties = { type: 'sublocation' }; // Minimal properties needed
+                        const features = map.data.addGeoJson(featureData);
+                        
+                        if (features[0]) {
+                            map.data.overrideStyle(features[0], {
+                                fillOpacity: 0.0,
+                                strokeColor: '#FFFFFF',
+                                strokeWeight: 2,
+                                strokeOpacity: 0.8,
+                                clickable: false 
+                            });
+                            features[0].getGeometry().forEachLatLng(latlng => bounds.extend(latlng));
+                        }
+                    }
+                });
+            }
+        });
+    
+        // --- STAGE 3: Render the parent location OUTLINES (no fill) ---
+        locations.forEach((loc, index) => {
+            let geoData = loc.geo_json_data;
+            if (geoData && typeof geoData === 'string') { try { geoData = JSON.parse(geoData); } catch (e) { geoData = null; } }
+            
+            if (geoData && typeof geoData === 'object') {
+                let featureData = (geoData.type === 'Feature') ? geoData : { type: 'Feature', geometry: geoData, properties: {} };
+                featureData.properties = { type: 'pasture-outline' }; // Give it a unique type
+                const features = map.data.addGeoJson(featureData);
+                
+                if (features[0]) {
+                    const color = COLOR_PALETTE[index % COLOR_PALETTE.length];
+                    map.data.overrideStyle(features[0], {
+                        fillOpacity: 0.0, // No fill on this layer
+                        strokeColor: color,
+                        strokeWeight: 4,  // A thicker outline
+                        strokeOpacity: 1,
+                        clickable: false  // This layer is purely visual
+                    });
+                }
+            }
+        });
+    
+        // Auto-zoom and focus logic (remains the same)
+        if (shapesExist && !bounds.isEmpty() && !locationIdToFocusOnLoad && !sublocationIdToFocusOnLoad) {
             map.fitBounds(bounds);
         }
 
@@ -304,16 +362,31 @@ const farmLocationsPageManager = (() => {
             if (!featureFound) console.error(`Could not find feature with ID ${locationIdToFocusOnLoad}`);
             locationIdToFocusOnLoad = null;
         }
+
+        if (sublocationIdToFocusOnLoad) {
+            let featureFound = false;
+            map.data.forEach(feature => {
+                if (feature.getProperty('sublocationId') == sublocationIdToFocusOnLoad) {
+                    featureFound = true;
+                    const featureBounds = new google.maps.LatLngBounds();
+                    feature.getGeometry().forEachLatLng(latlng => featureBounds.extend(latlng));
+                    map.fitBounds(featureBounds);
+                }
+            });
+            if (!featureFound) console.error(`Could not find feature for sublocation ID ${sublocationIdToFocusOnLoad}`);
+            sublocationIdToFocusOnLoad = null; // Reset the flag
+        }
+
     }
 
     async function handlePolygonComplete(polygon) {
-        drawingManager.setDrawingMode(null); // Always turn off drawing mode
+        drawingManager.setDrawingMode(null);
         const area = google.maps.geometry.spherical.computeArea(polygon.getPath()) / 10000;
         
-        // Case 1: We are assigning a shape to an existing location
-        if (locationIdToDrawFor) {
-            const locationToUpdate = locationIdToDrawFor;
-            locationIdToDrawFor = null; // Clear the flag immediately
+        // --- CHANGE 4: ADD A NEW CASE FOR SUBLOCATIONS ---
+        if (sublocationIdToDrawFor) {
+            const sublocationToUpdate = sublocationIdToDrawFor;
+            sublocationIdToDrawFor = null; // Clear the flag
 
             const dataLayer = new google.maps.Data();
             dataLayer.add(new google.maps.Data.Feature({ geometry: new google.maps.Data.Polygon([polygon.getPath().getArray()]) }));
@@ -325,25 +398,22 @@ const farmLocationsPageManager = (() => {
                     return;
                 }
 
-                const confirmed = await showCustomConfirm(getTranslation('confirm_assign_shape', { name: locationToUpdate.name }));
+                const confirmed = await showCustomConfirm(getTranslation('confirm_assign_shape', { name: sublocationToUpdate.name }));
                 
                 if (confirmed) {
                     try {
-                        // We must fetch the original data to not overwrite other fields
-                        const fetchResponse = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationToUpdate.id}/`);
-                        if (!fetchResponse.ok) throw new Error('Could not fetch original location data.');
-                        const originalData = (await fetchResponse.json()).location_details;
+                        // Fetch original sublocation to not overwrite its name
+                        const fetchResponse = await fetch(`${API_URL}/api/farm/${selectedFarmId}/sublocation/${sublocationToUpdate.id}/`);
+                        if (!fetchResponse.ok) throw new Error('Could not fetch original sublocation data.');
+                        const originalData = await fetchResponse.json();
                         
-                        // Create the payload, preserving old data and adding the new shape
                         const payload = {
                             name: originalData.name,
-                            location_type: originalData.location_type,
-                            grass_type: originalData.grass_type,
                             area_hectares: area, // Use the new calculated area
-                            geo_json_data: shapeData // Add the new shape data
+                            geo_json_data: shapeData
                         };
 
-                        const updateResponse = await fetch(`${API_URL}/api/farm/${selectedFarmId}/location/${locationToUpdate.id}/`, {
+                        const updateResponse = await fetch(`${API_URL}/api/farm/${selectedFarmId}/sublocation/${sublocationToUpdate.id}/`, {
                             method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
                         });
 
@@ -387,6 +457,16 @@ const farmLocationsPageManager = (() => {
     
     function handleDrawShapeForLocation(locationId, locationName) {
         locationIdToDrawFor = { id: locationId, name: locationName };
+        switchToView('map');
+    }
+
+    function handleSeeSublocationOnMap(sublocationId) {
+        sublocationIdToFocusOnLoad = sublocationId;
+        switchToView('map');
+    }
+    
+    function handleDrawShapeForSublocation(sublocationId, sublocationName) {
+        sublocationIdToDrawFor = { id: sublocationId, name: sublocationName };
         switchToView('map');
     }
 
@@ -811,8 +891,20 @@ const farmLocationsPageManager = (() => {
             if (deleteSublocationBtn) handleDeleteSublocationClick(deleteSublocationBtn.dataset.sublocationId, deleteSublocationBtn.dataset.sublocationName);
             if (assignHerdBtn) handleBulkAssignClick(assignHerdBtn.dataset.locationId, assignHerdBtn.dataset.locationName, assignHerdBtn.dataset.sublocationId, assignHerdBtn.dataset.sublocationName);
 
-            if (seeOnMapBtn) handleSeeOnMapFromList(seeOnMapBtn.dataset.locationId);
-            if (drawOnMapBtn) handleDrawShapeForLocation(drawOnMapBtn.dataset.locationId, drawOnMapBtn.dataset.locationName);
+            if (drawOnMapBtn) {
+                if (drawOnMapBtn.dataset.sublocationId) {
+                    handleDrawShapeForSublocation(drawOnMapBtn.dataset.sublocationId, drawOnMapBtn.dataset.sublocationName);
+                } else if (drawOnMapBtn.dataset.locationId) {
+                    handleDrawShapeForLocation(drawOnMapBtn.dataset.locationId, drawOnMapBtn.dataset.locationName);
+                }
+            }
+            if (seeOnMapBtn) {
+                if (seeOnMapBtn.dataset.sublocationId) {
+                    handleSeeSublocationOnMap(seeOnMapBtn.dataset.sublocationId);
+                } else if (seeOnMapBtn.dataset.locationId) {
+                    handleSeeOnMapFromList(seeOnMapBtn.dataset.locationId);
+                }
+            }
         });
 
         if (window.locationToConsult) {

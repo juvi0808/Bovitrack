@@ -148,6 +148,8 @@ class SublocationCreateUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer for CREATING and UPDATING a sublocation.
     """
+    geo_json_data = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    
     class Meta:
         model = Sublocation
         fields = ['name', 'area_hectares', 'geo_json_data']
